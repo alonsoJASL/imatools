@@ -4,6 +4,7 @@
 *.igb
 *.vtk
 *.nii
+*.dat
 
 
 # Byte-compiled / optimized / DLL files

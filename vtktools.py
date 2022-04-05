@@ -13,7 +13,7 @@ def readVtk(fname):
     return reader.GetOutput()
 
 def writeVtk(mesh, directory, outname="output"):
-    writer=vtk.vtkPolyDataWriter();
+    writer=vtk.vtkPolyDataWriter()
     writer.SetInputData(mesh)
     writer.SetFileName(directory+"/"+outname+".vtk")
     writer.SetFileTypeToASCII()

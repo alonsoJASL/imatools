@@ -9,7 +9,14 @@ def fullfile(*paths):
     """
     s='/'
     return s.join(paths)
-    
+
+def cout(msg, typeMsg="INFO", print2console=True):
+    """
+    LOGGING FUNCTION
+    """
+    if print2console==True:
+        print("[{}] {}".format(typeMsg, msg))
+
 def getTotal(fname):
     """
     Get total number of elements at the top of a file

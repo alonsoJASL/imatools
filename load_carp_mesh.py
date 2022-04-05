@@ -23,19 +23,12 @@ print("Input 0 " + mesh_0)
 print("Input 1 " + mesh_1)
 print("Output " + mesh_out)
 
-# ptsname = fullfile(directory, mesh_0+'.pts')
-# elemname = fullfile(directory, mesh_0 + ".elem")
-# pts, nPts = readParsePts(ptsname)
-# el, nElem = readParseElem(elemname)
-#
-# print("Name: {}\n Number of nodes: {}".format(ptsname, nPts))
-# print(pts)
-# print("Number of elements: {}".format(nElem))
-# print(el[1:10])
+ptsname = fullfile(directory, mesh_0+'.pts')
+elemname = fullfile(directory, mesh_0 + ".elem")
+pts, nPts = readParsePts(ptsname)
+el, nElem = readParseElem(elemname)
 
-vtk0 = readVtk(fullfile(directory, mesh_0+".vtk"))
-vtk1 = readVtk(fullfile(directory, mesh_1+".vtk"))
-
-vtko = getHausdorfDistance(vtk0, vtk1)
-
-writeVtk(vtko, directory, mesh_out)
+print("Name: {}\n Number of nodes: {}".format(ptsname, nPts))
+print(pts)
+print("Number of elements: {}".format(nElem))
+print(el[1:10])
