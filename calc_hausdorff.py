@@ -38,7 +38,7 @@ vtk0 = readVtk(fullfile(dir_0, mesh_0+".vtk"))
 vtk1 = readVtk(fullfile(dir_1, mesh_1+".vtk"))
 
 cout("Calculating Hausdorff distance")
-vtko = getHausdorfDistance(vtk0, vtk1)
+vtko = getHausdorffDistance(vtk0, vtk1)
 
 cout("Writing {} mesh".format(mesh_out))
 writeVtk(vtko, dir_out, mesh_out)

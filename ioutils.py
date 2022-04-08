@@ -2,6 +2,20 @@
 import os, sys, subprocess, pdb, re, struct,errno
 import numpy as np
 import string
+import readline
+import glob
+
+def history(n=0):
+    """
+    Prints history
+    """
+    if n==0:
+        NUM=readline.get_current_history_length()
+    else:
+        NUM=n
+
+    for ix in range(NUM):
+        print (readline.get_history_item(ix + 1))
 
 def fullfile(*paths):
     """
@@ -9,6 +23,13 @@ def fullfile(*paths):
     """
     s='/'
     return s.join(paths)
+
+def searchFileByType(directory, prefix='', extension=''):
+    """
+    Search file by filetype
+    """
+    l = glob.glob(fullfile(directory, prefix + '*.' + extension))
+    return l
 
 def cout(msg, typeMsg="INFO", print2console=True):
     """
@@ -67,3 +88,17 @@ def readParseElem(elFname):
     el = [(line.strip()).split() for line in elemStr]
 
     return el, nElem
+
+def readFileToList(fname, delim=','):
+    """
+    Read File to list. Input is normally a table, like a csv
+    """
+    try:
+        with open(fname, encoding='utf-8') as f:
+            fileContents=f.readlines()
+            fileContentsInList = [(line.strip()).split(sep=delim) for line in fileContents]
+            return fileContentsInList
+
+    except Exception as e:
+        print("[readFileToList] Error - file not found")
+        sys.exit(-1)
