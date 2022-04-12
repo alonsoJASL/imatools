@@ -52,18 +52,36 @@ def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0, verbose=False)
 
     return hd
 
+def genericThreshold(msh, exactValue, typeThres='exact'):
+    """
+    Threshold polydata
+    Returns a unstructured grid
+    """
+    dic={'exact': 0, 'upper': 1, 'lower': 2}
+    th=vtk.vtkThreshold()
+    th.SetInputData(msh)
+
+    if dic[typeThres] == 0: # exact
+        th.ThresholdBetween(exactValue,exactValue)
+    elif dic[typeThres] == 1: # upper
+        th.ThresholdByUpper(exactValue)
+    elif dic[typeThres] == 2: # lower
+        th.ThresholdByLower(exactValue)
+    else:
+        cout("Wrong type of threshold", "ERROR")
+        sys.exit(-1)
+
+    th.Update()
+
+    return th.GetOutput()
 
 def thresholdExactValue(msh, exactValue):
     """
     Threshold polydata at exact value (like a tag)
     Returns a unstructured grid
     """
-    th=vtk.vtkThreshold()
-    th.SetInputData(msh)
-    th.ThresholdBetween(exactValue,exactValue)
-    th.Update()
 
-    return th.GetOutput()
+    return genericThreshold(msh, exactValue, 'exact')
 
 def convertPointDataToNpArray(vtk_input, str_scalars):
     """
