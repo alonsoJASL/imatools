@@ -2,6 +2,7 @@ import argparse
 import os, sys
 import math
 import vtk
+import csv
 import numpy as np
 import pandas as pd
 
@@ -36,13 +37,18 @@ verbose=args.verbose
 cout("Parsed arguments")
 
 cout(labels_str, "LABELS", verbose)
-labels = [int(n.strip()) for n in labels_str.split(',')]
+thresTypeScar = ("Scar" in msh_prefix)
+cout("Computing scar threshold", print2console=thresTypeScar)
+
+if thresTypeScar:
+    labels = [float(n.strip()) for n in labels_str.split(',')]
+else:
+    labels = [int(n.strip()) for n in labels_str.split(',')]
 
 if mode>1:
     cout("Modes supported (-m MODE): INTER=0, INTRA=1", "ERROR")
     sys.exit(-1)
 
-thresTypeScar = ("Scar" in msh_prefix)
 
 file_cases=readFileToList(comparisons_file)
 output_list = [['case','comparison','label','area_0','area_1','jaccard'],]
@@ -77,23 +83,39 @@ for comp in file_cases:
     path0 = fullfile(baseDir, u0, '03_completed', p0)
     path1 = fullfile(baseDir, u1, '03_completed', p1)
 
+    cout(path0)
+    cout(path1)
+
     l0=searchFileByType(path0, msh_prefix, 'vtk')
     l1=searchFileByType(path1, msh_prefix, 'vtk')
 
     msh0=readVtk(l0[0])
     msh1=readVtk(l1[0])
 
+    cout("Processing labels ({},{}) vs ({},{})".format(u0, p0, u1, p1))
+    cout(path0, 'Path_0')
+    cout(path1, 'Path_1')
     for l in labels:
-        if thresTypeScar:
-            th0 = ugrid2polydata(thresholdExactValue(msh0, l))
-            th1 = ugrid2polydata(thresholdExactValue(msh1, l))
-        else:
-            th0 = ugrid2polydata(genericThreshold(msh0, l, 'upper'))
-            th1 = ugrid2polydata(genericThreshold(msh1, l, 'upper'))
+        cout(l, 'LABELS', verbose)
+        typeThres = "upper" if (thresTypeScar) else "exact"
+        th0 = ugrid2polydata(genericThreshold(msh0, l, typeThres))
+        th1 = ugrid2polydata(genericThreshold(msh1, l, typeThres))
 
         area_0 = getSurfaceArea(th0)
         area_1 = getSurfaceArea(th1)
-        jaccard = getSurfacesJaccard(th0, th1)
+
+        # Jaccard is calclated by the Distance points > 1mm
+        hd = getHausdorffDistance(th0, th1)
+
+        th_intersect=vtk.vtkThreshold()
+        th_intersect.SetInputData(hd)
+        th_intersect.SetInputArrayToProcess(0,0,0, "vtkDataObject::FIELD_ASSOCIATION_POINTS", 'Distance')
+        th_intersect.ThresholdByLower(1.0)
+        th_intersect.Update()
+
+        intersection = getSurfaceArea(ugrid2polydata(th_intersect.GetOutput()))
+
+        jaccard = intersection/area_0
 
         output_list.append(surfaceStats(entry_A, entry_B0, entry_B1, l, area_0, area_1, jaccard))
 
