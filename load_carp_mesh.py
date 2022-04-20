@@ -28,6 +28,9 @@ elemname = fullfile(directory, mesh_0 + ".elem")
 pts, nPts = readParsePts(ptsname)
 el, nElem = readParseElem(elemname)
 
+elem_before = [e[1:4] for e in el]
+elem = [[int(ex.strip()) for ex in e] for e in elem_before]
+
 print("Name: {}\n Number of nodes: {}".format(ptsname, nPts))
 print(pts)
 print("Number of elements: {}".format(nElem))

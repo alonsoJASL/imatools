@@ -16,6 +16,7 @@ def readVtk(fname):
 
 def writeVtk(mesh, directory, outname="output"):
     writer=vtk.vtkPolyDataWriter()
+    writer.WriteArrayMetaDataOff()
     writer.SetInputData(mesh)
     writer.SetFileName(directory+"/"+outname+".vtk")
     writer.SetFileTypeToASCII()
@@ -94,6 +95,15 @@ def convertPointDataToNpArray(vtk_input, str_scalars):
 
     return distance
 
+def extractPointsAndElemsFromVtk(msh):
+    pts=[list(msh.GetPoint(ix)) for ix in range(msh.GetNumberOfPoints())]
+    el = [[msh.GetCell(jx).GetPointIds().GetId(ix) for ix in range(3)] for jx in range(msh.GetNumberOfCells())]
+
+    X=np.asarray(pts)
+    Tri=np.asarray(el)
+
+    return X, Tri
+
 def ugrid2polydata(ugrid):
     """
     Converts unstructured grid to polydata using the geometry filter
@@ -131,3 +141,30 @@ def getSurfacesJaccard(pd1, pd2):
     intersection = getBooleanOperation(pd1, pd2, 'intersection')
 
     return getSurfaceArea(intersection)/getSurfaceArea(union)
+
+def saveCarpAsVtk(pts, el, dir, name, dat=None):
+    nodes = vtk.vtkPoints()
+    for ix in range(len(pts)):
+        nodes.InsertPoint(ix, pts[ix,0], pts[ix,1], pts[ix,2])
+
+    elems = vtk.vtkCellArray()
+    for ix in range(len(el)):
+        elIdList=vtk.vtkIdList()
+        elIdList.InsertNextId(el[ix,0])
+        elIdList.InsertNextId(el[ix,1])
+        elIdList.InsertNextId(el[ix,2])
+        elems.InsertNextCell(elIdList)
+
+    pd=vtk.vtkPolyData()
+    pd.SetPoints(nodes)
+    pd.SetPolys(elems)
+    if dat is not None:
+        pd.GetPointData().SetScalars(vtknp.numpy_to_vtk(dat))
+        p2c=vtk.vtkPointDataToCellData()
+        p2c.SetInputData(pd)
+        p2c.Update()
+        outpd=p2c.GetOutput()
+    else:
+        outpd=pd
+
+    writeVtk(outpd, dir, name)

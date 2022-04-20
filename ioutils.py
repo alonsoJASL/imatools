@@ -102,3 +102,7 @@ def readFileToList(fname, delim=','):
     except Exception as e:
         print("[readFileToList] Error - file not found")
         sys.exit(-1)
+
+def saveToCarpTxt(pts, el, mshname):
+    np.savetxt(mshname+'.pts', pts, header=str(len(pts)), comments='', fmt='%6.12f')
+    np.savetxt(mshname+'.elem', el, header=str(len(el)), comments='', fmt='Tr %d %d %d 1')

@@ -14,4 +14,5 @@ conda install numpy -n imatools -y
 conda install scipy -n imatools -y
 conda install matplotlib -n imatools -y
 conda install pandas -n imatools -y
+conda install networkx -c conda-forge -n imatools -y
 ```
