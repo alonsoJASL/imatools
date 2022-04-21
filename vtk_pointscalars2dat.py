@@ -2,8 +2,8 @@ import argparse
 import os, sys
 import vtk
 import numpy
-from ioutils import *
-from vtktools import *
+import imatools.ioutils
+import imatools.vtktools
 
 inputParser = argparse.ArgumentParser(description="Calculate Hausdorff Distance between 2 meshes")
 inputParser.add_argument("baseDir", metavar="path", type=str, help="Directory with data")

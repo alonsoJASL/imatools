@@ -6,10 +6,10 @@ import csv
 import numpy as np
 import pandas as pd
 
-from ioutils import *
-from vtktools import *
+import imatools.ioutils
+import imatools.vtktools
 
-import plotutils as myplot
+import imatools.plotutils as myplot
 
 def surfaceStats(a,b0,b1,l, area0, area1, jacc):
     return [a, b0+b1, l, area0, area1, jacc]

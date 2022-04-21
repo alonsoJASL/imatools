@@ -2,8 +2,8 @@ import sys
 sys.path.insert(1, '/Users/jsolislemus/dev/python/quLATi')
 
 from qulati.meshutils import subset_anneal, subset_triangulate, extendMesh
-from vtktools import *
-from ioutils import *
+import imatools.vtktools
+import imatools.ioutils
 
 import argparse
 import os, sys

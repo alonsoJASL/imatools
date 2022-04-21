@@ -3,10 +3,10 @@ import os, sys
 import math
 import vtk
 import numpy
-from ioutils import *
-from vtktools import *
 
-import plotutils as myplot
+import imatools.ioutils
+import imatools.vtktools
+import imatools.plotutils as myplot
 #
 import pandas as pd
 import matplotlib as mpl

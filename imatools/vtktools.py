@@ -1,7 +1,7 @@
 import os, sys, subprocess, pdb, re, struct,errno
 import vtk
 from vtk.util.numpy_support import vtk_to_numpy
-from ioutils import cout
+from imatools.ioutils import cout
 import numpy as np
 
 def readVtk(fname):

@@ -1,4 +1,4 @@
-from ioutils import cout, fullfile
+from imatools.ioutils import cout, fullfile
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ def plot_dict(mydic, plotname, out_dir, oname, ylims=[]):
         fig.suptitle(oname)
         fig.savefig(fullfile(out_dir, '{}_{}.pdf'.format(oname, plotname)))
         return fig, ax
-        
+
     except AttributeError:
         cout("Plot function {} does not exist".format(plotname), 'ERROR')
         sys.exit(-1)
