@@ -4,8 +4,8 @@ import math
 import vtk
 import numpy
 
-import imatools.ioutils
-import imatools.vtktools
+from imatools.ioutils import *
+from imatools.vtktools import *
 import imatools.plotutils as myplot
 #
 import pandas as pd

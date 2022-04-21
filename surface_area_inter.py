@@ -6,8 +6,8 @@ import csv
 import numpy as np
 import pandas as pd
 
-import imatools.ioutils
-import imatools.vtktools
+from imatools.ioutils import *
+from imatools.vtktools import *
 
 import imatools.plotutils as myplot
 

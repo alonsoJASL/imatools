@@ -2,8 +2,8 @@ import argparse
 import os, sys
 import vtk
 import numpy
-import imatools.ioutils
-import imatools.vtktools
+from imatools.ioutils import *
+from imatools.vtktools import *
 
 inputParser = argparse.ArgumentParser(description="Various tests")
 inputParser.add_argument("directory", metavar="path", type=str, help="Directory with data")

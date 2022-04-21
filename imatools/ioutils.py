@@ -103,6 +103,32 @@ def readFileToList(fname, delim=','):
         print("[readFileToList] Error - file not found")
         sys.exit(-1)
 
+def loadCarpMesh(mshname, directory=None):
+    """
+    Load CARP mesh. Supports for triangle (Tr) and tetrahedral (Tt) meshes
+    """
+
+    if directory is not None:
+        ptsname = fullfile(directory, mshname+'.pts')
+        elemname = fullfile(directory, mshname + ".elem")
+    else:
+        ptsname = mshname+'.pts'
+        elemname = mshname + ".elem"
+
+    pts, nPts = readParsePts(ptsname)
+    el, nElem = readParseElem(elemname)
+
+    for e in el:
+        nel = 4 if e[0]=='Tr' else 5
+        elem_before = e[1:nel]
+        elem = [[int(ex.strip()) for ex in e] for e in elem_before]
+
+    region_before = [e[-1] for e in el]
+    region = [int(x.strip()) for x in region_before]
+
+    return pts, el, region
+
+
 def saveToCarpTxt(pts, el, mshname):
     np.savetxt(mshname+'.pts', pts, header=str(len(pts)), comments='', fmt='%6.12f')
     np.savetxt(mshname+'.elem', el, header=str(len(el)), comments='', fmt='Tr %d %d %d 1')
