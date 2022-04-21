@@ -1,12 +1,12 @@
-import sys
-sys.path.insert(1, '/Users/jsolislemus/dev/python/quLATi')
+import sys, os
+QULATI_DIR=os.getcwd()+'/../quLATi'
+sys.path.insert(1, QULATI_DIR)
 
 from qulati.meshutils import subset_anneal, subset_triangulate, extendMesh
 from imatools.vtktools import *
 from imatools.ioutils import *
 
 import argparse
-import os, sys
 import math
 import csv
 import numpy as np
