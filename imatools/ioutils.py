@@ -118,15 +118,18 @@ def loadCarpMesh(mshname, directory=None):
     pts, nPts = readParsePts(ptsname)
     el, nElem = readParseElem(elemname)
 
+    cout("Number of elements: {}".format(len(el)))
+
+    elem=list()
     for e in el:
         nel = 4 if e[0]=='Tr' else 5
         elem_before = e[1:nel]
-        elem = [[int(ex.strip()) for ex in e] for e in elem_before]
+        elem.append([int(ex.strip()) for ex in elem_before])
 
     region_before = [e[-1] for e in el]
     region = [int(x.strip()) for x in region_before]
 
-    return pts, el, region
+    return pts, elem, region
 
 
 def saveToCarpTxt(pts, el, mshname):
