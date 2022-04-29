@@ -1,6 +1,6 @@
 import os, sys, subprocess, pdb, re, struct,errno
 import vtk
-from vtk.util.numpy_support import vtk_to_numpy
+import vtk.util.numpy_support as vtknp
 from imatools.ioutils import cout
 import numpy as np
 
@@ -91,7 +91,7 @@ def convertPointDataToNpArray(vtk_input, str_scalars):
     Convert vtk scalar data to numpy array
     """
     vtkArrayDistance=vtk_input.GetPointData().GetScalars(str_scalars)
-    distance=vtk_to_numpy(vtkArrayDistance)
+    distance=vtknp.vtk_to_numpy(vtkArrayDistance)
 
     return distance
 
@@ -150,9 +150,9 @@ def saveCarpAsVtk(pts, el, dir, name, dat=None):
     elems = vtk.vtkCellArray()
     for ix in range(len(el)):
         elIdList=vtk.vtkIdList()
-        elIdList.InsertNextId(el[ix,0])
-        elIdList.InsertNextId(el[ix,1])
-        elIdList.InsertNextId(el[ix,2])
+        elIdList.InsertNextId(el[ix][0])
+        elIdList.InsertNextId(el[ix][1])
+        elIdList.InsertNextId(el[ix][2])
         elems.InsertNextCell(elIdList)
 
     pd=vtk.vtkPolyData()
