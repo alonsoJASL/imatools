@@ -36,7 +36,7 @@ python calculate_volume.py /path/to/file.vtk
 ``` 
 > You can type `python calculate_volume.py` + <kbd>SPACE</kbd> and then drag the file from Finder into the terminal window if you do not know the path.
 
-
+![SCR-20220905-khk-2](https://user-images.githubusercontent.com/9891700/188464906-970f6098-064a-48e1-a138-19e4ba43715b.jpeg)
 
 
 ## Alternative minimal setup
