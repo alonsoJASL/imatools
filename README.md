@@ -34,7 +34,7 @@ Run the volume code by typing
 ```
 python calculate_volume.py /path/to/file.vtk
 ``` 
-> You can type `python calculate_volume ` and then drag the file from Finder into the terminal window if you do not know the path
+> You can type `python calculate_volume.py` + <kbd>SPACE</kbd> and then drag the file from Finder into the terminal window if you do not know the path.
 
 
 
