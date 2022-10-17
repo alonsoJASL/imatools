@@ -95,14 +95,23 @@ def convertPointDataToNpArray(vtk_input, str_scalars):
 
     return distance
 
+def convertCellDataToNpArray(vtk_input, str_scalars):
+    """
+    Convert vtk (cell) scalar data to numpy array
+    """
+    vtkArrayDistance=vtk_input.GetCellData().GetScalars(str_scalars)
+    distance=vtknp.vtk_to_numpy(vtkArrayDistance)
+
+    return distance
+
 def extractPointsAndElemsFromVtk(msh):
     pts=[list(msh.GetPoint(ix)) for ix in range(msh.GetNumberOfPoints())]
     el = [[msh.GetCell(jx).GetPointIds().GetId(ix) for ix in range(3)] for jx in range(msh.GetNumberOfCells())]
 
-    X=np.asarray(pts)
+    Xpts=np.asarray(pts)
     Tri=np.asarray(el)
 
-    return X, Tri
+    return Xpts, Tri
 
 def ugrid2polydata(ugrid):
     """

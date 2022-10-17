@@ -47,4 +47,5 @@ conda create -n vtk81 python=3.6 -y
 conda activate vtk81
 conda install -c conda-forge vtk=8.1 -y
 conda install -c conda-forge numpy -n vtk81 -y  
+conda install -c conda-forge itk
 ```
