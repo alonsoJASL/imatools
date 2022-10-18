@@ -135,3 +135,6 @@ def loadCarpMesh(mshname, directory=None):
 def saveToCarpTxt(pts, el, mshname):
     np.savetxt(mshname+'.pts', pts, header=str(len(pts)), comments='', fmt='%6.12f')
     np.savetxt(mshname+'.elem', el, header=str(len(el)), comments='', fmt='Tr %d %d %d 1')
+
+def near(value1, value2, tol=1e-8) : 
+    return (np.abs(value1-value2) <= tol)
