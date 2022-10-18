@@ -168,3 +168,21 @@ def saveCarpAsVtk(pts, el, dir, name, dat=None):
         outpd=pd
 
     writeVtk(outpd, dir, name)
+
+def getElemPermutation(msh0, msh1) :
+    '''
+    perm = getElemPermutation(msh0, msh1)
+    produces perm such that
+    msh0[perm] = msh1
+    '''
+    n0=len(msh0)
+    n1=len(msh1)
+
+    if n0!=n1 :
+        cout('ERROR. Meshes have different numbers of elements')
+        return -1
+
+    perm=np.zeros(n0, 1)
+    # for el in msh0 :
+
+    return 0
