@@ -22,6 +22,29 @@ def writeVtk(mesh, directory, outname="output"):
     writer.SetFileTypeToASCII()
     writer.Update()
 
+def setCellDataToPointData(msh, fieldname='scalars') : 
+    c2pt = vtk.vtkCellDataToPointData()
+    c2pt.SetInputData(msh)
+    c2pt.PassCellDataOn()
+    c2pt.SetContributingCellOption(0)
+    c2pt.Update()
+
+    omsh=c2pt.GetPolyDataOutput()
+    omsh.GetPointData().GetScalars().SetName(fieldname)
+
+    return omsh
+
+def getCentreOfGravity(msh) : 
+    pts, el = extractPointsAndElemsFromVtk(msh)
+    cog = np.zeros(len(el), 3)
+    for ix in range(len(el)): 
+        ex = el[ix] 
+        for jx in range(3) : 
+            cog[ix,:] += pts[ex[jx]] 
+        cog[ix, :] /= 3
+    
+    return cog
+
 def getHausdorffDistance(input_mesh0, input_mesh1, label=0):
     """
     Get Hausdorf Distance between 2 surface meshes

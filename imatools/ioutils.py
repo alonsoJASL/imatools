@@ -1,9 +1,9 @@
 
-import os, sys, subprocess, pdb, re, struct,errno
+import sys
 import numpy as np
-import string
 import readline
 import glob
+import platform
 
 def history(n=0):
     """
@@ -138,3 +138,4 @@ def saveToCarpTxt(pts, el, mshname):
 
 def near(value1, value2, tol=1e-8) : 
     return (np.abs(value1-value2) <= tol)
+
