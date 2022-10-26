@@ -326,3 +326,18 @@ def fibrosisOverlapCell(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') :
     tn = countt - (count0+count1+countb)
     count_dic = {'total' : countt, name0 : count0, name1: count1, 'overlap' : countb, 'none' : tn}
     return omsh, count_dic
+
+def fibrorisScore(msh, th) : 
+    """Assumes the scalars in msh have been normalised"""
+    scalars = msh.GetCellData().GetScalars()
+    countt = float(msh.GetNumberOfCells())
+    countfib = 0.0
+
+    for ix in range(msh.GetNumberOfCells()):
+        if (scalars.GetTuple1(ix) == 0) : 
+            countt -= 1.0
+        
+        elif (scalars.GetTuple1(ix) >= th) : 
+            countfib += 1.0
+    
+    return countfib/countt 
