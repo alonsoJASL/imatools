@@ -36,7 +36,7 @@ def setCellDataToPointData(msh, fieldname='scalars') :
 
 def getCentreOfGravity(msh) : 
     pts, el = extractPointsAndElemsFromVtk(msh)
-    cog = np.zeros(len(el), 3)
+    cog = np.zeros((len(el), 3))
     for ix in range(len(el)): 
         ex = el[ix] 
         for jx in range(3) : 
@@ -218,3 +218,111 @@ def getElemPermutation(msh0, msh1) :
     # for el in msh0 :
 
     return 0
+
+def projectCellData(msh_source, msh_target) : 
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh_source)
+
+    target_pl = vtk.vtkCellLocator()
+    target_pl.SetDataSet(msh_target)
+    target_pl.AutomaticOn()
+    target_pl.BuildLocator()
+
+    target_scalar = msh_target.GetCellData().GetScalars()
+    o_scalar = vtk.vtkFloatArray()
+    o_scalar.SetNumberOfComponents(1)
+
+    default_value = 0
+    cog = getCentreOfGravity(msh_source)
+    for ix in range(msh_source.GetNumberOfCells()):
+        pt = cog[ix, :]
+        closest_pt = np.zeros((3,1))
+        c_id=np.int8()
+        subid = np.int8()
+        dist2 = np.float32()
+        id_on_target=vtk.reference(c_id)
+        Subid=vtk.reference(subid)
+        Dist2=vtk.reference(dist2)
+
+        # target_pl.FindCell(pt)
+        target_pl.FindClosestPoint(pt, closest_pt, id_on_target, Subid, Dist2)
+
+        mapped_val = target_scalar.GetTuple1(id_on_target) if (
+            id_on_target > 0) else default_value
+        o_scalar.InsertNextTuple1(mapped_val)
+
+    omsh.GetCellData().SetScalars(o_scalar)
+
+    return omsh
+
+def projectPointData(msh_source, msh_target) : 
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh_source)
+
+    target_pl = vtk.vtkPointLocator()
+    target_pl.SetDataSet(msh_target)
+    target_pl.AutomaticOn()
+    target_pl.BuildLocator()
+
+    target_scalar = msh_target.GetPointData().GetScalars()
+    o_scalar = vtk.vtkFloatArray()
+    o_scalar.SetNumberOfComponents(1)
+
+    default_value = 0
+    for ix in range(msh_source.GetNumberOfPoints()):
+        pt = msh_source.GetPoint(ix)
+        id_on_target = target_pl.FindClosestPoint(pt)
+
+        mapped_val = target_scalar.GetTuple1(id_on_target) if (
+            id_on_target > 0) else default_value
+        o_scalar.InsertNextTuple1(mapped_val)
+
+    omsh.GetPointData().SetScalars(o_scalar)
+
+    return omsh
+
+def fibrosisOverlapCell(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') : 
+    """Make sure msh0 aligns with msh1 in number of cells"""
+    th1 = th0 if (th1 is None) else th1
+
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh0)
+    o_scalar = vtk.vtkFloatArray()
+    o_scalar.SetNumberOfComponents(1)
+    
+    scalar0 = msh0.GetCellData().GetScalars()
+    scalar1 = msh1.GetCellData().GetScalars()
+
+    count0 = 0
+    count1 = 0
+    countb = 0
+    countt = msh0.GetNumberOfCells()
+
+    for ix in range(msh0.GetNumberOfCells()):
+        value_assigned = 0
+
+        if (scalar0.GetTuple1(ix) == 0):
+            value_assigned = -1
+            countt -= 1
+
+        else:
+            fib_at_0 = False
+            fib_at_1 = False
+            if (scalar0.GetTuple1(ix) >= th0):
+                value_assigned += 1
+                count0 += 1
+                fib_at_0 = True
+
+            if (scalar1.GetTuple1(ix) >= th1):
+                value_assigned += 2
+                count1 += 1
+                fib_at_1 = True 
+            
+            countb += 1 if (fib_at_1 and fib_at_0) else 0
+
+        o_scalar.InsertNextTuple1(value_assigned)
+
+    omsh.GetCellData().SetScalars(o_scalar)
+    tn = countt - (count0+count1+countb)
+    count_dic = {'total' : countt, name0 : count0, name1: count1, 'overlap' : countb, 'none' : tn}
+    return omsh, count_dic

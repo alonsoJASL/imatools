@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import readline
 import glob
-import platform
+import platform as pltf
 
 def history(n=0):
     """
@@ -139,3 +139,18 @@ def saveToCarpTxt(pts, el, mshname):
 def near(value1, value2, tol=1e-8) : 
     return (np.abs(value1-value2) <= tol)
 
+def chooseplatform() : 
+    return pltf.platform().split('-')[0]
+
+def performanceMetrics(tp, tn, fp, fn) : 
+    jaccard=tp/(tp+fn+fp) 
+    precision=tp/(tp+fp)
+    recall=tp/(tp+fn)
+    accuracy=(tp+tn)/(tp+tn+fp+fn)
+
+    out_dic = {'jaccard' : jaccard, 
+               'precision' : precision,
+               'recall' : recall,
+               'accuracy' : accuracy}
+    
+    return out_dic

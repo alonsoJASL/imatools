@@ -1,0 +1,58 @@
+import sys
+import os
+IMATOOLS_DIR = os.getcwd()+'/../imatools'
+sys.path.insert(1, IMATOOLS_DIR)
+
+import imatools.ioutils as iou
+import imatools.vtktools as vtktools
+import argparse
+
+inputParser = argparse.ArgumentParser(description="Project one mesh onto another", epilog="NOTICE: Output mesh shape is source but with target scalars")
+inputParser.add_argument("-sdir", "--dir-source", metavar="dir", type=str, help="Directory with data (source)")
+inputParser.add_argument("-tdir", "--dir-target", metavar="dir", type=str, help="Directory with data (target)")
+inputParser.add_argument("-smsh", "--msh-source", metavar="mshname", type=str, help="Source mesh name")
+inputParser.add_argument("-tmsh", "--msh-target", metavar="mshname", type=str, help="Target mesh name")
+
+inputParser.add_argument("-odir", "--dir-output", metavar="dir", type=str, help="Output directory")
+inputParser.add_argument("-omsh", "--msh-output", metavar="mshname", type=str, default='output', help="Output mesh name")
+
+inputParser.add_argument("-dt", "--data-type", choices=['cell', 'point'], type=str)
+
+inputParser.add_argument("-v", "--verbose", action='store_true', help="Verbose output")
+
+args = inputParser.parse_args()
+
+dir_source =args.dir_source
+msh_source = args.msh_source
+
+dir_target =args.dir_target
+msh_target = args.msh_target
+
+dir_output =args.dir_output
+msh_output = args.msh_output
+
+data_type = args.data_type
+
+verbose = args.verbose
+iou.cout("Parsed arguments", print2console=verbose)
+
+msh_source += '.vtk' if ('.vtk' not in msh_source) else ""
+msh_target += '.vtk' if ('.vtk' not in msh_target) else ""
+
+msh_src = vtktools.readVtk(iou.fullfile(dir_source, msh_source))
+msh_trg = vtktools.readVtk(iou.fullfile(dir_source, msh_target))
+
+iou.cout("Projecting {} data".format(data_type), print2console=verbose)
+
+if (data_type == 'cell') : 
+    msh_out = vtktools.projectCellData(msh_source=msh_src, msh_target=msh_trg)
+elif (data_type == 'points') : 
+    msh_out = vtktools.projectPointData(msh_source=msh_src, msh_target=msh_trg)
+
+if ('.vtk' in msh_output) : 
+    msh_output = msh_output[:-4]
+
+iou.cout("Writing file {}".format(iou.fullfile(dir_output, msh_output+'.vtk')), print2console=verbose)
+vtktools.writeVtk(msh_out, dir_output, msh_output)
+
+iou.cout("Goodbye", print2console=verbose)
