@@ -1,10 +1,5 @@
-import sys
-import os
-IMATOOLS_DIR = os.getcwd()+'/../imatools'
-sys.path.insert(1, IMATOOLS_DIR)
-
-import imatools.ioutils as iou
-import imatools.vtktools as vtktools
+from common import ioutils as iou
+from common import vtktools as vtku
 import argparse
 
 inputParser = argparse.ArgumentParser(description="Project one mesh onto another", epilog="NOTICE: Output mesh shape is source but with target scalars")
@@ -39,20 +34,20 @@ iou.cout("Parsed arguments", print2console=verbose)
 msh_source += '.vtk' if ('.vtk' not in msh_source) else ""
 msh_target += '.vtk' if ('.vtk' not in msh_target) else ""
 
-msh_src = vtktools.readVtk(iou.fullfile(dir_source, msh_source))
-msh_trg = vtktools.readVtk(iou.fullfile(dir_source, msh_target))
+msh_src = vtku.readVtk(iou.fullfile(dir_source, msh_source))
+msh_trg = vtku.readVtk(iou.fullfile(dir_source, msh_target))
 
 iou.cout("Projecting {} data".format(data_type), print2console=verbose)
 
 if (data_type == 'cell') : 
-    msh_out = vtktools.projectCellData(msh_source=msh_src, msh_target=msh_trg)
+    msh_out = vtku.projectCellData(msh_source=msh_src, msh_target=msh_trg)
 elif (data_type == 'points') : 
-    msh_out = vtktools.projectPointData(msh_source=msh_src, msh_target=msh_trg)
+    msh_out = vtku.projectPointData(msh_source=msh_src, msh_target=msh_trg)
 
 if ('.vtk' in msh_output) : 
     msh_output = msh_output[:-4]
 
 iou.cout("Writing file {}".format(iou.fullfile(dir_output, msh_output+'.vtk')), print2console=verbose)
-vtktools.writeVtk(msh_out, dir_output, msh_output)
+vtku.writeVtk(msh_out, dir_output, msh_output)
 
 iou.cout("Goodbye", print2console=verbose)

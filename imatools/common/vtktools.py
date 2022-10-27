@@ -1,7 +1,6 @@
-import os, sys, subprocess, pdb, re, struct,errno
+import sys
 import vtk
 import vtk.util.numpy_support as vtknp
-from imatools.ioutils import cout
 import numpy as np
 
 def readVtk(fname):
@@ -53,18 +52,18 @@ def getHausdorffDistance(input_mesh0, input_mesh1, label=0):
 
     return hd.GetOutput()
 
-def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0, verbose=False):
+def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0):
     """
     Get vtkHausdorffDistancePointSetFilter output between 2 surface meshes
     """
     mesh0 = vtk.vtkPolyData()
     mesh1 = vtk.vtkPolyData()
     if label==0:
-        cout("Calculate distance over entire mesh", print2console=verbose)
+        
         mesh0.DeepCopy(input_mesh0)
         mesh1.DeepCopy(input_mesh1)
     else:
-        cout("Distance calculated only on label = {}".format(label), print2console=verbose)
+        
         mesh0=ugrid2polydata(thresholdExactValue(input_mesh0, label))
         mesh1=ugrid2polydata(thresholdExactValue(input_mesh1, label))
 
@@ -76,12 +75,12 @@ def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0, verbose=False)
 
     return hd
 
-def genericThreshold(msh, exactValue, typeThres='exact', verbose=False):
+def genericThreshold(msh, exactValue, typeThres='exact'):
     """
     Threshold polydata
     Returns a unstructured grid
     """
-    cout("Threshold type: {}".format(typeThres), "genericThreshold", verbose)
+    
     thresBehaviour={'exact': 0, 'upper': 1, 'lower': 2}
 
     th=vtk.vtkThreshold()
@@ -94,7 +93,7 @@ def genericThreshold(msh, exactValue, typeThres='exact', verbose=False):
     elif thresBehaviour[typeThres] == 2: # lower
         th.ThresholdByLower(exactValue)
     else:
-        cout("Wrong type of threshold", "ERROR")
+        
         sys.exit(-1)
 
     th.Update()
@@ -211,7 +210,7 @@ def getElemPermutation(msh0, msh1) :
     n1=len(msh1)
 
     if n0!=n1 :
-        cout('ERROR. Meshes have different numbers of elements')
+        
         return -1
 
     perm=np.zeros(n0, 1)

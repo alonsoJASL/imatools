@@ -1,10 +1,5 @@
-import sys
-import os
-IMATOOLS_DIR = os.getcwd()+'/../imatools'
-sys.path.insert(1, IMATOOLS_DIR)
-
-import imatools.ioutils as iou
-import imatools.vtktools as vtktools
+from common import ioutils as iou
+from common import vtktools as vtku
 import argparse
 
 inputParser = argparse.ArgumentParser(description="Compare fibrosis on meshes")
@@ -34,20 +29,20 @@ iou.cout("Parsed arguments", print2console=verbose)
 
 iou.cout("Loading meshes", print2console=verbose)
 msh_input0 += ".vtk" if ('.vtk' not in msh_input0) else ""
-msh0 = vtktools.readVtk(iou.fullfile(dir, msh_input0))
+msh0 = vtku.readVtk(iou.fullfile(dir, msh_input0))
 
 msh_input1 += ".vtk" if ('.vtk' not in msh_input1) else ""
-msh1 = vtktools.readVtk(iou.fullfile(dir, msh_input1))
+msh1 = vtku.readVtk(iou.fullfile(dir, msh_input1))
 
 iou.cout("Calculating fibrosis overlap", print2console=verbose)
-omsh, counts = vtktools.fibrosisOverlapCell(msh0, msh1, t0, t1)
+omsh, counts = vtku.fibrosisOverlapCell(msh0, msh1, t0, t1)
 
 iou.cout("Saving output mesh", print2console=verbose)
-vtktools.writeVtk(omsh, dir, msh_output)
+vtku.writeVtk(omsh, dir, msh_output)
 
 iou.cout("Calculating fibrosis scores for meshes", print2console=verbose)
-fib0 = vtktools.fibrorisScore(msh0, t0) 
-fib1 = vtktools.fibrorisScore(msh1, t1)
+fib0 = vtku.fibrorisScore(msh0, t0) 
+fib1 = vtku.fibrorisScore(msh1, t1)
 
 iou.cout("Calculating performance metrics for msh1 ({})".format(msh_input1), print2console=verbose)
 Tp = counts['overlap']
@@ -57,7 +52,7 @@ Fn = counts['msh0']
 
 perf = iou.performanceMetrics(tp=Tp, tn=Tn, fp=Fp, fn=Fn)
 
-outstr = "{},{},{},{},{},{},{},{},{}".format(
-    t0, t1, fib0, fib1, perf['jaccard'], perf['precision'], perf['precision'], perf['recall'], perf['accuracy'])
+outstr = "{},{},{},{},{},{},{},{}".format(
+    t0, t1, fib0, fib1, perf['jaccard'], perf['precision'], perf['recall'], perf['accuracy'])
 
 print(outstr)

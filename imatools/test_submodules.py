@@ -1,7 +1,5 @@
-import sys, os
-
-from imatools.ioutils import *
-from imatools.vtktools import *
+from common import ioutils as vtku
+from common import vtktools as iou
 import argparse
 
 """
@@ -17,6 +15,7 @@ args = inputParser.parse_args()
 baseDir=args.base_dir
 mshname1=args.mshname1
 
-cout("Parsed Arguments")
-pd=vtk.vtkPolyData()
+iou.cout("Parsed Arguments")
+
+pd=vtku.readVtk(iou.fullfile(baseDir, mshname1))
 print(pd)

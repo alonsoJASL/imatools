@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 
-import os, sys, subprocess, pdb, re, struct,errno
 # import vtk
 # import vtk.util.numpy_support as vtknp
-from imatools.ioutils import cout
-from imatools.ioutils import fullfile
 import SimpleITK as sitk
-import numpy as np
 
 def load_image_as_np(path_to_file) :
     """ Reads image into numpy array """
