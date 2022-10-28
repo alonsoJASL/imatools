@@ -52,7 +52,12 @@ Fn = counts['msh0']
 
 perf = iou.performanceMetrics(tp=Tp, tn=Tn, fp=Fp, fn=Fn)
 
-outstr = "{},{},{},{},{},{},{},{}".format(
-    t0, t1, fib0, fib1, perf['jaccard'], perf['precision'], perf['recall'], perf['accuracy'])
+outstr = "{},{},{},{},{},{},{},{},{},{},{},{}".format(
+    t0, t1, fib0, fib1, Tp, Tn, Fp, Fn, perf['jaccard'], perf['precision'], perf['recall'], perf['accuracy'])
 
-print(outstr)
+print("{},{},{},{},{}, jaccard".format(t0, t1, fib0, fib1, perf['jaccard']))
+print("{},{},{},{},{}, precision".format(t0, t1, fib0, fib1, perf['precision']))
+print("{},{},{},{},{}, recall".format(t0, t1, fib0, fib1, perf['recall']))
+print("{},{},{},{},{}, accuracy".format(t0, t1, fib0, fib1, perf['accuracy']))
+
+#perf['precision'], perf['recall'], perf['accuracy']

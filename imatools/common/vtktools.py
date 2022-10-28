@@ -235,19 +235,20 @@ def projectCellData(msh_source, msh_target) :
     cog = getCentreOfGravity(msh_source)
     for ix in range(msh_source.GetNumberOfCells()):
         pt = cog[ix, :]
-        closest_pt = np.zeros((3,1))
-        c_id=np.int8()
+        closest_pt = np.zeros((3, 1))
+        c_id = np.int8()
         subid = np.int8()
         dist2 = np.float32()
-        id_on_target=vtk.reference(c_id)
-        Subid=vtk.reference(subid)
-        Dist2=vtk.reference(dist2)
-
+        id_on_target = vtk.reference(c_id)
+        Subid = vtk.reference(subid)
+        Dist2 = vtk.reference(dist2)
         # target_pl.FindCell(pt)
         target_pl.FindClosestPoint(pt, closest_pt, id_on_target, Subid, Dist2)
+        if (id_on_target > 0):
+            mapped_val = target_scalar.GetTuple1(id_on_target)
+        else:
+            mapped_val = default_value
 
-        mapped_val = target_scalar.GetTuple1(id_on_target) if (
-            id_on_target > 0) else default_value
         o_scalar.InsertNextTuple1(mapped_val)
 
     omsh.GetCellData().SetScalars(o_scalar)
@@ -292,38 +293,40 @@ def fibrosisOverlapCell(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') :
     scalar0 = msh0.GetCellData().GetScalars()
     scalar1 = msh1.GetCellData().GetScalars()
 
+    countn = 0
     count0 = 0
     count1 = 0
     countb = 0
-    countt = msh0.GetNumberOfCells()
 
     for ix in range(msh0.GetNumberOfCells()):
         value_assigned = 0
 
-        if (scalar0.GetTuple1(ix) == 0):
+        if (scalar0.GetTuple1(ix) == 0 or scalar1.GetTuple1(ix) == 0):
             value_assigned = -1
-            countt -= 1
 
         else:
-            fib_at_0 = False
-            fib_at_1 = False
             if (scalar0.GetTuple1(ix) >= th0):
                 value_assigned += 1
-                count0 += 1
-                fib_at_0 = True
-
+        
             if (scalar1.GetTuple1(ix) >= th1):
                 value_assigned += 2
+                    
+            if (value_assigned == 0) : 
+                countn += 1
+            elif (value_assigned == 1) : 
+                count0 += 1 
+            elif (value_assigned == 2) : 
                 count1 += 1
-                fib_at_1 = True 
+            elif (value_assigned == 3) : 
+                countb += 1 
             
-            countb += 1 if (fib_at_1 and fib_at_0) else 0
-
         o_scalar.InsertNextTuple1(value_assigned)
-
+    
     omsh.GetCellData().SetScalars(o_scalar)
-    tn = countt - (count0+count1+countb)
-    count_dic = {'total' : countt, name0 : count0, name1: count1, 'overlap' : countb, 'none' : tn}
+    
+    countt = countn + count0 + count1 + countb
+    count_dic = {'total' : countt, name0 : count0, name1: count1, 'overlap' : countb, 'none' : countn}
+
     return omsh, count_dic
 
 def fibrorisScore(msh, th) : 

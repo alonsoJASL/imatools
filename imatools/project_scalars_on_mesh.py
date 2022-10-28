@@ -35,7 +35,7 @@ msh_source += '.vtk' if ('.vtk' not in msh_source) else ""
 msh_target += '.vtk' if ('.vtk' not in msh_target) else ""
 
 msh_src = vtku.readVtk(iou.fullfile(dir_source, msh_source))
-msh_trg = vtku.readVtk(iou.fullfile(dir_source, msh_target))
+msh_trg = vtku.readVtk(iou.fullfile(dir_target, msh_target))
 
 iou.cout("Projecting {} data".format(data_type), print2console=verbose)
 
