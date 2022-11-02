@@ -154,3 +154,11 @@ def performanceMetrics(tp, tn, fp, fn) :
                'accuracy' : accuracy}
     
     return out_dic
+
+def num2padstr(number, padding=3) : 
+    padstr = str(number);
+    if len(padstr) < padding :
+        for ix in range(padding - len(padstr)) : 
+            padstr = '0' + padstr
+    
+    return padstr

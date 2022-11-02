@@ -2,6 +2,7 @@ import sys
 import vtk
 import vtk.util.numpy_support as vtknp
 import numpy as np
+import pandas as pd
 
 def readVtk(fname):
     """
@@ -342,4 +343,67 @@ def fibrorisScore(msh, th) :
         elif (scalars.GetTuple1(ix) >= th) : 
             countfib += 1.0
     
-    return countfib/countt 
+    return countfib/countt
+
+norm2 = lambda a : np.linalg.norm(a)
+norm_vec = lambda a : a/norm2(a)
+
+def compare_fibres(msh_a, msh_b, f_a , f_b) :  
+    tot_left = msh_a.GetNumberOfPoints()
+    tot_right = msh_b.GetNumberOfPoints()
+
+    msh0=vtk.vtkPolyData()
+    msh1=vtk.vtkPolyData()
+    if (tot_left >= tot_right) : 
+        msh0.DeepCopy(msh_a) 
+        msh1.DeepCopy(msh_b) 
+        f0 = f_a
+        f1 = f_b
+    else :
+        msh0.DeepCopy(msh_b) 
+        msh1.DeepCopy(msh_a) 
+        f0 = f_b
+        f1 = f_a
+    
+    # pts1, el1 = extractPointsAndElemsFromVtk(msh1)
+    cog1 = getCentreOfGravity(msh1)
+
+    cell_loc=vtk.vtkCellLocator()
+    cell_loc.SetDataSet(msh0)
+    cell_loc.BuildLocator()
+
+    num_elements1 = len(cog1)
+    f0v1_dot = np.zeros(num_elements1)
+    f0v1_dist = np.zeros(num_elements1)
+    centres = np.zeros(num_elements1)
+
+    norm_vec_f0 = np.divide(f0.T,np.linalg.norm(f0, axis=1)).T 
+    norm_vec_f1 = np.divide(f1.T,np.linalg.norm(f1, axis=1)).T 
+
+    region1 = convertCellDataToNpArray(msh1, 'elemTag')
+
+    for jx in range(num_elements1) : 
+        cellId = vtk.reference(0)
+        c = [0.0, 0.0, 0.0]
+        subId = vtk.reference(0)
+        d = vtk.reference(0.0)
+
+        cell_loc.FindClosestPoint(cog1[jx], c, cellId, subId, d)
+        centres[jx] = c
+        a=norm_vec_f0[cellId.get()]
+        b=norm_vec_f1[jx]
+        f0v1_dot[jx] = np.dot(a,b)
+
+    f0v1_dist = np.linalg.norm(cog1 - c, axis=1)
+    f0v1_angles = np.arccos(f0v1_dot)
+    f0v1_abs_dot = np.abs(f0v1_dot)
+    f0v1_angle_abs_dot = np.arccos(f0v1_abs_dot)
+
+    d={'region' : region1,
+        'dot_product' : f0v1_dot,
+        'angle' : f0v1_angles,
+        'distance_to_point' : f0v1_dist,
+        'abs_dot_product' : f0v1_abs_dot,
+        'angle_from_absdot' : f0v1_angle_abs_dot}
+    
+    return pd.DataFrame(data=d)
