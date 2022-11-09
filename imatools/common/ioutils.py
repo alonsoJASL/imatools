@@ -5,6 +5,10 @@ import readline
 import glob
 import platform as pltf
 
+
+def l2_norm(a): return np.linalg.norm(a, axis=1)
+def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
+
 def history(n=0):
     """
     Prints history
@@ -162,3 +166,28 @@ def num2padstr(number, padding=3) :
             padstr = '0' + padstr
     
     return padstr
+
+def compareCarpMesh(pts1, el1, pts2, el2) : 
+    """
+    Compare Carp Mesh 
+    Returns: mean(l2_norm(pts)), median(l2_norm(elem)), comparison_code
+            |'COMPARISON_POSSIBLE' : 0
+    CODES = |'DIFF_NPTS'           : 1, 
+            |'DIFF_NELEMS'         : 2, 
+    """
+    comp_codes = {'DIFF_NPTS' : 1, 
+                'DIFF_NELEMS' : 2, 
+                'COMPARISON_POSSIBLE' : 0}
+
+    if (len(pts1) != len(pts2)) :
+        return -1, -1, comp_codes['DIFF_NPTS']
+    
+    if (len(el1) != len(el2)) : 
+        return -1, -1, comp_codes['DIFF_NELEMS']
+     
+    l2_norm_pts = l2_norm(pts1-pts2)
+    l2_norm_el = l2_norm(np.array(el1)-np.array(el2))
+
+    return np.mean(l2_norm_pts), np.mean(l2_norm_el), comp_codes['COMPARISON_POSSIBLE']
+
+
