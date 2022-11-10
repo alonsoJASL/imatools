@@ -4,6 +4,9 @@ import vtk.util.numpy_support as vtknp
 import numpy as np
 import pandas as pd
 
+def l2_norm(a): return np.linalg.norm(a, axis=1)
+def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
+
 def readVtk(fname):
     """
     Read VTK file
@@ -407,3 +410,145 @@ def compare_fibres(msh_a, msh_b, f_a , f_b) :
         'angle_from_absdot' : f0v1_angle_abs_dot}
     
     return pd.DataFrame(data=d)
+
+def compare_mesh_sizes(msh_left_name, msh_right_name, left_id, right_id, map_type_id) : 
+    msh_left = readVtk(msh_left_name)
+    msh_right = readVtk(msh_right_name)
+
+    if (map_type_id == 1) : # elem  
+        tot_left = msh_left.GetNumberOfCells()
+        tot_right = msh_right.GetNumberOfCells() 
+    elif (map_type_id == 0 ) : # pts
+        tot_left = msh_left.GetNumberOfPoints()
+        tot_right = msh_right.GetNumberOfPoints() 
+    else : 
+        return None, None, None, None, None, None
+
+    path_large = msh_left_name  # 0
+    path_small = msh_right_name # 1
+    tot_large = tot_left
+    tot_small = tot_right
+    large_id = left_id
+    small_id = right_id
+
+    if tot_left < tot_right : 
+        path_large = msh_right_name
+        path_small = msh_left_name
+        tot_large = tot_right
+        tot_small = tot_left
+        large_id = right_id
+        small_id = left_id
+    
+    return path_large, path_small, tot_large, tot_small, large_id, small_id
+
+def map_cells(msh_large, cog_small, tot_small, large_id, small_id) : 
+    cell_locate_on_large=vtk.vtkCellLocator()
+    cell_locate_on_large.SetDataSet(msh_large)
+    cell_locate_on_large.BuildLocator()
+
+    cell_ids_small = np.arange(tot_small)
+    cell_ids_large = np.zeros(tot_small, dtype=int)
+    l2_norm_filter = np.zeros(tot_small, dtype=float)
+    
+    pts_in_large = np.zeros((tot_small, 3), dtype=float)
+
+    for ix in range(tot_small): # tot_small
+        cellId_in_large = vtk.reference(0)
+        c_in_large = [0.0, 0.0, 0.0]
+        dist_to_large = vtk.reference(0.0)
+
+        cell_locate_on_large.FindClosestPoint(cog_small[ix], c_in_large, cellId_in_large, vtk.reference(0), dist_to_large)
+        cell_ids_large[ix] = cellId_in_large.get()
+
+        l2_norm_filter[ix] = dist_to_large
+
+        pts_in_large[ix, 0] = c_in_large[0]
+        pts_in_large[ix, 1] = c_in_large[1]
+        pts_in_large[ix, 2] = c_in_large[2]
+
+    mapping_dictionary_cells = {
+        small_id : cell_ids_small, 
+        large_id : cell_ids_large, 
+        'distance_manual' : l2_norm(cog_small - pts_in_large), 
+        'distance_auto'  : l2_norm_filter, 
+        'X_'+small_id.lower() : cog_small[:, 0], 
+        'Y_'+small_id.lower() : cog_small[:, 1], 
+        'Z_'+small_id.lower() : cog_small[:, 2],
+        'X_'+large_id.lower() : pts_in_large[ix, 0],
+        'Y_'+large_id.lower() : pts_in_large[ix, 1],
+        'Z_'+large_id.lower() : pts_in_large[ix, 2]
+    }
+
+    return mapping_dictionary_cells
+
+def map_points(msh_large, msh_small, large_id, small_id) : 
+
+    tot_small = msh_small.GetNumberOfPoints()
+
+    pts_locate_on_large = vtk.vtkPointLocator()
+    pts_locate_on_large.SetDataSet(msh_large)
+    pts_locate_on_large.BuildLocator()
+
+    pts_ids_small = np.arange(tot_small)
+    pts_ids_large = np.zeros(tot_small, dtype=int)
+
+    pts_small = np.zeros((tot_small,3), dtype=int)
+    pts_large = np.zeros((tot_small, 3), dtype=int)
+
+    for ix in range(tot_small) : 
+        pt_small = np.asarray(msh_small.GetPoint(ix))
+        
+        ptsId_in_large = pts_locate_on_large.FindClosestPoint(pt_small)
+        pts_ids_large[ix] = ptsId_in_large
+
+        pt_large = np.asarray(msh_large.GetPoint(ptsId_in_large))
+
+        pts_small[ix, 0] = pt_small[0]
+        pts_small[ix, 1] = pt_small[1]
+        pts_small[ix, 2] = pt_small[2]
+
+        pts_large[ix, 0] = pt_large[0]
+        pts_large[ix, 1] = pt_large[1]
+        pts_large[ix, 2] = pt_large[2]
+
+    mapping_dictionary_points = {
+        small_id : pts_ids_small, 
+        large_id : pts_ids_large, 
+        'distance_manual' : l2_norm(pts_small-pts_large), 
+        'X_'+small_id.lower() : pts_small[:, 0], 
+        'Y_'+small_id.lower() : pts_small[:, 1], 
+        'Z_'+small_id.lower() : pts_small[:, 2], 
+        'X_'+large_id.lower() : pts_large[:, 0],
+        'Y_'+large_id.lower() : pts_large[:, 1],
+        'Z_'+large_id.lower() : pts_large[:, 2]
+    }
+
+    return mapping_dictionary_points
+
+
+
+
+def create_mapping(msh_left_name, msh_right_name, left_id, right_id, map_type='elem') : 
+    """ 
+    Create mapping to closest [PTS|ELEMS] from msh_left to msh_right 
+    """
+    map_dic = {'pts' : 0, 'elem' : 1}
+    map_id = map_dic[map_type]
+    path_large, path_small, _, tot_small, large_id, small_id = compare_mesh_sizes(msh_left_name, msh_right_name, left_id, right_id, map_id)
+
+    if (path_large is None) : 
+        print('ERROR: Wrong mapping type { elem, pts }')
+        return None
+
+    msh_large = readVtk(path_large) # 0
+    msh_small = readVtk(path_small) # 1
+
+    if (map_id == 1) : # elem 
+        cog_small = getCentreOfGravity(msh_small)
+        mapping_dictionary = map_cells(msh_large, cog_small, tot_small, large_id, small_id) 
+    else : 
+        cog_small = [msh_small.GetPoint(ix) for ix in range(tot_small)]
+        cog_small = np.asarray(cog_small) 
+        mapping_dictionary = map_points(msh_large, msh_small, large_id, small_id)
+
+    return mapping_dictionary
