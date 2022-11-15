@@ -1,8 +1,10 @@
 import sys
-import vtk
-import vtk.util.numpy_support as vtknp
+
 import numpy as np
 import pandas as pd
+import vtk
+import vtk.util.numpy_support as vtknp
+
 
 def l2_norm(a): return np.linalg.norm(a, axis=1)
 def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
@@ -492,8 +494,8 @@ def map_points(msh_large, msh_small, large_id, small_id) :
     pts_ids_small = np.arange(tot_small)
     pts_ids_large = np.zeros(tot_small, dtype=int)
 
-    pts_small = np.zeros((tot_small,3), dtype=int)
-    pts_large = np.zeros((tot_small, 3), dtype=int)
+    pts_small = np.zeros((tot_small,3), dtype=float)
+    pts_large = np.zeros((tot_small, 3), dtype=float)
 
     for ix in range(tot_small) : 
         pt_small = np.asarray(msh_small.GetPoint(ix))

@@ -1,9 +1,11 @@
 
-import sys
-import numpy as np
-import readline
 import glob
+import os
 import platform as pltf
+import readline
+import sys
+
+import numpy as np
 
 
 def l2_norm(a): return np.linalg.norm(a, axis=1)
@@ -27,6 +29,16 @@ def fullfile(*paths):
     """
     s='/'
     return s.join(paths)
+
+def mkdirplus(*paths) : 
+    """
+    Joins paths with fullfile, then creates path 
+    returns path
+    """
+    res = fullfile(*paths)
+    os.makedirs(res, exist_ok=True)
+    return res 
+
 
 def searchFileByType(directory, prefix='', extension=''):
     """
@@ -191,3 +203,23 @@ def compareCarpMesh(pts1, el1, pts2, el2) :
     return np.mean(l2_norm_pts), np.mean(l2_norm_el), comp_codes['COMPARISON_POSSIBLE']
 
 
+def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='=', printEnd="\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
