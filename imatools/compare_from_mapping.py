@@ -90,6 +90,9 @@ CX = os.listdir(comparison_dir)
 if 'comparisons_path.csv' in CX:
     CX.remove('comparisons_path.csv')
 
+if 'measurements.csv' in CX:
+    CX.remove('measurements.csv')
+
 num_comparisons = 1 if debug else len(CX)
 rows_to_skip = 1 if is_vector_field else 0
 
