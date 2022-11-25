@@ -59,5 +59,6 @@ print("{},{},{},{},{}, jaccard".format(t0, t1, fib0, fib1, perf['jaccard']))
 print("{},{},{},{},{}, precision".format(t0, t1, fib0, fib1, perf['precision']))
 print("{},{},{},{},{}, recall".format(t0, t1, fib0, fib1, perf['recall']))
 print("{},{},{},{},{}, accuracy".format(t0, t1, fib0, fib1, perf['accuracy']))
+print("{},{},{},{},{}, dice".format(t0, t1, fib0, fib1, perf['dice']))
 
 #perf['precision'], perf['recall'], perf['accuracy']

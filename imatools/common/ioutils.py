@@ -161,11 +161,13 @@ def performanceMetrics(tp, tn, fp, fn) :
     precision=tp/(tp+fp)
     recall=tp/(tp+fn)
     accuracy=(tp+tn)/(tp+tn+fp+fn)
+    dice= (2*tp) / (2*tp + fp + fn)
 
     out_dic = {'jaccard' : jaccard, 
                'precision' : precision,
                'recall' : recall,
-               'accuracy' : accuracy}
+               'accuracy' : accuracy, 
+               'dice' : dice}
     
     return out_dic
 
