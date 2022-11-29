@@ -223,3 +223,23 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
     # Print New Line on Complete
     if iteration == total:
         print()
+
+
+def get_boxplot_values(data, whisker=1.5):
+    low_quartile = np.nanpercentile(data, 25, interpolation='nearest')
+    high_quartile = np.nanpercentile(data, 75, interpolation='nearest')
+    iqr = high_quartile - low_quartile
+    low_whis = low_quartile - whisker*iqr 
+    high_whis = high_quartile + whisker*iqr 
+    min_val = np.nanmin(data)
+    max_val = np.nanmax(data)
+    midic = {
+        'min': min_val,
+        'low_whisker': np.max([low_whis, min_val]),
+        'low_quartile': low_quartile,
+        'median': np.nanmedian(data),
+        'high_quartile': high_quartile,
+        'high_whisker': np.min([high_whis, max_val]),
+        'max': max_val
+    }
+    return midic
