@@ -18,7 +18,7 @@ conda create -n imatools python=3.8 -y & conda activate imatools
 
 Copy the following to install the python dependencies of this project
 ```
-conda install -c conda-forge vtk itk numpy scipy matplotlib pandas seaborn networkx -n imatools -y
+conda install -c conda-forge vtk itk numpy scipy matplotlib pandas seaborn networkx scikit-image -n imatools -y
 ```
 
 ## Example: Calculate volume & area of vtk file
