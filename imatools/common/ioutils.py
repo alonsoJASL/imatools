@@ -2,7 +2,6 @@
 import glob
 import os
 import platform as pltf
-import readline
 import sys
 
 import numpy as np
@@ -11,17 +10,6 @@ import numpy as np
 def l2_norm(a): return np.linalg.norm(a, axis=1)
 def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
 
-def history(n=0):
-    """
-    Prints history
-    """
-    if n==0:
-        NUM=readline.get_current_history_length()
-    else:
-        NUM=n
-
-    for ix in range(NUM):
-        print (readline.get_history_item(ix + 1))
 
 def fullfile(*paths):
     """
