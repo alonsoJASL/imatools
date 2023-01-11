@@ -9,6 +9,7 @@ inputParser.add_argument("-imsh1", "--msh-input1", metavar="mshname", type=str, 
 inputParser.add_argument("-omsh", "--msh-output", metavar="mshname", type=str, default='overlap', help="Output mesh name")
 inputParser.add_argument("-t0", "--threshold0", type=float, help="Mesh 0 threshold")
 inputParser.add_argument("-t1", "--threshold1", type=float, help="Mesh 0 threshold")
+inputParser.add_argument("-dt", "--data-type", type=str, choices=['cell', 'point'], default='cell')
 inputParser.add_argument("-thio", "--threshold-in-output", action='store_true')
 inputParser.add_argument("-v", "--verbose", action='store_true', help="Verbose output")
 
@@ -19,11 +20,12 @@ msh_input0 = args.msh_input0
 msh_input1 = args.msh_input1
 t0 = args.threshold0
 t1 = args.threshold1
+data_type = args.data_type
 threshold_in_output = args.threshold_in_output 
 verbose = args.verbose
 
 thio = "TH{}_".format(str(t1).replace('.','d')) if (threshold_in_output) else ""
-msh_output = thio + args.msh_output
+msh_output = thio + '_' + data_type + '_' + args.msh_output
 
 iou.cout("Parsed arguments", print2console=verbose)
 
@@ -35,14 +37,15 @@ msh_input1 += ".vtk" if ('.vtk' not in msh_input1) else ""
 msh1 = vtku.readVtk(iou.fullfile(dir, msh_input1))
 
 iou.cout("Calculating fibrosis overlap", print2console=verbose)
-omsh, counts = vtku.fibrosisOverlapCell(msh0, msh1, t0, t1)
+# omsh, counts = vtku.fibrosisOverlapCell(msh0, msh1, t0, t1)
+omsh, counts = vtku.fibrosis_overlap(msh0, msh1, t0, t1, type=data_type)
 
 iou.cout("Saving output mesh", print2console=verbose)
 vtku.writeVtk(omsh, dir, msh_output)
 
 iou.cout("Calculating fibrosis scores for meshes", print2console=verbose)
-fib0 = vtku.fibrorisScore(msh0, t0) 
-fib1 = vtku.fibrorisScore(msh1, t1)
+fib0 = vtku.fibrosis_score(msh0, t0, type=data_type) 
+fib1 = vtku.fibrosis_score(msh1, t1, type=data_type)
 
 iou.cout("Calculating performance metrics for msh1 ({})".format(msh_input1), print2console=verbose)
 Tp = counts['overlap']

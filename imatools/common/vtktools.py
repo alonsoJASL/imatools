@@ -27,7 +27,7 @@ def writeVtk(mesh, directory, outname="output"):
     writer.SetFileTypeToASCII()
     writer.Update()
 
-def setCellDataToPointData(msh, fieldname='scalars') : 
+def set_cell_to_point_data(msh, fieldname='scalars') : 
     c2pt = vtk.vtkCellDataToPointData()
     c2pt.SetInputData(msh)
     c2pt.PassCellDataOn()
@@ -38,6 +38,14 @@ def setCellDataToPointData(msh, fieldname='scalars') :
     omsh.GetPointData().GetScalars().SetName(fieldname)
 
     return omsh
+
+def setCellDataToPointData(msh, fieldname='scalars') :
+    """
+    legacy name of function. In future, please use function: 
+    set_cell_to_point_data
+    """
+    print(__doc__)
+    return set_cell_to_point_data(msh, fieldname)
 
 def getCentreOfGravity(msh) : 
     pts, el = extractPointsAndElemsFromVtk(msh)
@@ -287,6 +295,73 @@ def projectPointData(msh_source, msh_target) :
 
     return omsh
 
+
+def fibrosis_overlap(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1', type='cell'):
+    """Make sure msh0 aligns with msh1 in number of cells"""
+    th1 = th0 if (th1 is None) else th1
+    assert type in ['cell', 'point'], 'Argument "type" expected to be "cell" or "point"'
+
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh0)
+    o_scalar = vtk.vtkFloatArray()
+    o_scalar.SetNumberOfComponents(1)
+
+    if type=='cell' : 
+        scalar0 = msh0.GetCellData().GetScalars()
+        scalar1 = msh1.GetCellData().GetScalars()
+    else :  
+        scalar1 = msh1.GetPointData().GetScalars()
+        scalar0 = msh0.GetPointData().GetScalars()
+
+    countn = 0
+    count0 = 0
+    count1 = 0
+    countb = 0
+
+    total_values = msh0.GetNumberOfCells() if type == 'cell' else msh0.GetNumberOfPoints()
+    for ix in range(total_values):
+        value_assigned = 0
+
+        if (scalar0.GetTuple1(ix) == 0 or scalar1.GetTuple1(ix) == 0):
+            value_assigned = -1
+
+        else:
+            if (scalar0.GetTuple1(ix) >= th0):
+                value_assigned += 1
+
+            if (scalar1.GetTuple1(ix) >= th1):
+                value_assigned += 2
+
+            if (value_assigned == 0):
+                countn += 1
+            elif (value_assigned == 1):
+                count0 += 1
+            elif (value_assigned == 2):
+                count1 += 1
+            elif (value_assigned == 3):
+                countb += 1
+
+        o_scalar.InsertNextTuple1(value_assigned)
+
+    if type == 'cell' : 
+        omsh.GetCellData().SetScalars(o_scalar)
+    else : 
+        omsh.GetPointData().SetScalars(o_scalar)
+
+    countt = countn + count0 + count1 + countb
+    count_dic = {'total': countt, name0: count0,
+                 name1: count1, 'overlap': countb, 'none': countn}
+
+    return omsh, count_dic
+
+def fibrosis_overlap_points(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') : 
+    omsh, count_dic = fibrosis_overlap(msh0, msh1, th0, th1, name0, name1, type='point')
+    return omsh, count_dic 
+
+def fibrosis_overlap_cells(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') : 
+    omsh, count_dic = fibrosis_overlap(msh0, msh1, th0, th1, name0, name1, type='cell')
+    return omsh, count_dic 
+
 def fibrosisOverlapCell(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') : 
     """Make sure msh0 aligns with msh1 in number of cells"""
     th1 = th0 if (th1 is None) else th1
@@ -334,6 +409,35 @@ def fibrosisOverlapCell(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') :
     count_dic = {'total' : countt, name0 : count0, name1: count1, 'overlap' : countb, 'none' : countn}
 
     return omsh, count_dic
+
+def fibrosis_score(msh, th, type='cell') : 
+    """Assumes the scalars in msh have been normalised"""
+
+    assert type in ['cell', 'point'], 'Argument "type" expected to be "cell" or "point"'
+    if type == 'cell' : 
+        scalars = msh.GetCellData().GetScalars()
+    else :
+        scalars = msh.GetPointData().GetScalars()
+
+    total_values = msh.GetNumberOfCells() if type=='cell' else msh.GetNumberOfPoints()
+    countt = float(total_values)
+    countfib = 0.0
+
+    for ix in range(total_values):
+        if (scalars.GetTuple1(ix) == 0):
+            countt -= 1.0
+
+        elif (scalars.GetTuple1(ix) >= th):
+            countfib += 1.0
+
+    return countfib/countt
+
+def fibrosis_score_cell(msh, th):
+    return fibrosis_score(msh, th, 'cell')
+
+
+def fibrosis_score_point(msh, th):
+    return fibrosis_score(msh, th, 'point')
 
 def fibrorisScore(msh, th) : 
     """Assumes the scalars in msh have been normalised"""
@@ -527,10 +631,7 @@ def map_points(msh_large, msh_small, large_id, small_id) :
 
     return mapping_dictionary_points
 
-
-
-
-def create_mapping(msh_left_name, msh_right_name, left_id, right_id, map_type='elem') : 
+def create_mapping(msh_left_name, msh_right_name, left_id, right_id, map_type='elem') :
     """ 
     Create mapping to closest [PTS|ELEMS] from msh_left to msh_right 
     """
@@ -554,3 +655,24 @@ def create_mapping(msh_left_name, msh_right_name, left_id, right_id, map_type='e
         mapping_dictionary = map_points(msh_large, msh_small, large_id, small_id)
 
     return mapping_dictionary
+
+def convert_5_to_4(imsh, omsh) :
+    """
+    Input: msh paths
+        imsh (input)
+        omsh (output)
+    """
+    # Read the VTK legacy file in version 5 format
+    reader = vtk.vtkPolyDataReader()
+    reader.SetFileName(imsh)
+    reader.Update()
+    print(reader.GetFileVersion())
+
+    # Convert the file to VTK legacy format
+    writer = vtk.vtkPolyDataWriter()
+    writer.SetInputData(reader.GetOutput())
+    writer.SetFileName(omsh)
+    writer.SetFileTypeToASCII()
+    # writer.SetHeader("vtk version 4.0")
+    writer.SetFileVersion(42)
+    writer.Update()
