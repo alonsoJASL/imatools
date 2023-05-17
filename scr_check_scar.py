@@ -2,6 +2,9 @@ import numpy as np
 import vtk
 import argparse
 
+import imatools.common.vtktools as vtku 
+import imatools.common.ioutils as iou 
+
 def vtk_version():
     return vtk.vtkVersion().GetVTKMajorVersion() + 0.1*vtk.vtkVersion().GetVTKMinorVersion()
 
@@ -10,7 +13,7 @@ def main(args) :
 
     base_dir = args.dir
     inname = args.input
-    outname = args.input[1:-4] if default_output else args.output
+    outname = args.input[0:-4] if default_output else args.output
 
     # remove extension from output name if exists
     outname += '.vtk' if not outname in '.vtk' else ''
@@ -27,23 +30,69 @@ def main(args) :
     min_step_positions = centres + min_step * normals_n
     max_step_positions = centres + max_step * normals_n
 
+    if args.verbose :
+        print(f'min step: {min_step}')
+        print(min_step_positions)
+        print(f'max step: {max_step}')
+        print(max_step_positions)
+        print("normals")
+        print(normals_n)
+    
     polydata = vtk.vtkPolyData()
-    points1 = vtk.vtkPoints()
-    points2 = vtk.vtkPoints()
     lines = vtk.vtkCellArray()
-    for ix in range(len(min_step_positions)) :
-        pt1 = min_step_positions[ix, :]
-        pt2 = max_step_positions[ix, :]
+    pts = vtk.vtkPoints()
 
-        id1 = points1.InsertNextPoint(pt1)
-        id2 = points2.InsertNextPoint(pt2)
-        line = vtk.vtkLine()
-        line.GetPointIds().SetId(0, id1)
-        line.GetPointIds().SetId(1, id2)
-        lines.InsertNextCell(line)
+    num_points1 = len(min_step_positions)
 
-    polydata.SetPoints(points1)
-    polydata.SetLines(lines)
+    vf = vtk.vtkDoubleArray()
+    vf.SetName("scar_corridor")
+    vf.SetNumberOfComponents(3)
+    vf.SetNumberOfTuples(num_points1)
+    
+    for i in range(num_points1):
+        pt1 = min_step_positions[i]
+        pt2 = max_step_positions[i]
+
+        vf.SetTuple3(i, pt2[0] - pt1[0], pt2[1] - pt1[1], pt2[2] - pt1[2])
+
+    polydata.SetPoints(pts)
+    polydata.GetPointData().SetVectors(vf)
+
+    if args.verbose :
+        # Create a vtkArrowSource for generating the arrows
+        arrow_source = vtk.vtkArrowSource()
+
+        # Create a vtkGlyph3D to generate the arrows along the lines
+        glyph = vtk.vtkGlyph3D()
+        glyph.SetSourceConnection(arrow_source.GetOutputPort())
+        glyph.SetInputData(polydata)
+        glyph.Update()
+
+        # Create a vtkPolyDataMapper to map the glyph's output data for visualization
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(glyph.GetOutputPort())
+
+        # Create a vtkActor and set the mapper for visualization
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+
+        # Create a vtkRenderer and add the actor to it
+        renderer = vtk.vtkRenderer()
+        renderer.AddActor(actor)
+
+        # Create a vtkRenderWindow and set the renderer for visualization
+        render_window = vtk.vtkRenderWindow()
+        render_window.AddRenderer(renderer)
+
+        # Create a vtkRenderWindowInteractor for interaction
+        interactor = vtk.vtkRenderWindowInteractor()
+        interactor.SetRenderWindow(render_window)
+
+        # Set up the interactor and start the rendering loop
+        interactor.Initialize()
+        render_window.Render()
+        interactor.Start()
+
     writer = vtk.vtkPolyDataWriter()
     writer.SetInputData(polydata)
     writer.SetFileName(f'{base_dir}/{outname}')
@@ -55,10 +104,10 @@ def main(args) :
 
 if __name__ == '__main__' : 
     input_parser = argparse.ArgumentParser(description='Convert scar projection files to vtk')
-    input_parser.add_argument("-d", "--dir", typ=str, required=True, help="Folder with data")
+    input_parser.add_argument("-d", "--dir", type=str, required=True, help="Folder with data")
     input_parser.add_argument("-i", "--input", type=str, required=True, help="Input filename")
     input_parser.add_argument('-o', '--output', type=str, required=False, help='Output filename', default='')
-    input_parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
+    input_parser.add_argument("-n", "--number-")
     input_parser.add_argument("-v", "--verbose", action="store_true", help="Verbose mode")
     args = input_parser.parse_args()
     
