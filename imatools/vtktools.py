@@ -91,7 +91,7 @@ def convertPointDataToNpArray(vtk_input, str_scalars):
     Convert vtk scalar data to numpy array
     """
     vtkArrayDistance=vtk_input.GetPointData().GetScalars(str_scalars)
-    distance=vtk_to_numpy(vtkArrayDistance)
+    distance=vtknp.vtk_to_numpy(vtkArrayDistance)
 
     return distance
 
