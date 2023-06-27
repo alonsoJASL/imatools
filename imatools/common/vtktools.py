@@ -25,6 +25,9 @@ def writeVtk(mesh, directory, outname="output"):
     writer.SetInputData(mesh)
     writer.SetFileName(directory+"/"+outname+".vtk")
     writer.SetFileTypeToASCII()
+    # check for vtk version 
+    if vtk.vtkVersion().GetVTKMajorVersion() >= 9 and vtk.vtkVersion().GetVTKMinorVersion() >= 1:
+        writer.SetFileVersion(42)
     writer.Update()
 
 def set_cell_to_point_data(msh, fieldname='scalars') : 
