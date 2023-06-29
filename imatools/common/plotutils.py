@@ -59,15 +59,19 @@ def extract_scar_stats_from_file(filename: str) :
 
     return scar_stats
 
-def append_scar_to_pandas_dataframe(df: pd.DataFrame, scar_stats: dict, case_id = '', roi_mode = '') : 
+
+def append_scar_to_pandas_dataframe(df: pd.DataFrame, scar_stats: dict, case_id = '', roi_mode = '', roi_limits = '', thresh = '') : 
     """
     Append scar stats to pandas dataframe.
     """
+    
     for tu in scar_stats['value_score'] :
         df = pd.concat([df, 
         pd.DataFrame({
             'case_id' : case_id,
             'roi_mode' : roi_mode,
+            'threshold_method' : thresh,
+            'roi_limits' : roi_limits,
             'bp_mean' : scar_stats['bp_mean'],
             'bp_std' : scar_stats['bp_std'],
             'values' : tu[0],
