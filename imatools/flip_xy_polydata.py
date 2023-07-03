@@ -26,7 +26,9 @@ def main(args) :
     segvtk.DeepCopy(mesh)
 
     flip_xy(segvtk)
-    vtku.writeVtk(segvtk, p2f, output)
+    vtku.writeVtk(segvtk, os.path.dirname(fname), output)
+
+    print(f'IN:{fname} OUT:{os.path.join(os.path.dirname(fname), output)}.vtk')
 
 if __name__ == '__main__' : 
     parser = argparse.ArgumentParser(description='Flip XY coordinates of a polydata')
