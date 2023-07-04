@@ -25,6 +25,9 @@ def writeVtk(mesh, directory, outname="output"):
     writer.SetInputData(mesh)
     writer.SetFileName(directory+"/"+outname+".vtk")
     writer.SetFileTypeToASCII()
+    # check for vtk version 
+    if vtk.vtkVersion().GetVTKMajorVersion() >= 9 and vtk.vtkVersion().GetVTKMinorVersion() >= 1:
+        writer.SetFileVersion(42)
     writer.Update()
 
 def set_cell_to_point_data(msh, fieldname='scalars') : 
@@ -676,3 +679,14 @@ def convert_5_to_4(imsh, omsh) :
     # writer.SetHeader("vtk version 4.0")
     writer.SetFileVersion(42)
     writer.Update()
+
+def flip_xy(polydata) :
+    points = polydata.GetPoints()
+    num_points = points.GetNumberOfPoints()
+
+    for i in range(num_points):
+        original_coords = points.GetPoint(i)
+        modified_coords = [-original_coords[0], -original_coords[1], original_coords[2]]
+        points.SetPoint(i, modified_coords)
+
+    polydata.Modified()
