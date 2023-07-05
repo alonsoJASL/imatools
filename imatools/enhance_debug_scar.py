@@ -56,8 +56,8 @@ def main(args):
     # Read image info from lines 1 and 2
     with open(prod_stats_path, 'r') as f:
         lines = f.readlines()
-        mean_bp = float(lines[1].split())
-        std_bp = float(lines[2].split())
+        mean_bp = float(lines[1])
+        std_bp = float(lines[2])
 
     threshold_values = args.threshold
 
