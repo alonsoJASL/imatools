@@ -1,10 +1,7 @@
 import os
 from imatools.common.ioutils import cout, fullfile
 import pandas as pd
-import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 
 def plot_dict(mydic, plotname, out_dir, oname, ylims=[]):
     """
@@ -60,7 +57,8 @@ def extract_scar_stats_from_file(filename: str) :
     return scar_stats
 
 
-def append_scar_to_pandas_dataframe(df: pd.DataFrame, scar_stats: dict, case_id = '', roi_mode = '', roi_limits = '', thresh = '') : 
+def append_scar_to_pandas_dataframe(df: pd.DataFrame, scar_stats: dict, case_info: dict) :
+    #case_id = '', roi_mode = '', roi_limits = '', thresh = '') : 
     """
     Append scar stats to pandas dataframe.
     """
@@ -68,10 +66,11 @@ def append_scar_to_pandas_dataframe(df: pd.DataFrame, scar_stats: dict, case_id 
     for tu in scar_stats['value_score'] :
         df = pd.concat([df, 
         pd.DataFrame({
-            'case_id' : case_id,
-            'roi_mode' : roi_mode,
-            'threshold_method' : thresh,
-            'roi_limits' : roi_limits,
+            'case_id' : case_info['case_id'],
+            'nav' : case_info['nav'], 
+            'roi_mode' : case_info['roi_mode'],
+            'roi_limits' : case_info['roi_limits'],
+            'threshold_method' : case_info['thresh'],
             'bp_mean' : scar_stats['bp_mean'],
             'bp_std' : scar_stats['bp_std'],
             'values' : tu[0],
