@@ -17,29 +17,23 @@ def fileparts(path):
 
     return os.sep.join(path_split[:-1]), path_split[-1]
 
-def process_voxel(voxel_lge, voxel_scar, threshold_values, bloodpool, method='iir'): 
-    mbp = bloodpool[0]
-    sbp = bloodpool[1]
-    result_voxel = 0;
-    for th in threshold_values : 
-        test_value = (th * mbp) if method == 'iir' else (mbp + th * sbp)
-        if voxel_lge >= test_value and voxel_scar > 0:
-            result_voxel += 1
-        else:
-            break
+def get_threshold_values(thresholds, mean_bp, std_bp, method) :
+    if method == 'iir' :
+        threshold_values = [th * mean_bp for th in thresholds] 
+    else: 
+        threshold_values = [mean_bp + std_bp*th for th in thresholds]
 
-    return result_voxel
+    return threshold_values
 
 def main(args):
 
     im_path = args.input
-    im_dir, im_name = fileparts(im_path)
+    _, im_name = fileparts(im_path)
 
     debug_scar_path = args.scar_corridor_image
-    debug_scar_dir, debug_scar_name = fileparts(debug_scar_path)
+    debug_scar_dir, _ = fileparts(debug_scar_path)
 
     prod_stats_path = args.image_info_file
-    prod_stats_dir, prod_stats_name = fileparts(prod_stats_path)
 
     if '.nii' in im_name:
         im_name = os.path.splitext(im_name)[0]
@@ -59,22 +53,36 @@ def main(args):
         mean_bp = float(lines[1])
         std_bp = float(lines[2])
 
-    threshold_values = args.threshold
+    threshold_values = get_threshold_values(args.thresholds, mean_bp, std_bp, args.method) 
 
     enhanced_scar = sitk.Image(scar.GetSize(), sitk.sitkFloat32)
     enhanced_scar.SetOrigin(scar.GetOrigin())
     enhanced_scar.SetSpacing(scar.GetSpacing())
     enhanced_scar.SetDirection(scar.GetDirection())
 
-    parallel_iterator = sitk.pmap(process_voxel, im, scar, threshold_values, [mean_bp, std_bp], args.threshold_method) 
+    imiter = sitk.ImageRegionConstIterator(im)
+    scariter = sitk.ImageRegionConstIterator(scar)
+    enhancediter = sitk.ImageRegionConstIterator(enhanced_scar) 
 
-    enhanced_scar_iterator = sitk.ImageRegionIterator(new_image)
-    for new_value in parallel_iterator:
-        enhanced_scar_iterator.Set(new_value)
-        enhanced_scar_iterator.Next()
-    
+    while not scariter.IsAtEnd() :
+        scar_value = scariter.Get()
+        lge_value = imiter.Get() 
+        
+        if scar_value > 1 :
+            enhanced_value = 2
+            for th in threshold_values : 
+                enhanced_value += 1 if lge_value > th else 0 
+
+            enhancediter.Set(enhanced_value)
+        else :
+            enhancediter.Set(scar_value) 
+
+        imiter.Next()
+        scariter.Next()
+        enhancediter.Next() 
+            
     # Save the new image
-    sitk.WriteImage(new_image, os.path.join(debug_scar_dir, output_name))
+    sitk.WriteImage(enhanced_scar, os.path.join(debug_scar_dir, output_name))
 
 
 
