@@ -2,7 +2,7 @@ import os
 import numpy as np
 import argparse
 import SimpleITK as sitk
-
+import multiprocessing
 
 def fileparts(path):
     path = os.path.normpath(path)
@@ -29,6 +29,19 @@ def get_threshold_values(thresholds, mean_bp, std_bp, method) :
         threshold_values = [mean_bp + std_bp*th for th in thresholds]
 
     return threshold_values
+
+def process_voxel(x, y, z, scar_arr, im_arr, thres_values) : 
+    scar_value = scar_arr[x, y, z]
+    lge_value = im_arr[x, y, z] 
+
+    enhanced_value = scar_value 
+    if scar_value > 1:
+        enhanced_value = 2
+        for th in thres_values :
+            enhanced_value += 1 if lge_value > th else 0 
+
+    return enhanced_value
+        
 
 def main(args):
 
@@ -65,19 +78,18 @@ def main(args):
     scar_array = sitk.GetArrayFromImage(scar)
     enhanced_array = np.copy(scar_array)
 
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+
+    voxel_args = []
     for x in range(scar_array.shape[0]):
         for y in range(scar_array.shape[1]):
             for z in range(scar_array.shape[2]): 
-                scar_value = scar_array[x, y, z]
-                lge_value = im_array[x, y, z]
-
-                if scar_value > 1: 
-                    enhanced_value=2
-                    for th in threshold_values : 
-                        enhanced_value += 1 if lge_value > th else 0 
-
-                    enhanced_array[x, y, z] = enhanced_value 
+                voxel_args.append((x, y, z, scar_array, im_array, threshold_values))
             
+    enhanced_values = pool.starmap(process_voxel, voxel_args)
+    for idx, (x, y, z) in enumerate(np.ndindex(scar_array.shape)) :
+        enhanced_array[x, y, z] = enhanced_values[idx]
+
     enhanced_scar = sitk.GetImageFromArray(enhanced_array)
     enhanced_scar.SetOrigin(scar.GetOrigin())
     enhanced_scar.SetSpacing(scar.GetSpacing())
