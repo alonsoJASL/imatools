@@ -57,7 +57,9 @@ python calculate_volume.py /path/to/file.vtk
 ![SCR-20220905-khk-2](https://user-images.githubusercontent.com/9891700/188464906-970f6098-064a-48e1-a138-19e4ba43715b.jpeg)
 
 
-## Alternative minimal setup
+## Alternative minimal setup#
+> While this is OK, it is not necessary as we use VTK 9.2.6, which
+> allows to specify the version of Legacy VTK ASCII files.
 To use with VTK 8.1 to save vtk meshes in legacy VTK Writer 4.2.
 
 ```
