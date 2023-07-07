@@ -3,6 +3,7 @@ import argparse
 import numpy as np 
 import pydicom 
 import nibabel as nib
+
 from nibabel.processing import resample_to_output
 from nibabel.orientations import ornt_transform
 

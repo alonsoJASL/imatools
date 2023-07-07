@@ -2,8 +2,8 @@ import numpy as np
 import vtk
 import argparse
 
-import imatools.common.vtktools as vtku 
-import imatools.common.ioutils as iou 
+from common import vtktools as vtku 
+from common import ioutils as iou 
 
 def vtk_version():
     return vtk.vtkVersion().GetVTKMajorVersion() + 0.1*vtk.vtkVersion().GetVTKMinorVersion()

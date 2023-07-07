@@ -6,6 +6,7 @@ from qulati.meshutils import subset_anneal, subset_triangulate
 from common import vtktools as vtku
 from common import ioutils as iou
 
+import vtk
 import vtk.util.numpy_support as vtknp
 
 import argparse
