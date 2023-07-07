@@ -77,7 +77,7 @@ def save_image(image, dir, name):
     """
     sitk.WriteImage(image, os.path.join(dir, name))
 
-def main(args) : 
+def main(args) 
     im_path = args.input_image
     # name remove extension
     im_name = os.path.basename(im_path)

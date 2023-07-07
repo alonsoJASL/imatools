@@ -3,7 +3,6 @@ import numpy as np
 import argparse
 import SimpleITK as sitk
 
-
 def fileparts(path):
     path = os.path.normpath(path)
     path_split = path.split(os.sep)
@@ -43,7 +42,6 @@ def main(args):
     if '.nii' in im_name:
         im_name = os.path.splitext(im_name)[0]
 
-
     # Read image
     im = sitk.ReadImage(im_path)
     scar = sitk.ReadImage(debug_scar_path)
@@ -57,9 +55,9 @@ def main(args):
         mean_bp = float(lines[1])
         std_bp = float(lines[2])
 
-    threshold_str = list(map(str, args.threshold)) 
+    threshold_str = list(map(str, np.multiply(args.threshold, 100))) # remove decimal point 
     threshold_values = get_threshold_values(args.threshold, mean_bp, std_bp, args.threshold_method)
-    output_name = f'enhanced_debug_{"_".join(threshold_str).replace(".","").replace("0", "")}.nii'
+    output_name = f'enhanced_debug_{"_".join(threshold_str).replace(".","")}'
 
     im_array = sitk.GetArrayFromImage(im)
     scar_array = sitk.GetArrayFromImage(scar)
@@ -83,8 +81,29 @@ def main(args):
     enhanced_scar.SetSpacing(scar.GetSpacing())
     enhanced_scar.SetDirection(scar.GetDirection())
 
+    enhanced_labels = np.unique(enhanced_array).tolist()
+    enhanced_labels.remove(0) # Remove background
+    enhanced_labels.remove(1) # Remove corridor 
+
+    label_counter = [0] * len(enhanced_labels)
+    total_counter = 0
+    for x in range(enhanced_array.shape[0]):
+        for y in range(enhanced_array.shape[1]):
+            for z in range(enhanced_array.shape[2]): 
+                value = enhanced_array[x, y, z]
+                if value > 1: 
+                    total_counter += 1
+                if value in enhanced_labels:
+                    label_counter[enhanced_labels.index(value)] += 1
+    
+    # write file with label counts 
+    with open(os.path.join(debug_scar_dir, f'{output_name}_label_counts.txt'), 'w') as f:
+        f.write(f'Total voxels: {total_counter}\n')
+        for i, label in enumerate(enhanced_labels):
+            f.write(f'{label}: {label_counter[i]}\n')
+
     # Save the new image
-    sitk.WriteImage(enhanced_scar, os.path.join(debug_scar_dir, output_name))
+    sitk.WriteImage(enhanced_scar, os.path.join(debug_scar_dir, f'{output_name}.nii'))
 
 
 
