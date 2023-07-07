@@ -7,7 +7,7 @@ import numpy as np
 
 from common import itktools as itku
 
-def main(args) 
+def main(args): 
     im_path = args.input_image
     # name remove extension
     im_name = os.path.basename(im_path)
