@@ -583,9 +583,9 @@ def map_cells(msh_large, cog_small, tot_small, large_id, small_id) :
         'X_'+small_id.lower() : cog_small[:, 0], 
         'Y_'+small_id.lower() : cog_small[:, 1], 
         'Z_'+small_id.lower() : cog_small[:, 2],
-        'X_'+large_id.lower() : pts_in_large[ix, 0],
-        'Y_'+large_id.lower() : pts_in_large[ix, 1],
-        'Z_'+large_id.lower() : pts_in_large[ix, 2]
+        'X_'+large_id.lower() : pts_in_large[:, 0],
+        'Y_'+large_id.lower() : pts_in_large[:, 1],
+        'Z_'+large_id.lower() : pts_in_large[:, 2]
     }
 
     return mapping_dictionary_cells
