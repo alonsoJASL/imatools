@@ -236,6 +236,9 @@ def getElemPermutation(msh0, msh1) :
     return 0
 
 def projectCellData(msh_source, msh_target) : 
+    """
+    Projects TARGET's cell data on SOURCE
+    """
     omsh = vtk.vtkPolyData()
     omsh.DeepCopy(msh_source)
 
