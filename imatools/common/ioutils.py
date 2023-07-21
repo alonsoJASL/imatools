@@ -9,6 +9,13 @@ import numpy as np
 def l2_norm(a): return np.linalg.norm(a, axis=1)
 def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
 
+def ext(fname, extension) : 
+    """
+    Returns filename with extension
+    """
+    xt = f'.{extension}' if extension[0] != '.' else extension
+    fname = fname if fname[-len(xt):] == xt else fname + xt
+    return fname
 
 def fullfile(*paths):
     """
@@ -144,11 +151,18 @@ def chooseplatform() :
     return pltf.platform().split('-')[0]
 
 def performanceMetrics(tp, tn, fp, fn) : 
-    jaccard=tp/(tp+fn+fp) 
-    precision=tp/(tp+fp)
-    recall=tp/(tp+fn)
-    accuracy=(tp+tn)/(tp+tn+fp+fn)
-    dice= (2*tp) / (2*tp + fp + fn)
+
+    den_jaccard = tp+fn+fp
+    den_precision = tp+fp
+    den_recall = tp+fn
+    den_accuracy = tp+tn+fp+fn
+    den_dice = 2*tp + fp + fn
+
+    jaccard=tp/(tp+fn+fp) if den_jaccard > 0 else np.nan
+    precision=tp/(tp+fp) if den_precision > 0 else np.nan
+    recall=tp/(tp+fn) if den_recall > 0 else np.nan
+    accuracy=(tp+tn)/(tp+tn+fp+fn) if den_accuracy > 0 else np.nan
+    dice= (2*tp) / (2*tp + fp + fn) if den_dice > 0 else np.nan
 
     out_dic = {'jaccard' : jaccard, 
                'precision' : precision,

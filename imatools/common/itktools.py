@@ -15,6 +15,10 @@ def load_image_as_np(path_to_file) :
 
     return t1, origin, im_size 
 
+def load_image(path_to_file) :
+    """ Reads image into SimpleITK object """
+    sitk_t1 = sitk.ReadImage(path_to_file)
+    return sitk_t1
 
 def extract_single_label(image, label, binarise=False):
     """
@@ -36,6 +40,21 @@ def merge_label_images(images):
     for image in images:
         merged_image = merged_image + image
     return merged_image
+
+def swap_labels(im, old_label: int, new_label=1):
+    """
+    Swaps all instances of old_label with new_label in a label image.
+    """
+
+    im_array = sitk.GetArrayFromImage(im)
+    im_array[np.equal(im_array, old_label)] = new_label
+
+    new_image = sitk.GetImageFromArray(im_array)
+    new_image.SetOrigin(im.GetOrigin())
+    new_image.SetSpacing(im.GetSpacing())
+    new_image.SetDirection(im.GetDirection())
+
+    return new_image
 
 def show_labels(image):
     """
@@ -81,8 +100,10 @@ def get_labels(image):
     l = [int(x) for x in labels]
     return l 
 
-def save_image(image, dir, name):
+
+def save_image(image, dir_or_path, name=None):
     """
     Saves a SimpleITK image to disk.
     """
-    sitk.WriteImage(image, os.path.join(dir, name))
+    output_path = dir_or_path if name is None else os.path.join(dir_or_path, name)
+    sitk.WriteImage(image, output_path)
