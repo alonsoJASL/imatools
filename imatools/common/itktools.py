@@ -4,6 +4,7 @@ import argparse
 
 import SimpleITK as sitk
 import numpy as np
+import json
 
 def load_image_as_np(path_to_file) :
     """ Reads image into numpy array """
@@ -100,6 +101,11 @@ def get_labels(image):
     l = [int(x) for x in labels]
     return l 
 
+def zeros_like(image):
+    """
+    Returns a new image with the same size and spacing as the input image, but filled with zeros.
+    """
+    return sitk.Image(image.GetSize(), sitk.sitkUInt8)
 
 def save_image(image, dir_or_path, name=None):
     """
@@ -107,3 +113,87 @@ def save_image(image, dir_or_path, name=None):
     """
     output_path = dir_or_path if name is None else os.path.join(dir_or_path, name)
     sitk.WriteImage(image, output_path)
+
+def points_to_image(image, points, label=1, girth=2, points_are_indices=False) : 
+    """
+    Set the closest voxels to the given points to the specified label in the input image.
+
+    Args:
+        image (SimpleITK.Image): The input 3D image.
+        points (list of tuples): List of (x, y, z) coordinates of points.
+        label (int): The label value to set for the closest voxels to the points.
+
+    Returns:
+        SimpleITK.Image: The modified image with the closest voxels set to the label.
+    """
+    # Convert the input image to a numpy array for easier manipulation
+    image_np = sitk.GetArrayFromImage(zeros_like(image))
+    print(f"Image shape: {image_np.shape}")
+    
+    # Loop through each point and find the closest voxel in the image
+    for point in points:
+        x, y, z = point
+        # Convert world coordinates to image indices (pixel coordinates)
+        if not points_are_indices :
+            print(f"Point: {point}")
+            index = image.TransformPhysicalPointToIndex((x, y, z))
+            print(f"Index: {index}")
+            index_rounded = np.round(index).astype(int)
+            print(f"Rounded index: {index_rounded}")
+        else :
+            index_rounded = np.round(point).astype(int)
+
+        # Set the label for the closest voxel
+        for xi in range(-girth, girth):
+            for yi in range(-girth, girth):
+                for zi in range(-girth, girth):
+                    image_np[index_rounded[2] + zi, index_rounded[1] + yi, index_rounded[0] + xi] = label
+    
+    # count number of voxels with label
+    # print(f"Number of voxels with label {label}: {np.count_nonzero(image_np == label)}")
+
+    # Convert the modified numpy array back to a SimpleITK image
+    modified_image = sitk.GetImageFromArray(image_np)
+    modified_image.SetOrigin(image.GetOrigin())
+    modified_image.SetSpacing(image.GetSpacing())
+    modified_image.SetDirection(image.GetDirection())
+
+    return modified_image
+
+
+def pointfile_to_image(path_to_image, path_to_points, label=1, girth=2, points_are_indices=False):
+    """
+    Set the closest voxels to the given points to the specified label in the input image.
+
+    Args:
+        path_to_image (str): Path to the input 3D image.
+        path_to_points (str): Path to the text file containing the points.
+        label (int): The label value to set for the closest voxels to the points.
+
+    Returns:
+        SimpleITK.Image: The modified image with the closest voxels set to the label.
+    """
+    # Load the image
+    image = sitk.ReadImage(path_to_image)
+
+    # Load the points
+    points = []
+    if path_to_points.endswith(".json"): 
+        with open(path_to_points, "r") as file:
+            points_json = json.load(file)
+        for key, value in points.items():
+            points.append(value)
+
+    else:
+        with open(path_to_points, "r") as file:
+            for line in file:
+                # Split the line into a list of strings
+                point = line.split()
+                # Convert the strings to floats
+                point = [float(x) for x in point]
+                # Add the point to the list
+                points.append(point)
+            
+    modified_image = points_to_image(image, points, label, girth, points_are_indices)
+
+    return modified_image
