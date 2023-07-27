@@ -42,6 +42,64 @@ def merge_label_images(images):
         merged_image = merged_image + image
     return merged_image
 
+def binarise(image, background=0):
+    """
+    Returns an image with only 0s and 1s.
+    """
+    image_array = sitk.GetArrayFromImage(image)
+    bin_array = np.zeros(image_array.shape, dtype=np.uint8) 
+    bin_array[np.greater(image_array, background)] = 1
+    binim = sitk.GetImageFromArray(bin_array) 
+    binim.CopyInformation(image) 
+
+    return binim
+
+def bwlabeln(image): 
+    """
+    Returns an image where all separated components have a different tag
+    """
+    binim = binarise(image)
+    cc_image = sitk.ConnectedComponent(binim)
+    sorted_cc_image = sitk.RelabelComponent(cc_image, sortByObjectSize=True)
+    
+    return sorted_cc_image, get_labels(sorted_cc_image)
+
+def split_labels_on_repeats(image, label:int):
+    """
+    Returns new image where label that can be split are split into two distinct 
+    labels. The largest object gets the original label, while the others get 
+            label*10 + ix, for ix in range(1, num_splits)
+    If any label is already present in image, then that label is 100*label + ix
+    """
+    forbidden_labels = get_labels(image)
+    forbidden_labels.remove(label)
+
+    image_label = extract_single_label(image, label)
+    cc_im_label, cc_labels = bwlabeln(image_label) 
+
+    image_array = sitk.GetArrayFromImage(image)
+    cc_array = sitk.GetArrayFromImage(cc_im_label)
+    for ix, ccl in enumerate(cc_labels) :
+        new_label = label if ix == 0 else label*10 + (ccl-1)
+
+        qx = 1
+        while new_label in forbidden_labels : 
+            new_label = label*np.power(10, qx) + (ccl-1)
+            qx += 1
+
+        image_array[np.equal(cc_array, ccl)] = new_label
+
+    new_image = sitk.GetImageFromArray(image_array) 
+    new_image.CopyInformation(image) 
+
+    return new_image 
+
+def imopen(image, radius=3) :
+    """
+    Performs a morphological opening wiht a binary ball of a given radius 
+    """
+     return sitk.BinaryMorphologicalOpening(image, kernelRadius=(radius, radius, radius), kernelType = sitk.sitkBall)
+
 def swap_labels(im, old_label: int, new_label=1):
     """
     Swaps all instances of old_label with new_label in a label image.
@@ -51,6 +109,7 @@ def swap_labels(im, old_label: int, new_label=1):
     im_array[np.equal(im_array, old_label)] = new_label
 
     new_image = sitk.GetImageFromArray(im_array)
+    
     new_image.SetOrigin(im.GetOrigin())
     new_image.SetSpacing(im.GetSpacing())
     new_image.SetDirection(im.GetDirection())
