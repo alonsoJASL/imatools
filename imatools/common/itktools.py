@@ -1,10 +1,11 @@
 import os
-import sys
-import argparse
 
 import SimpleITK as sitk
 import numpy as np
 import json
+
+from imatools.common.config import configure_logging
+logger = configure_logging(log_name=__name__) 
 
 def load_image_as_np(path_to_file) :
     """ Reads image into numpy array """
@@ -61,10 +62,13 @@ def bwlabeln(image):
     binim = binarise(image)
     cc_image = sitk.ConnectedComponent(binim)
     sorted_cc_image = sitk.RelabelComponent(cc_image, sortByObjectSize=True)
-    
-    return sorted_cc_image, get_labels(sorted_cc_image)
 
-def split_labels_on_repeats(image, label:int):
+    labels = get_labels(sorted_cc_image)
+    num_labels = len(labels)
+    
+    return sorted_cc_image, labels, num_labels
+
+def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
     """
     Returns new image where label that can be split are split into two distinct 
     labels. The largest object gets the original label, while the others get 
@@ -74,10 +78,18 @@ def split_labels_on_repeats(image, label:int):
     forbidden_labels = get_labels(image)
     forbidden_labels.remove(label)
 
-    image_label = extract_single_label(image, label)
-    cc_im_label, cc_labels = bwlabeln(image_label) 
+    image_label = extract_single_label(image, label, binarise=True)
+
+    if open_image : 
+        image_label = imopen(image_label, radius=open_radius) 
+
+    cc_im_label, cc_labels, num_cc_labels = bwlabeln(image_label) 
+
+    if num_cc_labels==1 : 
+        return image 
 
     image_array = sitk.GetArrayFromImage(image)
+    image_array[np.equal(image_array, label)] = 0 # remove 
     cc_array = sitk.GetArrayFromImage(cc_im_label)
     for ix, ccl in enumerate(cc_labels) :
         new_label = label if ix == 0 else label*10 + (ccl-1)
@@ -98,7 +110,7 @@ def imopen(image, radius=3) :
     """
     Performs a morphological opening wiht a binary ball of a given radius 
     """
-     return sitk.BinaryMorphologicalOpening(image, kernelRadius=(radius, radius, radius), kernelType = sitk.sitkBall)
+    return sitk.BinaryMorphologicalOpening(image, kernelRadius=(radius, radius, radius), kernelType = sitk.sitkBall)
 
 def swap_labels(im, old_label: int, new_label=1):
     """

@@ -1,11 +1,11 @@
 import os
-import sys
 import argparse
-
 import SimpleITK as sitk
-import numpy as np
 
 from common import itktools as itku
+from common import config  
+
+logger = config.configure_logging(log_name=__name__) 
 
 def main(args): 
     im_path = args.input_image
@@ -18,6 +18,7 @@ def main(args):
     base_dir = os.path.dirname(im_path)
 
     outname = name if args.output_name == "" else args.output_name
+    outname += '.nii' if '.nii' not in outname else '' 
     input_image = sitk.ReadImage(im_path)
 
     if args.mode == "extract":
@@ -49,6 +50,21 @@ def main(args):
         output_name = f'{outname}_merged_{"_".join(merge_labels_str)}.nii'
         itku.save_image(merged_image, base_dir, output_name)
 
+    elif args.mode == "split":
+        if -1 in args.label:
+            labels = itku.get_labels(input_image)
+        else :
+            labels = args.label 
+
+        for l in labels: 
+            logger.info(f'Processing label: {l}')
+            input_image = itku.split_labels_on_repeats(input_image, label=l, open_image=True, open_radius=args.split_radius)
+
+        itku.save_image(input_image, base_dir, outname) 
+
+    elif args.mode == "open":
+        itku.save_image(itku.imopen(input_image, radius=args.split_radius), base_dir, outname) 
+
     elif args.mode == "show":
         itku.show_labels(input_image)
 
@@ -58,12 +74,13 @@ def main(args):
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
-    input_parser.add_argument("mode", choices=["extract", "merge", "show", "inr"], help="The mode to run the script in.")
+    input_parser.add_argument("mode", choices=["extract", "merge", "split", "show", "inr", "open"], help="The mode to run the script in.")
     input_parser.add_argument("--input-image", "-in", required=True, help="The input image.")
     input_parser.add_argument("--label", "-l", type=int, nargs="+", default=-1, help="The label to extract. Default: -1 (all labels)")
     input_parser.add_argument("--output-name", "-out", default="", type=str, help="The output image prefix. (Default: <input_image>_label_<label_value>)")
     input_parser.add_argument("--merge-labels", "-m", nargs="+", type=int, default=-1, help="The labels to merge.")
     input_parser.add_argument("--binarise", "-bin", action="store_true", help="Binarise the label image.")
+    input_parser.add_argument("--split-radius", "-radius", type=int, default=3, help="[MODE=split] Radius of morphological element")
     
     args = input_parser.parse_args()
     main(args)
