@@ -19,6 +19,7 @@ def load_image_as_np(path_to_file) :
 
 def load_image(path_to_file) :
     """ Reads image into SimpleITK object """
+    logger.info(f'Loading image from {path_to_file}')
     sitk_t1 = sitk.ReadImage(path_to_file)
     return sitk_t1
 
@@ -26,7 +27,7 @@ def extract_single_label(image, label, binarise=False):
     """
     Extracts a single label from a label map image.
     """
-    image_array = sitk.GetArrayFromImage(image)
+    image_array = sitk.GetArrayViewFromImage(image)
     label_array = np.zeros(image_array.shape, dtype=np.uint8)
     label_array[np.equal(image_array, label)] = 1 if binarise else label
     label_image = sitk.GetImageFromArray(label_array)
@@ -68,6 +69,19 @@ def bwlabeln(image):
     
     return sorted_cc_image, labels, num_labels
 
+def explore_labels_to_split(image):
+    """
+    Returns list of labels that can be split into multiple labels
+    """
+    labels = get_labels(image)
+    labels_to_split = []
+    for label in labels :
+        _, _, num_cc_labels = bwlabeln(extract_single_label(image, label, binarise=True))
+        if num_cc_labels > 1 :
+            labels_to_split.append(label)
+
+    return labels_to_split
+
 def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
     """
     Returns new image where label that can be split are split into two distinct 
@@ -81,16 +95,19 @@ def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
     image_label = extract_single_label(image, label, binarise=True)
 
     if open_image : 
-        image_label = imopen(image_label, radius=open_radius) 
+        logger.info(f'Opening image with radius {open_radius}')
+        image_label = morph_operations(image_label, "open", radius=open_radius)
 
     cc_im_label, cc_labels, num_cc_labels = bwlabeln(image_label) 
-
     if num_cc_labels==1 : 
+        logger.info(f'No connected components found for label {label}')
         return image 
 
+    logger.info(f'Found {num_cc_labels} connected components for label {label}')
     image_array = sitk.GetArrayFromImage(image)
     image_array[np.equal(image_array, label)] = 0 # remove 
-    cc_array = sitk.GetArrayFromImage(cc_im_label)
+
+    cc_array = sitk.GetArrayViewFromImage(cc_im_label)
     for ix, ccl in enumerate(cc_labels) :
         new_label = label if ix == 0 else label*10 + (ccl-1)
 
@@ -106,11 +123,30 @@ def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
 
     return new_image 
 
-def imopen(image, radius=3) :
+def morph_operations(image, operation:str, radius=3, kernel_type='ball') :
     """
-    Performs a morphological opening wiht a binary ball of a given radius 
+    Performs a morphological operation on a binary image with a binary ball of a given radius 
     """
-    return sitk.BinaryMorphologicalOpening(image, kernelRadius=(radius, radius, radius), kernelType = sitk.sitkBall)
+    switcher_operation = {
+        "dilate": sitk.BinaryDilate,
+        "erode": sitk.BinaryErode,
+        "open": sitk.BinaryMorphologicalOpening,
+        "close": sitk.BinaryMorphologicalClosing,
+        "fill": sitk.BinaryFillhole
+    }
+    switcher_kernel = {
+        "ball": sitk.sitkBall,
+        "box": sitk.sitkBox,
+        "cross": sitk.sitkCross
+    }
+
+    which_operation = switcher_operation.get(operation, lambda: "Invalid operation")
+    which_kernel = switcher_kernel.get(kernel_type, lambda: "Invalid kernel type")
+
+    if operation == 'fill':
+        return which_operation(image)
+
+    return which_operation(image, kernelRadius=(radius, radius, radius), kernelType = which_kernel)
 
 def swap_labels(im, old_label: int, new_label=1):
     """
@@ -166,11 +202,11 @@ def get_labels(image):
     """
     Returns a list of labels in an image.
     """
-    image_array = sitk.GetArrayFromImage(image)
-    labels = np.unique(image_array).tolist()
-    labels.remove(0) # background 
-    l = [int(x) for x in labels]
-    return l 
+    image_array_view = sitk.GetArrayViewFromImage(image)
+    labels = set(image_array_view.flatten())
+    labels.discard(0) # background
+    
+    return sorted(map(int, labels))
 
 def zeros_like(image):
     """
@@ -268,3 +304,140 @@ def pointfile_to_image(path_to_image, path_to_points, label=1, girth=2, points_a
     modified_image = points_to_image(image, points, label, girth, points_are_indices)
 
     return modified_image
+
+def image_operation(operation, image1, image2=None) : 
+    switcher_operation = {
+        "add": sitk.Add,
+        "subtract": sitk.Subtract,
+        "multiply": sitk.Multiply,
+        "divide": sitk.Divide,
+        "and": sitk.And,
+        "or": sitk.Or,
+        "xor": sitk.Xor,
+        "not": sitk.Not
+    }
+
+    if image2 is None :
+        return switcher_operation.get(operation, lambda: "Invalid operation")(image1)
+    else :
+        return switcher_operation.get(operation, lambda: "Invalid operation")(image1, image2)
+    
+def gaps(image, multilabel=False) : 
+    """
+    Show gaps in a binary or a multilabel segmentation
+    """ 
+
+    bin = binarise(image) if multilabel else image 
+    bin_full = morph_operations(bin, "fill")
+
+    # subtract the binarised image from the filled image
+    return image_operation("xor", bin_full, bin)
+
+def fill_gaps(image1, image2=None, multilabel_images=False) : 
+    """
+    Fill gaps in a binary or a multilabel segmentation
+        - Filling gaps in image1 ignoring gaps in image2 
+    """ 
+    # if image2 is None : 
+    #     gaps_im = gaps(image1, multilabel=multilabel_images)
+    # else :
+    #     gaps_im = image_operation("xor", binarise(image1), binarise(image2))
+    gaps_im = gaps(image1, multilabel=multilabel_images)
+    if image2 is not None :
+        gaps2 = gaps(image2, multilabel=multilabel_images)
+        gaps_im = image_operation("xor", gaps_im, gaps2)
+
+    # get index where gaps is 1
+    gaps_array_view = sitk.GetArrayViewFromImage(gaps_im)
+    gaps_indices = np.argwhere(gaps_array_view==1)
+    
+    number_of_gaps = gaps_indices.shape[0]
+    if number_of_gaps == 0:
+        logger.info("No gaps found.")
+        return image1
+    
+    # convert to list of tuples for find_neighbours
+    gaps_indices = list(map(tuple, gaps_indices))
+    neighbours = find_neighbours(image1, gaps_indices)
+    
+    logger.info(f"Found {number_of_gaps} gaps.")
+    image1_array = sitk.GetArrayFromImage(image1)
+    for idx in gaps_indices:
+
+        if len(neighbours[idx]) == 0:
+            voxel_neighbours = find_neighbours(image1, [idx])
+            neighbours[idx] = voxel_neighbours[idx]
+        
+        # get all values associated with the neighbors of idx
+        neighbour_values = [value[1] for value in neighbours[idx]]
+        
+        # get the most common value
+        most_common_value = max(set(neighbour_values), key=neighbour_values.count)
+        image1_array[idx[0], idx[1], idx[2]] = most_common_value
+
+    filled_image = sitk.GetImageFromArray(image1_array)
+    filled_image.CopyInformation(image1)
+
+    return filled_image
+
+
+def find_neighbours(image, indices):
+    """
+    Finds all the unique neighbors and their corresponding pixel values for a list of indices in the given image.
+
+    Args:
+        image (SimpleITK.Image): The input image.
+        indices (list of tuples): A list of index tuples representing the indices.
+
+    Returns:
+        dict: A dictionary with the indices as keys. Each value is a list of tuples containing the neighbor's index
+              and its corresponding pixel value.
+    """
+    logger.info(f"Finding neighbours for {len(indices)} indices.")
+    # Get a NumPy array view of the image data
+    image_array_view = sitk.GetArrayViewFromImage(image)
+
+    # Define the 26-connectivity offsets in 3D space
+    offsets = [
+        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+        (-1, 0, -1),  (-1, 0, 0),  (-1, 0, 1),
+        (-1, 1, -1),  (-1, 1, 0),  (-1, 1, 1),
+        (0, -1, -1),  (0, -1, 0),  (0, -1, 1),
+        (0, 0, -1),   (0, 0, 1),   (0, 1, -1),
+        (0, 1, 0),    (0, 1, 1),
+        (1, -1, -1),  (1, -1, 0),  (1, -1, 1),
+        (1, 0, -1),   (1, 0, 0),   (1, 0, 1),
+        (1, 1, -1),   (1, 1, 0),   (1, 1, 1)
+    ]
+
+    neighbours_dict = {}
+
+    # Create a set to store the visited indices and initialize it with the input indices
+    visited_indices = set(tuple(idx) for idx in indices)
+
+    image_shape = image_array_view.shape
+    # Iterate over each index in the list
+    for idx in indices:
+        x, y, z = idx
+        neighbours = []
+
+        # Check all the 26-connectivity neighbours
+        for offset in offsets:
+            nx, ny, nz = x + offset[0], y + offset[1], z + offset[2]
+
+            # Check if the neighbour is within the image bounds
+            if 0 <= nx < image_shape[0] and 0 <= ny < image_shape[1] and 0 <= nz < image_shape[2]:
+                neighbour_index = (nx, ny, nz)
+
+                # Check if the neighbour is not already in the visited set
+                if neighbour_index not in visited_indices:
+                    neighbour_value = image_array_view[nx, ny, nz]
+                    # if isinstance(neighbour_value, np.ndarray):
+                    #     # If the neighbor's value is an array, convert it to a tuple
+                    #     neighbour_value = tuple(neighbour_value.tolist())
+                    neighbours.append((neighbour_index, neighbour_value))
+                    visited_indices.add(neighbour_index)
+
+        neighbours_dict[idx] = neighbours
+
+    return neighbours_dict

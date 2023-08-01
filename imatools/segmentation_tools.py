@@ -1,6 +1,5 @@
 import os
 import argparse
-import SimpleITK as sitk
 
 from common import itktools as itku
 from common import config  
@@ -19,7 +18,7 @@ def main(args):
 
     outname = name if args.output_name == "" else args.output_name
     outname += '.nii' if '.nii' not in outname else '' 
-    input_image = sitk.ReadImage(im_path)
+    input_image = itku.load_image(im_path)
 
     if args.mode == "extract":
         if args.label == -1:
@@ -38,7 +37,7 @@ def main(args):
     elif args.mode == "merge":
         merge_labels = args.merge_labels
         if merge_labels == -1:
-            print("Error: No labels to merge. Set them with the -m flag.")
+            logger.error("Error: No labels to merge. Set them with the -m flag.")
             return 1
 
         merge_labels_str = list(map(str, merge_labels))
@@ -61,9 +60,27 @@ def main(args):
             input_image = itku.split_labels_on_repeats(input_image, label=l, open_image=True, open_radius=args.split_radius)
 
         itku.save_image(input_image, base_dir, outname) 
+    
+    elif args.mode == "gaps":
+        gaps = itku.find_gaps(input_image, multilabel_images=True)
+        if args.output_name == "":
+            outname = f'{name}_gaps.nii'
 
-    elif args.mode == "open":
-        itku.save_image(itku.imopen(input_image, radius=args.split_radius), base_dir, outname) 
+        itku.save_image(gaps, base_dir, outname)
+
+    elif args.mode == "fill":
+
+        old_segmentation = None if args.gaps_image == "" else itku.load_image(args.gaps_image)
+        filled = itku.fill_gaps(input_image, old_segmentation, multilabel_images=True)
+        
+        if args.output_name == "":
+            outname = f'{name}_filled.nii'
+
+        itku.save_image(filled, base_dir, outname)
+
+    elif args.mode == "morph":
+        logger.info(f'Performing morphological operation: {args.morphological} on image: {im_path}')
+        itku.save_image(itku.morph_operations(input_image, args.morphological, radius=args.split_radius, kernel_type='ball'), base_dir, outname) 
 
     elif args.mode == "show":
         itku.show_labels(input_image)
@@ -74,8 +91,10 @@ def main(args):
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
-    input_parser.add_argument("mode", choices=["extract", "merge", "split", "show", "inr", "open"], help="The mode to run the script in.")
+    input_parser.add_argument("mode", choices=["extract", "merge", "split", "show", "gaps", "fill", "inr", "morph"], help="The mode to run the script in.")
+    input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--input-image", "-in", required=True, help="The input image.")
+    input_parser.add_argument("--gaps-image", "-gaps-in", default="", required=False, help="The input image to compare to gaps.")
     input_parser.add_argument("--label", "-l", type=int, nargs="+", default=-1, help="The label to extract. Default: -1 (all labels)")
     input_parser.add_argument("--output-name", "-out", default="", type=str, help="The output image prefix. (Default: <input_image>_label_<label_value>)")
     input_parser.add_argument("--merge-labels", "-m", nargs="+", type=int, default=-1, help="The labels to merge.")
