@@ -288,8 +288,8 @@ def pointfile_to_image(path_to_image, path_to_points, label=1, girth=2, points_a
     if path_to_points.endswith(".json"): 
         with open(path_to_points, "r") as file:
             points_json = json.load(file)
-        for key, value in points.items():
-            points.append(value)
+        for _, coordinates in points_json.items():
+            points.append(coordinates)
 
     else:
         with open(path_to_points, "r") as file:
