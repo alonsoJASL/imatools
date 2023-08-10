@@ -9,10 +9,12 @@ logger = config.configure_logging(log_name=__name__)
 
 def main(args) : 
     input_path = args.input
-
     points_path = args.points
+
+    default_output_name = args.output=="" 
+
     label = args.label
-    output_name = os.path.basename(input_path) if args.output=="" else args.output 
+    output_name = os.path.basename(points_path).split('.')[0] if default_output_name else args.output 
     output_name += ".nii" if not output_name.endswith(".nii") else ""
     output_path = os.path.join(os.path.dirname(input_path), output_name)
 
