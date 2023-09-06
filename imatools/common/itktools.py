@@ -441,3 +441,124 @@ def find_neighbours(image, indices):
         neighbours_dict[idx] = neighbours
 
     return neighbours_dict
+
+def get_scarq_boundaries(mode :str) :#
+
+    iir = mode.lower() == 'iir'
+    simple = mode.lower() == 'simple'
+    bloodpool_mean = 100 if iir else 100 
+    bloodpool_stdev = 0.001 if iir else 10.0
+    lowthres = 90 if iir else 111 
+    fibrosis = 97 if iir else 110 
+    scar = 121 if iir else 120 
+    ablation = 132 if iir else 133 
+
+    dict_scarq_boundaries = { 
+        'background' : 0, 
+        'bp_mean' : bloodpool_mean, 
+        'bp_std' : bloodpool_stdev,
+        'bound0' : lowthres,
+        'bound1': fibrosis,
+        'bound2': scar,
+        'bound3': ablation,
+        'ceil' : 150
+    }
+
+    return dict_scarq_boundaries
+
+def generate_scar_image(image_size=(300, 300, 100), prism_size=(50, 50, 50), origin=(0, 0, 0), spacing=(1.0, 1.0, 1.0), mode = 'iir', simple=False) : 
+    """
+    Creates an 'LGE image with scar' for testing purposes.
+    """
+    print(f"Generating image of size {image_size} with prism of size {prism_size} using method {mode}")
+
+    # Create an image with user-defined dimensions, origin, and spacing
+    size_adjusted = (image_size[2], image_size[1], image_size[0])
+    image = sitk.Image(size_adjusted, sitk.sitkInt32)
+    image.SetOrigin(origin)
+    image.SetSpacing(spacing)
+    
+    # Create an array with all voxels set to 100 initially
+    voxel_values = sitk.GetArrayFromImage(image)
+    
+    start_indx = [(image_size[i] - prism_size[i]) // 2 for i in range(3)]
+    end_indx = [start_indx[i] + prism_size[i] for i in range(3)]
+
+    # Create a prism mask with the specified dimensions
+    prism_mask = sitk.GetArrayFromImage(zeros_like(image))
+    prism_mask[start_indx[0]:end_indx[0], start_indx[1]:end_indx[1], start_indx[2]:end_indx[2]] = 1
+
+    # Create the boundary region of the prism
+    boundary_mask = sitk.GetArrayFromImage(zeros_like(image))
+    boundary_mask[start_indx[0] - 1:end_indx[0] + 1, start_indx[1] - 1:end_indx[1] + 1, start_indx[2] - 1:end_indx[2] + 1] = 1
+    boundary_mask *= (1 - prism_mask)  # Exclude the inside of the prism
+    
+    d = get_scarq_boundaries(mode)
+    boundic = {60: 0, 20: 0, 15: 0, 5: 0}
+    if simple :
+        boundic = {105: 0, 120: 0}
+
+    # Set values for the boundary region
+    for i in range(image_size[0] - 1):
+        for j in range(image_size[1] - 1):
+            for k in range(image_size[2] - 1):
+                if boundary_mask[i, j, k] == 1:
+                    # Assign values based on the specified distribution
+                    rand_val = np.random.rand()
+                    if simple :
+                        voxel_values[i, j, k] = 105 if rand_val < 0.999 else 120
+                        boundic[105] += 1 if rand_val < 0.999 else 0
+                        boundic[120] += 1 if rand_val >= 0.999 else 0
+                        continue
+                        
+                    assign_value = 0
+                    if rand_val < 0.6:
+                        assign_value = np.random.randint(d['bound0'], d['bound1'], dtype=np.int32)
+                        boundic[60] += 1
+
+                    elif rand_val < 0.8:
+                        assign_value = np.random.randint(d['bound1'], d['bound2'], dtype=np.int32)
+                        boundic[20] += 1
+
+                    elif rand_val < 0.95:
+                        assign_value = np.random.randint(d['bound2'], d['bound3'], dtype=np.int32)
+                        boundic[15] += 1
+
+                    else:
+                        assign_value = np.random.randint(d['bound3'], d['ceil'], dtype=np.int32)
+                        boundic[5] += 1
+                    
+                    voxel_values[i, j, k] = assign_value
+
+                elif prism_mask[i, j, k] == 1:
+                    voxel_values[i, j, k] = 100
+                else :
+                    voxel_values[i, j, k] = np.random.randint(0, 20, dtype=np.int32)
+    
+    # Set pixel values in the SimpleITK image
+    out_image = sitk.GetImageFromArray(voxel_values)
+    out_image.CopyInformation(image)
+    
+    # Create a segmentation image
+    segmentation_values = sitk.GetArrayFromImage(image)
+
+    boundic['total'] = np.sum(list(boundic.values()))
+    for key in boundic:
+        if isinstance(boundic[key], np.int32):
+            boundic[key] = int(boundic[key])
+    
+    print(f"Boundaries: {boundic}")
+
+    # Set the segmentation values
+    for i in range(image_size[0] - 1):
+        for j in range(image_size[1] - 1):
+            for k in range(image_size[2] - 1):
+                if boundary_mask[i, j, k] == 1 or prism_mask[i, j, k] == 0:
+                    segmentation_values[i, j, k] = 0
+                else : # prism_mask[i, j, k] == 1
+                    segmentation_values[i, j, k] = 1
+
+    segmentation = sitk.GetImageFromArray(segmentation_values)
+    segmentation.CopyInformation(image)
+        
+    return out_image, segmentation, boundic
