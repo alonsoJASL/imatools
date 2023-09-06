@@ -47,6 +47,7 @@ def error_in_paths(pot: dict):
         
     
 def new_parfile(args_pot):
+    
     final_pot = m3d.get_empty_pot()
     if error_in_paths(args_pot) :
         raise ValueError('Missing argument')
@@ -60,6 +61,8 @@ def main(args):
     output_path += '.par' if '.par' not in output_path else '' 
     
     args_pot = fill_with_args(args)
+
+    myhelp = args.help
 
     if args.mode == 'new' :
         final_pot = new_parfile(args_pot)
@@ -91,11 +94,12 @@ def main(args):
 if __name__ == '__main__':
     iparse = argparse.ArgumentParser()
     iparse.add_argument('mode', type=str, choices=['new', 'json', 'par'], help='Mode of operation')
+    iparse.add_argument('help', action='store_true', help='Print help per mode')
     iparse.add_argument('--filepath', '-f', type=str, required=True, help='Output Meshtools3d parameter file')
     iparse.add_argument('--template', '-t', type=str, help='Path to template parameter file (JSON or .par)') 
     iparse.add_argument('--json', '-json', action="store_true", help='If set, saves output as a JSON file')
     iparse.add_argument('--seg_dir', '-seg_dir', type=str)
-    iparse.add_argument('--seg_name', '-seg_name', type=str, 'converted.inr')
+    iparse.add_argument('--seg_name', '-seg_name', type=str, default='converted.inr')
     iparse.add_argument('--mesh_from_segmentation', '-mesh_from_segmentation', type=bool, metavar='1/0')
     iparse.add_argument('--boundary_relabelling', '-boundary_relabelling', type=bool, metavar='1/0')
     iparse.add_argument('--facet_angle', '-facet_angle', type=float, help='Facet angle')
