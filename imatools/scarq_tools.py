@@ -23,7 +23,7 @@ CLIP_CMD = {
 }
 
 MIRTK = {
-    'linux': "$HOME/Desktop/CemrgApp-Linux-v2.2/CemrgApp-Linux/bin/MLib",
+    'linux': "/home/jsl19/syncdir/cemrgapp_prebuilds/v2018.04.2/linux/Externals/MLib",
     'win32': "C:\Lib\cemrg_libraries\MLib"
 }
 
@@ -87,7 +87,8 @@ def scar_image_debug(image_size, prism_size, method, origin, spacing, simple):
 
 def main(args):
 
-    if args.mode == "testlge":
+    extract_base_dir = args.base_dir is None
+    if args.mode == "lge":
         image_size_tuple = tuple(args.lge_image_size)
         prism_size_tuple = tuple(args.lge_prism_size)
         origin_tuple = tuple(args.lge_origin)
@@ -101,7 +102,7 @@ def main(args):
         else:       
             output = args.output
             # get file path 
-            output_path = os.path.dirname(output)
+            output_path = os.path.dirname(output) if extract_base_dir else args.base_dir
             output = os.path.basename(output)
 
         output_seg = "LA.nii"
@@ -128,7 +129,8 @@ def main(args):
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Segmentation tools for SCAR QUANTIFICATION")
-    input_parser.add_argument("mode", type=str, choices=["testlge", "surf"], help="Mode of operation")
+    input_parser.add_argument("mode", type=str, choices=["lge", "surf"], help="Mode of operation")
+    input_parser.add_argument("-dir", "--base-dir", type=str, help="Base directory")
     input_parser.add_argument("-i", "--input", type=str, help="Input file name")
     input_parser.add_argument("-o", "--output", type=str, help="Output file name")
     input_parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")

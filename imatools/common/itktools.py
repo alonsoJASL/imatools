@@ -446,12 +446,12 @@ def get_scarq_boundaries(mode :str) :#
 
     iir = mode.lower() == 'iir'
     simple = mode.lower() == 'simple'
-    bloodpool_mean = 100 if iir else 100 
+    bloodpool_mean = 80 if iir else 80 
     bloodpool_stdev = 0.001 if iir else 10.0
     lowthres = 90 if iir else 111 
     fibrosis = 97 if iir else 110 
-    scar = 121 if iir else 120 
-    ablation = 132 if iir else 133 
+    scar = 121 if iir else 121 
+    ablation = 133 if iir else 133 
 
     dict_scarq_boundaries = { 
         'background' : 0, 
@@ -506,7 +506,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(50, 50, 50), ori
                     # Assign values based on the specified distribution
                     rand_val = np.random.rand()
                     if simple :
-                        voxel_values[i, j, k] = 105 if rand_val < 0.999 else 120
+                        voxel_values[i, j, k] = 105 if rand_val < 0.999 else 121
                         boundic[105] += 1 if rand_val < 0.999 else 0
                         boundic[120] += 1 if rand_val >= 0.999 else 0
                         continue
@@ -542,7 +542,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(50, 50, 50), ori
     # Create a segmentation image
     segmentation_values = sitk.GetArrayFromImage(image)
 
-    boundic['total'] = np.sum(list(boundic.values()))
+    boundic['total'] = np.sum(list(boundic.values()), dtype=np.int32)
     for key in boundic:
         if isinstance(boundic[key], np.int32):
             boundic[key] = int(boundic[key])
@@ -562,3 +562,43 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(50, 50, 50), ori
     segmentation.CopyInformation(image)
         
     return out_image, segmentation, boundic
+
+def relabel_image(input_image, new_label) :
+    """Assumes input_image is a binary image, every value>0 is set to new_label"""
+    input_array = sitk.GetArrayFromImage(input_image)
+    input_array[np.greater(input_array, 0)] = new_label
+
+    new_image = sitk.GetImageFromArray(input_array)
+    new_image.CopyInformation(input_image)
+
+    return new_image
+
+def exchange_labels(input_image, old_label, new_label) :
+    input_array = sitk.GetArrayFromImage(input_image)
+    input_array[np.equal(input_array, old_label)] = new_label
+
+    new_image = sitk.GetImageFromArray(input_array)
+    new_image.CopyInformation(input_image)
+
+    return new_image
+
+def add_images(im1, im2) :
+    add_im = sitk.Add(im1, im2)
+    add_im.CopyInformation(im1)
+
+    return add_im
+
+def mask_image(im, mask, mask_value=0, ignore_im=None) : 
+    masked_im_array = sitk.GetArrayFromImage(im)
+    mask_array = sitk.GetArrayFromImage(mask)
+    
+    if ignore_im is not None :
+        ignore_im_array = sitk.GetArrayViewFromImage(ignore_im)
+        mask_array[ ignore_im_array > 0 ] = 0
+
+    masked_im_array[ mask_array > 0 ] = mask_value
+    
+    new_im = sitk.GetImageFromArray(masked_im_array)
+    new_im.CopyInformation(im)
+
+    return new_im
