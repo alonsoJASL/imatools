@@ -219,6 +219,7 @@ def save_image(image, dir_or_path, name=None):
     Saves a SimpleITK image to disk.
     """
     output_path = dir_or_path if name is None else os.path.join(dir_or_path, name)
+    logger.info(f"Saving image to [{output_path}]")
     sitk.WriteImage(image, output_path)
 
 def points_to_image(image, points, label=1, girth=2, points_are_indices=False) : 
@@ -318,9 +319,14 @@ def image_operation(operation, image1, image2=None) :
     }
 
     if image2 is None :
-        return switcher_operation.get(operation, lambda: "Invalid operation")(image1)
+        res_im = switcher_operation.get(operation, lambda: "Invalid operation")(image1)
     else :
-        return switcher_operation.get(operation, lambda: "Invalid operation")(image1, image2)
+        image1 = sitk.Cast(image1, sitk.sitkUInt16)
+        image2 = sitk.Cast(image2, sitk.sitkUInt16)
+        res_im = switcher_operation.get(operation, lambda: "Invalid operation")(image1, image2)
+
+    res_im.CopyInformation(image1)
+    return res_im
     
 def gaps(image, multilabel=False) : 
     """
@@ -588,7 +594,8 @@ def add_images(im1, im2) :
 
     return add_im
 
-def mask_image(im, mask, mask_value=0, ignore_im=None) : 
+
+def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
     masked_im_array = sitk.GetArrayFromImage(im)
     mask_array = sitk.GetArrayFromImage(mask)
     
@@ -596,7 +603,7 @@ def mask_image(im, mask, mask_value=0, ignore_im=None) :
         ignore_im_array = sitk.GetArrayViewFromImage(ignore_im)
         mask_array[ ignore_im_array > 0 ] = 0
 
-    masked_im_array[ mask_array > 0 ] = mask_value
+    masked_im_array[ mask_array > threshold ] = mask_value
     
     new_im = sitk.GetImageFromArray(masked_im_array)
     new_im.CopyInformation(im)

@@ -135,6 +135,21 @@ def main(args):
         logger.info(f'Performing morphological operation: {args.morphological} on image: {im_path}')
         itku.save_image(itku.morph_operations(input_image, args.morphological, radius=args.split_radius, kernel_type='ball'), base_dir, outname) 
 
+    elif args.mode == "op":
+        if args.secondary_image == "":
+            logger.error("Error: No image to perform op operation on. Set it with the -in2 flag.")
+            return 1
+        
+        input_image = itku.relabel_image(input_image, 1)
+        secondary_image = itku.load_image(args.secondary_image)
+        secondary_image = itku.relabel_image(secondary_image, 1)
+
+        op = itku.image_operation(args.op, input_image, secondary_image, )
+        if args.output_name == "":
+            outname = f'{args.op}.nii'
+
+        itku.save_image(op, base_dir, outname)
+
     elif args.mode == "show":
         itku.show_labels(input_image)
 
@@ -144,8 +159,9 @@ def main(args):
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
-    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "morph"], help="The mode to run the script in.")
+    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph"], help="The mode to run the script in.")
     input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
+    input_parser.add_argument("--op", "-op", choices=[ "add", "subtract", "multiply", "divide", "and", "or", "xor", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--input-image", "-in", required=True, help="The input image.")
     input_parser.add_argument("--secondary-image", "-in2", default="", required=False, help="The secondary input image (use in: add, mask, fill).")
     input_parser.add_argument("--mask-ignore", default="", required=False, help="The Image to ignore in the mask image.")
