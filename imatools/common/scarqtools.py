@@ -10,7 +10,7 @@ logger = config.configure_logging(log_name=__name__)
 
 class ScarQuantificationTools :
 
-    def __init__(self, cemrg_folder, mirtk_folder, scar_cmd_name = 'MitkCemrgScarProjectionOptions', clip_cmd_name = 'MitkCemrgApplyExternalClippers') -> None:
+    def __init__(self, cemrg_folder = "", mirtk_folder = "", scar_cmd_name = 'MitkCemrgScarProjectionOptions', clip_cmd_name = 'MitkCemrgApplyExternalClippers') -> None:
         self._cemrg = cemrg_folder
         self._mirtk = mirtk_folder
         self._scar_cmd_name = scar_cmd_name
@@ -51,7 +51,7 @@ class ScarQuantificationTools :
     def check_mirtk(self, test="close-image") -> bool:
         """Check if MIRTK is installed"""
         res = False
-        test_cmd = os.path.join(self.mirtk(), test)
+        test_cmd = os.path.join(self.mirtk, test)
         if os.path.isfile(test_cmd):
             res = True
         
@@ -60,11 +60,11 @@ class ScarQuantificationTools :
     def check_cemrg(self, test="MitkCemrgScarProjectionOptions") -> bool:
         """Check if CEMRG is installed"""
         res = False
-        test_cmd = os.path.join(self.cemrg(), test)
+        test_cmd = os.path.join(self.cemrg, test)
         if os.path.isfile(test_cmd):
             res = True
         
-        return res
+        return res    
     
     def run_cmd(self, script_dir, cmd_name, arguments, debug=False):
         """ Return the command to execute"""
@@ -112,7 +112,7 @@ class ScarQuantificationTools :
      
         arguments = [os.path.join(dir, 'segmentation.vtk')]
         arguments.append(os.path.join(dir, 'segmentation.s.vtk'))
-        seg_5_out, _ = self.run_cmd(self._mirtk, 'smooth-image', arguments, debug)
+        seg_5_out, _ = self.run_cmd(self._mirtk, 'smooth-surface', arguments, debug)
         if seg_5_out != 0:
             logger.error('Error in smooth image')
         
@@ -139,7 +139,7 @@ class ScarQuantificationTools :
         with open(output_path, 'w') as f:
             json.dump(dic, f)
 
-    def create_scar_test_image(image_size, prism_size, method, origin, spacing, simple) :
+    def create_scar_test_image(self, image_size, prism_size, method, origin, spacing, simple) :
         im, seg, boundic = itku.generate_scar_image(image_size, prism_size, origin, spacing, method, simple)
         return im, seg, boundic
     
@@ -152,11 +152,10 @@ class ScarQuantificationTools :
         output = method_dict[method](value, mean_bp, std_bp) if value > 0 else 0
         return output
     
-    def get_threshold_from_file(self, file_path, value):
-        method_dict = {
-            1 : lambda x, mbp, stdb : x*mbp,
-            2 : lambda x, mbp, stdb : x*stdb + mbp
-        }
+    def get_bloodpool_stats_from_file(self, file_path):
+        mean_bp = None
+        std_bp = None
+
         with open(file_path, 'r') as f:
             lines = f.readlines()
         
@@ -178,7 +177,7 @@ class ScarQuantificationTools :
             elif std_bp is None:
                 std_bp = float(line)
 
-        return self.get_threshold(method, value, mean_bp, std_bp)
+        return mean_bp, std_bp
     
     def mask_voxels_above_threshold(self, im, mask, thres_mean, thres_std, thres_value=0, mask_value=0, ignore_im=None):
         thres = self.get_threshold(thres_mean, thres_std, thres_value)

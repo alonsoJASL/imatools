@@ -13,7 +13,7 @@ def chooseplatform():
 # Constants and platform specific paths
 # Change these accordingly!!
 SCAR_CMD = {
-    'linux': 'MitkCemrgScarProjectionOptions.sh',
+    'linux': 'MitkCemrgScarProjectionOptions',
     'win32': 'MitkCemrgScarProjectionOptions_release.bat',
 }
 
@@ -93,7 +93,7 @@ def create_scar_options_file(dir: str, opts_file='options.json', output_dir = "O
     scarq = ScarQuantificationTools()
     scarq.create_scar_options_file(dir=dir, opt_file=opts_file, output_dir=output_dir, legacy=old)
 
-def scar3d(lge_path: str, seg_name: str, opts_path: str, help=False) :
+def scar3d(lge_path: str, seg_name: str, opts_path: str, svp=False, help=False) :
     """
     Perform scar quantification on a 3D image
     .\MitkCemrgScarProjectionOptions_release.bat -i path_lge -seg name_seg -opts path_opts
@@ -116,14 +116,24 @@ def scar3d(lge_path: str, seg_name: str, opts_path: str, help=False) :
     if lge_path == "" or opts_path == "":
         logger.error("No input files specified. Exiting...")
         return
+    
+    with open(opts_path, "r") as f:
+        json_opts = json.load(f)
+    
+    if ("single_voxel_projection" not in json_opts.keys()) or (json_opts["single_voxel_projection"] != svp) : 
+        logger.info(f"Rewritting [{opts_path}] to include single voxel projection option")
+        json_opts["single_voxel_projection"] = svp
+        with open(opts_path, "w") as f:
+            json.dump(json_opts, f)
 
-    scarq = ScarQuantificationTools(cemrg_folder=CEMRG[chooseplatform()], scar_cmd=SCAR_CMD[chooseplatform()], clip_cmd=CLIP_CMD[chooseplatform()])
+    scarq = ScarQuantificationTools(cemrg_folder=CEMRG[chooseplatform()], scar_cmd_name=SCAR_CMD[chooseplatform()], clip_cmd_name=CLIP_CMD[chooseplatform()])
     arguments = [
         "-i", lge_path,
         "-seg", seg_name,
         "-opts", opts_path
     ]
-    scarq.run_scar3d(arguments)
+
+    scarq.run_scar(arguments)
 
 def scar_image_debug(image_size, prism_size, method, origin, spacing, simple, help=False):
     """
@@ -152,6 +162,16 @@ def scar_image_debug(image_size, prism_size, method, origin, spacing, simple, he
     scarq = ScarQuantificationTools()
     im, seg, boundic = scarq.create_scar_test_image(image_size, prism_size, method, origin, spacing, simple)
     return im, seg, boundic
+
+def mask_image(im2mask, mask, thres_path, thres_value=0, mask_value=0, ignore_im=0, seg2mask=None, help=False):
+    """
+    Mask an image with another image, where voxels are above a certain threshold
+
+    MODE: mask
+
+    Parameters:
+    """
+    return None
 
 def main(args):
 
@@ -205,7 +225,7 @@ def main(args):
 
         output = "OUTPUT" if no_output_set else os.path.basename(args.output)
 
-        create_scar_options_file(input_path, opts_file=input_file, output_dir = output, old = args.scar_opts_legacy)
+        create_scar_options_file(input_path, opts_file=input_file, output_dir = output, old = args.scar_opts_legacy, help=myhelp)
 
     elif args.mode == "scar" :
         if args.input is None :
@@ -214,20 +234,22 @@ def main(args):
             lge_path = args.input if extract_base_dir else os.path.join(args.base_dir, args.input)
         
         if args.scar_opts is None : 
-            opts_path = ""
+            args.scar_opts = ""
         
-        scar3d(lge_path, args.scar_seg, args.scar_opts, help=myhelp)
+        scar3d(lge_path, args.scar_seg, args.scar_opts, args.scar_opts_svp, help=myhelp)
 
     
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Segmentation tools for SCAR QUANTIFICATION")
-    input_parser.add_argument("mode", type=str, choices=["lge", "surf", "scar_opts", "scar"], help="Mode of operation")
+    input_parser.add_argument("mode", type=str, choices=["lge", "surf", "scar_opts", "scar" , "mask"], help="Mode of operation")
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
+
     general_args = input_parser.add_argument_group("General arguments")
     general_args.add_argument("-dir", "--base-dir", type=str, help="Base directory")
     general_args.add_argument("-i", "--input", type=str, help="Input file name")
     general_args.add_argument("-o", "--output", type=str, help="Output file name")
     general_args.add_argument("-d", "--debug", action="store_true", help="Debug mode")
+
     lge_group = input_parser.add_argument_group("lge", "Arguments for lge mode")
     lge_group.add_argument("--lge-image-size", nargs=3, type=int, help="Size of the image", default=[300,300,100])
     lge_group.add_argument("--lge-prism-size", nargs=3, type=int, help="Size of the prism", default=[80,80,80])
@@ -235,16 +257,28 @@ if __name__ == "__main__":
     lge_group.add_argument("--lge-origin", nargs=3, type=float, help="Origin of the image", default=[0.0,0.0,0.0])
     lge_group.add_argument("--lge-spacing", nargs=3, type=float, help="Spacing of the image", default=[1.0,1.0,1.0])
     lge_group.add_argument("--lge-simple", action="store_true", help="Use simple scar generation method")
+
     surf_group = input_parser.add_argument_group("surf", "Arguments for surf mode")
     surf_group.add_argument("--surf-iterations", type=int, help="Number of iterations", default=1)
     surf_group.add_argument("--surf-isovalue", type=float, help="Isovalue", default=0.5)
     surf_group.add_argument("--surf-blur", type=float, help="Blur", default=0.0)
+
     scar_group = input_parser.add_argument_group("scar", "Arguments for scar mode")
     scar_group.add_argument("--scar-seg", type=str, help="Segmentation file name", default="PVeinsCroppedImage.nii")
     scar_group.add_argument("--scar-opts", type=str, help="Options path")
+    scar_group.add_argument("--scar-opts-svp", action="store_true", help="Single voxel projection option")
     scar_group.add_argument_group("scar_opts", "Arguments for scar_opts mode")
+
     scar_opts_group = input_parser.add_argument_group("scar_opts", "Arguments for scar_opts mode")
     scar_opts_group.add_argument("--scar-opts-legacy", action="store_true", help="Use legacy scar options")
+
+    mask_group = input_parser.add_argument_group("mask", "Arguments for mask mode")
+    mask_group.add_argument("--mask-seg", type=str, help="Segmentation file name", default="")
+    mask_group.add_argument("--mask", type=str, help="Mask file name", default="")
+    mask_group.add_argument("--mask-threshold-file", type=str, help="Threshold file name", default="")
+    mask_group.add_argument("--mask-threshold-value", type=float, help="Threshold value", default=0.0)
+    mask_group.add_argument("--mask-value", type=float, help="Mask value", default=0.0)
+    mask_group.add_argument("--mask-ignore", type=str, help="Ignore image path file", default="")
 
     logger.info("Running scarq_tools.py")
 
