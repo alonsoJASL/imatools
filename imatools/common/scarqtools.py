@@ -10,11 +10,12 @@ logger = config.configure_logging(log_name=__name__)
 
 class ScarQuantificationTools :
 
-    def __init__(self, cemrg_folder = "", mirtk_folder = "", scar_cmd_name = 'MitkCemrgScarProjectionOptions', clip_cmd_name = 'MitkCemrgApplyExternalClippers') -> None:
+    def __init__(self, cemrg_folder = "", mirtk_folder = "", scar_cmd_name = 'MitkCemrgScarProjectionOptions', clip_cmd_name = 'MitkCemrgApplyExternalClippers', scar_method='iir') -> None:
         self._cemrg = cemrg_folder
         self._mirtk = mirtk_folder
         self._scar_cmd_name = scar_cmd_name
         self._clip_cmd_name = clip_cmd_name
+        self._scar_method = scar_method
 
     @property
     def cemrg(self):
@@ -32,6 +33,10 @@ class ScarQuantificationTools :
     def clip_cmd_name(self):
         return self._clip_cmd_name
     
+    @property
+    def scar_method(self):
+        return self._scar_method
+    
     @cemrg.setter
     def cemrg(self, cemrg_folder):
         self._cemrg = cemrg_folder
@@ -47,6 +52,20 @@ class ScarQuantificationTools :
     @clip_cmd_name.setter
     def clip_cmd_name(self, clip_cmd_name):
         self._clip_cmd_name = clip_cmd_name
+    
+    @scar_method.setter
+    def scar_method(self, scar_method):
+        if scar_method != 'iir' and scar_method != 'msd':
+            logger.error("Error: Method must be 'iir' or 'msd'")
+            raise ValueError("Error: Method must be 'iir' or 'msd'")
+        self._scar_method = scar_method
+
+    def get_scar_method(self):
+        midic = {
+            'iir' : 1,
+            'msd' : 2
+        }
+        return midic[self._scar_method]
 
     def check_mirtk(self, test="close-image") -> bool:
         """Check if MIRTK is installed"""
@@ -143,7 +162,7 @@ class ScarQuantificationTools :
         im, seg, boundic = itku.generate_scar_image(image_size, prism_size, origin, spacing, method, simple)
         return im, seg, boundic
     
-    def get_threshold(self, method, value, mean_bp, std_bp):
+    def get_threshold(self, method: int, value, mean_bp, std_bp):
         method_dict = {
             1 : lambda x, mbp, stdb : x*mbp,
             2 : lambda x, mbp, stdb : x*stdb + mbp
@@ -180,15 +199,15 @@ class ScarQuantificationTools :
         return mean_bp, std_bp
     
     def mask_voxels_above_threshold(self, im, mask, thres_mean, thres_std, thres_value=0, mask_value=0, ignore_im=None):
-        thres = self.get_threshold(thres_mean, thres_std, thres_value)
-        masked_im = itku.mask_image(image=im, mask=mask, mask_value=mask_value, threshold=thres, ignore_im=ignore_im)
+        thres = self.get_threshold(self.get_scar_method(), thres_value, thres_mean, thres_std)
+        masked_im = itku.mask_image(im=im, mask=mask, mask_value=mask_value, threshold=thres, ignore_im=ignore_im)
 
         return masked_im
     
     def mask_segmentation_above_threshold(self, seg_path, im, mask, thres_mean, thres_std, thres_value=0, mask_value=0, ignore_im=None):
-        thres = self.get_threshold(thres_mean, thres_std, thres_value)
-        masked_im = self.mask_voxels_above_threshold(im, mask, thres, thres_value, mask_value, ignore_im=ignore_im)
-        seg = itku.load_image(seg_path)
+        thres = self.get_threshold(self.get_scar_method(), thres_mean, thres_std, thres_value)
+        mask_from_im = itku.get_mask_with_restrictions(im, mask, thres, ignore_im=ignore_im)
 
-        masked_seg = itku.mask_image(image=seg, mask=masked_im, mask_value=mask_value, ignore_im=ignore_im)
+        seg = itku.load_image(seg_path)
+        masked_seg = itku.simple_mask(im=seg, mask=mask_from_im, mask_value=mask_value)
         return masked_seg

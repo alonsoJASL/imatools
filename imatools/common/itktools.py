@@ -580,18 +580,50 @@ def add_images(im1, im2) :
 
     return add_im
 
-
-def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
+def simple_mask(im, mask, mask_value=0) -> sitk.Image :
     masked_im_array = sitk.GetArrayFromImage(im)
     mask_array = sitk.GetArrayFromImage(mask)
     
-    if ignore_im is not None :
-        ignore_im_array = sitk.GetArrayViewFromImage(ignore_im)
-        mask_array[ ignore_im_array > 0 ] = 0
-
-    masked_im_array[ mask_array > threshold ] = mask_value
+    masked_im_array[ mask_array > 0 ] = mask_value
     
     new_im = sitk.GetImageFromArray(masked_im_array)
     new_im.CopyInformation(im)
 
     return new_im
+
+def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> np.ndarray :
+    mask_array = sitk.GetArrayFromImage(mask)
+    if threshold > 0 :
+        im_array = sitk.GetArrayViewFromImage(im)
+        mask_array[ im_array > threshold ] = 1
+        
+    if ignore_im is not None :
+        ignore_im_array = sitk.GetArrayViewFromImage(ignore_im)
+        mask_array[ ignore_im_array > 0 ] = 0
+
+    mask_array[ mask_array > 0 ] = 1
+    return mask_array
+
+def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
+    masked_im_array = sitk.GetArrayFromImage(im)
+    mask_array = get_mask_array_with_restrictions(im, mask, threshold=threshold, ignore_im=ignore_im)
+    
+    masked_im_array[ mask_array > 0 ] = mask_value
+    
+    new_im = sitk.GetImageFromArray(masked_im_array)
+    new_im.CopyInformation(im)
+
+    return new_im
+
+def get_mask_with_restrictions(im, mask, threshold=0, ignore_im=None) : 
+    """
+    Returns a mask with the following restrictions: 
+        - mask_value is set to 1
+        - mask_value is set to 0 if ignore_im is not None and ignore_im > 0
+        - mask_value is set to 0 if mask_value > threshold
+    """
+    mask_array = get_mask_array_with_restrictions(im, mask, threshold=threshold, ignore_im=ignore_im)
+    new_mask = sitk.GetImageFromArray(mask_array)
+    new_mask.CopyInformation(im)
+
+    return new_mask

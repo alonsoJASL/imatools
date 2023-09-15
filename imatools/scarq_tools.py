@@ -32,7 +32,7 @@ CEMRG = {
     'win32': "C:/dev/build/CEMRG/MITK-build/bin"
 }
 
-logger = config.configure_logging(log_name=__name__)
+milog = config.configure_logging(log_name=__name__)
 
 def extract_path(some_str, extract_base_dir=False, base_dir="") -> str:
     if some_str is None :
@@ -63,13 +63,13 @@ def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', ite
         return
     
     if dir == "" or pveins_file == "":
-        logger.error("No input file specified. Exiting...")
+        milog.error("No input file specified. Exiting...")
         return
 
     scarq = ScarQuantificationTools(mirtk_folder=MIRTK[chooseplatform()])
 
     if scarq.check_mirtk() is False:
-        logger.error("MIRTK not found. Exiting...")
+        milog.error("MIRTK not found. Exiting...")
         return
 
     scarq.create_segmentation_mesh(dir, pveins_file, iterations, isovalue, blur, debug)
@@ -95,7 +95,7 @@ def create_scar_options_file(dir: str, opts_file='options.json', output_dir = "O
         return
     
     if dir == "" or opts_file == "":
-        logger.error("No input file specified. Exiting...")
+        milog.error("No input file specified. Exiting...")
         return
 
     scarq = ScarQuantificationTools()
@@ -122,14 +122,14 @@ def scar3d(lge_path: str, seg_name: str, opts_path: str, svp=False, help=False) 
         return
     
     if lge_path == "" or opts_path == "":
-        logger.error("No input files specified. Exiting...")
+        milog.error("No input files specified. Exiting...")
         return
     
     with open(opts_path, "r") as f:
         json_opts = json.load(f)
     
     if ("single_voxel_projection" not in json_opts.keys()) or (json_opts["single_voxel_projection"] != svp) : 
-        logger.info(f"Rewritting [{opts_path}] to include single voxel projection option")
+        milog.info(f"Rewritting [{opts_path}] to include single voxel projection option")
         json_opts["single_voxel_projection"] = svp
         with open(opts_path, "w") as f:
             json.dump(json_opts, f)
@@ -197,13 +197,14 @@ def mask_image(im2mask_path, mask_path, thres_path, thres_value=0, mask_value=0,
     
     im = itku.load_image(im2mask_path)
     mask = itku.load_image(mask_path)
-    ignore_im = None if ignore_im_path == "" else itku.load_image(ignore_im_path)
+    ignore_im = None if ignore_im_path == "" else itku.load_image(os.path.join(os.path.dirname(im2mask_path),ignore_im_path))
 
     scarq = ScarQuantificationTools()
     meanbp, stdbp = scarq.get_bloodpool_stats_from_file(thres_path)
     if seg2mask_path == "" :
         masked_im = scarq.mask_voxels_above_threshold(im, mask, meanbp, stdbp, thres_value, mask_value, ignore_im)
     else :
+        seg2mask_path = os.path.join(os.path.dirname(im2mask_path), seg2mask_path)
         masked_im = scarq.mask_segmentation_above_threshold(seg2mask_path, im, mask, meanbp, stdbp, thres_value, mask_value, ignore_im)
 
     if output == "" :
@@ -221,7 +222,7 @@ def main(args):
     no_output_set = args.output is None
     myhelp = args.help
     if no_output_set :
-        logger.info("No output file specified. Saving to default file name")
+        milog.info("No output file specified. Saving to default file name")
         output_path = os.path.dirname(__file__)
     else :
         output_path = os.path.dirname(args.output) if extract_base_dir else args.base_dir
@@ -239,7 +240,7 @@ def main(args):
             output_bounds = "bounds.json"
 
             # save image
-            logger.info(f"Saving image to {output_path}")
+            milog.info(f"Saving image to {output_path}")
             itku.save_image(im, output_path, output)
             itku.save_image(seg, output_path, output_seg)
             with open(os.path.join(output_path, output_bounds), "w") as f:
@@ -325,7 +326,7 @@ if __name__ == "__main__":
     mask_group.add_argument("--mask-value", type=float, help="Mask value", default=0.0)
     mask_group.add_argument("--mask-ignore", type=str, help="Ignore image path file", default="")
 
-    logger.info("Running scarq_tools.py")
+    milog.info("Running scarq_tools.py")
 
     args = input_parser.parse_args()
     main(args)
