@@ -34,6 +34,14 @@ CEMRG = {
 
 logger = config.configure_logging(log_name=__name__)
 
+def extract_path(some_str, extract_base_dir=False, base_dir="") -> str:
+    if some_str is None :
+        path = ""
+    else:
+        path = some_str if extract_base_dir else os.path.join(base_dir, some_str)
+    
+    return path
+
 def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', iterations=1, isovalue=0.5, blur=0.0, debug=False, help=False):
     """
     Creates segmentation.vtk surface mesh with MIRTK libraries
@@ -163,14 +171,48 @@ def scar_image_debug(image_size, prism_size, method, origin, spacing, simple, he
     im, seg, boundic = scarq.create_scar_test_image(image_size, prism_size, method, origin, spacing, simple)
     return im, seg, boundic
 
-def mask_image(im2mask, mask, thres_path, thres_value=0, mask_value=0, ignore_im=0, seg2mask=None, help=False):
+def mask_image(im2mask_path, mask_path, thres_path, thres_value=0, mask_value=0, ignore_im_path="", seg2mask_path="", output="", help=False):
     """
     Mask an image with another image, where voxels are above a certain threshold
 
     MODE: mask
 
     Parameters:
+    --base-dir (optional) : folder where all files are stored
+    --input : image to be masked (or considered for threshold (when using --mask-seg)))) 
+    --mask-seg : segmentation to mask (default None)
+    --mask : mask image
+    --mask-threshold-file : threshold file (prodStats.txt file)
+    --mask-threshold-value : threshold value (default 0.0)
+    --mask-value : value to mask (default 0.0)
+    --mask-ignore : ignore image (default None)
+    --output : output file name (default masked.nii)
+
+    Usage:
+    python scarq_tools.py mask --base-dir /path/to/data --input dcm-LGE-test.nii --mask DebugScar.nii --mask-threshold-file prodStats.txt [--mask-threshold-value VALUE] [--mask-value VALUE] [--output masked.nii]
     """
+    if help :
+        print(mask_image.__doc__)
+        return
+    
+    im = itku.load_image(im2mask_path)
+    mask = itku.load_image(mask_path)
+    ignore_im = None if ignore_im_path == "" else itku.load_image(ignore_im_path)
+
+    scarq = ScarQuantificationTools()
+    meanbp, stdbp = scarq.get_bloodpool_stats_from_file(thres_path)
+    if seg2mask_path == "" :
+        masked_im = scarq.mask_voxels_above_threshold(im, mask, meanbp, stdbp, thres_value, mask_value, ignore_im)
+    else :
+        masked_im = scarq.mask_segmentation_above_threshold(seg2mask_path, im, mask, meanbp, stdbp, thres_value, mask_value, ignore_im)
+
+    if output == "" :
+        opath = os.path.dirname(im2mask_path)
+        ofile = "masked.nii"
+        output = os.path.join(opath, ofile)
+    
+    itku.save_image(masked_im, output)
+
     return None
 
 def main(args):
@@ -216,27 +258,30 @@ def main(args):
         create_segmentation_mesh(input_path, input_file, debug=args.debug, help=myhelp)
 
     elif args.mode == "scar_opts" : 
-        if args.input is None:
-            input_path = ""
-            input_file = ""
-        else :
-            input_file = os.path.basename(args.input)
-            input_path = os.path.dirname(args.input) if extract_base_dir else args.base_dir
+        input_path_file = extract_path(args.input, extract_base_dir, args.base_dir)
+        input_path = os.path.dirname(input_path_file)
+        input_file = os.path.basename(input_path) 
 
         output = "OUTPUT" if no_output_set else os.path.basename(args.output)
 
         create_scar_options_file(input_path, opts_file=input_file, output_dir = output, old = args.scar_opts_legacy, help=myhelp)
 
     elif args.mode == "scar" :
-        if args.input is None :
-            lge_path = ""
-        else: 
-            lge_path = args.input if extract_base_dir else os.path.join(args.base_dir, args.input)
-        
+        lge_path = extract_path(args.input, extract_base_dir, args.base_dir)
+
         if args.scar_opts is None : 
             args.scar_opts = ""
         
         scar3d(lge_path, args.scar_seg, args.scar_opts, args.scar_opts_svp, help=myhelp)
+
+    elif args.mode == "mask" : 
+        im2mask_path = extract_path(args.input, extract_base_dir, args.base_dir)
+        mask_path = extract_path(args.mask, extract_base_dir, args.base_dir)
+        thres_path = extract_path(args.mask_threshold_file, extract_base_dir, args.base_dir)
+        output_path = extract_path(args.output, extract_base_dir, args.base_dir)
+
+        mask_image(im2mask_path, mask_path, thres_path, args.mask_threshold_value, args.mask_value, args.mask_ignore, args.mask_seg, output_path, help=myhelp)
+        
 
     
 if __name__ == "__main__":
