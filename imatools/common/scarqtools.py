@@ -71,7 +71,7 @@ class ScarQuantificationTools :
         """Check if MIRTK is installed"""
         res = False
         test_cmd = os.path.join(self.mirtk, test)
-        if os.path.isfile(test_cmd):
+        if os.path.isfile(test_cmd) or os.path.isfile(f'{test_cmd}.exe') :
             res = True
         
         return res
@@ -85,7 +85,7 @@ class ScarQuantificationTools :
         
         return res    
     
-    def run_cmd(self, script_dir, cmd_name, arguments, debug=False):
+    def run_cmd(self, script_dir, cmd_name, arguments, debug=True):
         """ Return the command to execute"""
         cmd_name = os.path.join(script_dir, cmd_name) if script_dir != '' else cmd_name
         cmd = f'{cmd_name} '

@@ -198,7 +198,7 @@ def convert_to_inr(image, out_path):
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
-def get_labels(image):
+def get_labels(image : sitk.Image ):
     """
     Returns a list of labels in an image.
     """
@@ -627,3 +627,10 @@ def get_mask_with_restrictions(im, mask, threshold=0, ignore_im=None) :
     new_mask.CopyInformation(im)
 
     return new_mask
+
+def check_for_existing_label(im: sitk.Image, label) -> bool :
+    """
+    Check if a particular label exists in an image
+    """
+    labels_in_im = get_labels(im)
+    return (label in labels_in_im )

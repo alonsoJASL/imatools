@@ -144,7 +144,7 @@ def main(args):
         secondary_image = itku.load_image(args.secondary_image)
         secondary_image = itku.relabel_image(secondary_image, 1)
 
-        op = itku.image_operation(args.op, input_image, secondary_image, )
+        op = itku.image_operation(args.op, input_image, secondary_image)
         if args.output_name == "":
             outname = f'{args.op}.nii'
 

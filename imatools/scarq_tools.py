@@ -32,6 +32,9 @@ CEMRG = {
     'win32': "C:/dev/build/CEMRG/MITK-build/bin"
 }
 
+MIRTK_TEST = 'close-image'
+MIRTK_TEST += '.exe' if sys.platform == 'win32' else ''
+
 milog = config.configure_logging(log_name=__name__)
 
 def extract_path(some_str, extract_base_dir=False, base_dir="") -> str:
@@ -68,9 +71,15 @@ def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', ite
 
     scarq = ScarQuantificationTools(mirtk_folder=MIRTK[chooseplatform()])
 
-    if scarq.check_mirtk() is False:
-        milog.error("MIRTK not found. Exiting...")
+    if scarq.check_mirtk(test=MIRTK_TEST) is False:
+        milog.error(f"MIRTK not found in {scarq.mirtk}. Exiting...")
         return
+    
+    seg = itku.load_image(os.path.join(dir, pveins_file))
+    if itku.check_for_existing_label(seg, 100) : 
+        milog.info("Fixing segmentation's padding values before meshing")
+        seg = itku.exchange_labels(seg, 100, 0)
+        itku.save_image(seg, os.path.dirname(pveins_file), os.path.basename(pveins_file))
 
     scarq.create_segmentation_mesh(dir, pveins_file, iterations, isovalue, blur, debug)
   
@@ -261,7 +270,7 @@ def main(args):
     elif args.mode == "scar_opts" : 
         input_path_file = extract_path(args.input, extract_base_dir, args.base_dir)
         input_path = os.path.dirname(input_path_file)
-        input_file = os.path.basename(input_path) 
+        input_file = os.path.basename(input_path_file) 
 
         output = "OUTPUT" if no_output_set else os.path.basename(args.output)
 
