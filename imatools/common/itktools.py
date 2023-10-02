@@ -4,7 +4,7 @@ import SimpleITK as sitk
 import numpy as np
 import json
 
-from common.config import configure_logging
+from imatools.common.config import configure_logging
 logger = configure_logging(log_name=__name__) 
 
 def load_image_as_np(path_to_file) :
