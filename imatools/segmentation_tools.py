@@ -21,6 +21,8 @@ def main(args):
     input_image = itku.load_image(im_path)
 
     if args.mode == "extract":
+        # remove extension from outname 
+        outname, _ = os.path.splitext(outname) if '.nii' in outname else (outname, '')
         if args.label == -1:
             # find all the labels in image and extract them all into different files 
             labels = itku.get_labels(input_image)
