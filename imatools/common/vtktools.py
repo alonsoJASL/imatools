@@ -419,6 +419,34 @@ def fibrosisOverlapCell(msh0, msh1, th0, th1=None, name0='msh0', name1='msh1') :
 
     return omsh, count_dic
 
+def point_to_cell_data(msh, fieldname='scalars') :
+    """
+    Convert point data to cell data
+    """
+    p2c = vtk.vtkPointDataToCellData()
+    p2c.SetInputData(msh)
+    p2c.PassPointDataOn()
+    p2c.Update()
+
+    omsh = p2c.GetOutput()
+    omsh.GetCellData().GetScalars().SetName(fieldname)
+
+    return omsh
+
+def cell_to_point_data(msh, fieldname='scalars') :
+    """
+    Convert cell data to point data
+    """
+    c2p = vtk.vtkCellDataToPointData()
+    c2p.SetInputData(msh)
+    c2p.PassCellDataOn()
+    c2p.Update()
+
+    omsh = c2p.GetOutput()
+    omsh.GetPointData().GetScalars().SetName(fieldname)
+
+    return omsh
+
 def fibrosis_score(msh, th, type='cell') : 
     """Assumes the scalars in msh have been normalised"""
 

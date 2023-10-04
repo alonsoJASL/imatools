@@ -4,6 +4,7 @@ import json
 import argparse
 
 from common import itktools as itku
+from common import vtktools as vtku
 from common import config
 from common.scarqtools import ScarQuantificationTools
 
@@ -225,6 +226,36 @@ def mask_image(im2mask_path, mask_path, thres_path, thres_value=0, mask_value=0,
 
     return None
 
+def exchange_point_or_cell_data(vtk_path, output_path, mode="point2cell", help=False):
+    """
+    Exchange point or cell data from a vtk file
+
+    MODE: point2cell or cell2point
+
+    Parameters:
+    --base-dir (optional) : folder where all files are stored
+    --input : input file name
+    --output : output file name
+
+    Usage:
+    python scarq_tools.py point2cell --base-dir /path/to/data --input input.vtk --output output.vtk
+
+    OR 
+
+    python scarq_tools.py cell2point --base-dir /path/to/data --input input.vtk --output output.vtk
+    """
+    if help :
+        print(exchange_point_or_cell_data.__doc__)
+        return
+    
+    function_dic = {
+        "point2cell" : vtku.exchange_point_data_to_cell_data,
+        "cell2point" : vtku.exchange_cell_data_to_point_data
+    }
+
+    vtkout = function_dic[mode](vtk_path)
+    vtku.save_vtk(vtkout, output_path)
+
 def main(args):
 
     extract_base_dir = args.base_dir is None
@@ -291,12 +322,17 @@ def main(args):
         output_path = extract_path(args.output, extract_base_dir, args.base_dir)
 
         mask_image(im2mask_path, mask_path, thres_path, args.mask_threshold_value, args.mask_value, args.mask_ignore, args.mask_seg, output_path, help=myhelp)
-        
+
+    elif args.mode == "point2cell" or args.mode == "cell2point" :
+        vtk_path = extract_path(args.input, extract_base_dir, args.base_dir)
+        output_path = extract_path(args.output, extract_base_dir, args.base_dir)
+
+        exchange_point_or_cell_data(vtk_path, output_path, args.mode, help=myhelp)
 
     
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Segmentation tools for SCAR QUANTIFICATION")
-    input_parser.add_argument("mode", type=str, choices=["lge", "surf", "scar_opts", "scar" , "mask"], help="Mode of operation")
+    input_parser.add_argument("mode", type=str, choices=["lge", "surf", "scar_opts", "scar" , "mask", "point2cell", "cell2point"], help="Mode of operation")
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
 
     general_args = input_parser.add_argument_group("General arguments")
