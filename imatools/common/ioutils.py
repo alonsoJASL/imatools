@@ -17,6 +17,38 @@ def ext(fname, extension) :
     fname = fname if fname[-len(xt):] == xt else fname + xt
     return fname
 
+def get_subfolders(directory: str) -> list:
+    """
+    Returns list of subfolders in a directory
+    """
+    return [f.path for f in os.scandir(directory) if f.is_dir()]
+
+def find_file(directory: str, fname: str, extension='') -> str:
+    """
+    Returns path of file in a directory
+    """
+    list_of_files = []
+    for name in os.listdir(directory):
+        if os.path.isfile(os.path.join(directory, name)):
+            if fname in name :
+                list_of_files.append(os.path.join(directory, name))
+
+    if len(list_of_files) == 0 :
+        return ''
+
+    if len(list_of_files) == 1 :
+        return list_of_files[0]
+
+    if len(list_of_files) > 1 :
+        if extension == '' :
+            return list_of_files[0]
+        else :
+            for f in list_of_files :
+                if extension in f :
+                    return f 
+
+    return ''
+
 def fullfile(*paths):
     """
     Returns path separated by '/'

@@ -3,8 +3,8 @@ import sys
 import json
 import argparse
 
-from common import itktools as itku
-from common import config
+from imatools.common import itktools as itku
+from imatools.common import config
 
 logger = config.configure_logging(log_name=__name__)
 
