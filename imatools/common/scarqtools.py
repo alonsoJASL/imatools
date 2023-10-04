@@ -130,7 +130,7 @@ class ScarQuantificationTools :
         arguments.clear()
      
         arguments = [os.path.join(dir, 'segmentation.vtk')]
-        arguments.append(os.path.join(dir, 'segmentation.s.vtk'))
+        arguments.append(os.path.join(dir, 'segmentation.vtk'))
         seg_5_out, _ = self.run_cmd(self._mirtk, 'smooth-surface', arguments, debug)
         if seg_5_out != 0:
             logger.error('Error in smooth image')
