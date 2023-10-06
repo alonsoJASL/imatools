@@ -171,14 +171,16 @@ class ScarQuantificationTools :
         output = method_dict[method](value, mean_bp, std_bp) if value > 0 else 0
         return output
     
-    def get_bloodpool_stats_from_file(self, file_path):
+    def read_stats_from_file(self, file_path):
         mean_bp = None
         std_bp = None
+        method = None 
 
         with open(file_path, 'r') as f:
             lines = f.readlines()
         
         thresholds = []
+        scores = []
         for ix, line in enumerate(lines):
             line = line.strip()  # Remove leading/trailing whitespace and newline characters
             if ix == 0:
@@ -187,15 +189,23 @@ class ScarQuantificationTools :
             elif line.startswith("V="):
                 # Extract threshold (V value) and add it to the list
                 parts = line.split(", ")
-                if len(parts) == 2 and parts[0].startswith("V="):
-                    threshold = float(parts[0].split('=')[1])
-                    thresholds.append(threshold)
+                if len(parts) == 2 :
+                    if parts[0].startswith("V="):
+                        threshold = float(parts[0].split('=')[1])
+                        thresholds.append(threshold)
+                    if parts[1].startswith("SCORE="):
+                        score = float(parts[1].split('=')[1])
+                        scores.append(score)
             elif mean_bp is None:
                 # The first two non-empty lines should be mean_bp and std_bp
                 mean_bp = float(line)
             elif std_bp is None:
                 std_bp = float(line)
-
+        
+        return method, mean_bp, std_bp, thresholds, scores
+    
+    def get_bloodpool_stats_from_file(self, file_path):
+        _, mean_bp, std_bp, _, _ = self.read_stats_from_file(file_path)
         return mean_bp, std_bp
     
     def mask_voxels_above_threshold(self, im, mask, thres_mean, thres_std, thres_value=0, mask_value=0, ignore_im=None):
