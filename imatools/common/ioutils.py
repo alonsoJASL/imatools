@@ -276,3 +276,15 @@ def get_boxplot_values(data, whisker=1.5):
         'max': max_val
     }
     return midic
+
+def compare_large_arrays(s0, s1, name0='s0', name1='s1') : 
+    l2 = (s0-s1)**2 
+    abs_diff = np.abs(s0-s1)
+    midic = {
+        'diff_square' : l2, 
+        'diff_abs' : abs_diff,
+        name0 : s0 ,
+        name1 : s1
+    }
+
+    return midic

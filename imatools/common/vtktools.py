@@ -53,14 +53,11 @@ def setCellDataToPointData(msh, fieldname='scalars') :
     print(__doc__)
     return set_cell_to_point_data(msh, fieldname)
 
-def getCentreOfGravity(msh) : 
+def get_cog_per_element(msh):
     pts, el = extractPointsAndElemsFromVtk(msh)
-    cog = np.zeros((len(el), 3))
-    for ix in range(len(el)): 
-        ex = el[ix] 
-        for jx in range(3) : 
-            cog[ix,:] += pts[ex[jx]] 
-        cog[ix, :] /= 3
+    element_coordinates = pts[el]
+
+    cog = np.mean(element_coordinates, axis=1)
     
     return cog
 
@@ -145,6 +142,8 @@ def convertCellDataToNpArray(vtk_input, str_scalars):
     distance=vtknp.vtk_to_numpy(vtkArrayDistance)
 
     return distance
+
+
 
 def extractPointsAndElemsFromVtk(msh):
     pts=[list(msh.GetPoint(ix)) for ix in range(msh.GetNumberOfPoints())]
@@ -255,7 +254,7 @@ def projectCellData(msh_source, msh_target) :
     o_scalar.SetNumberOfComponents(1)
 
     default_value = 0
-    cog = getCentreOfGravity(msh_source)
+    cog = get_cog_per_element(msh_source)
     for ix in range(msh_source.GetNumberOfCells()):
         pt = cog[ix, :]
         closest_pt = np.zeros((3, 1))
@@ -512,7 +511,7 @@ def compare_fibres(msh_a, msh_b, f_a , f_b) :
         f1 = f_a
     
     # pts1, el1 = extractPointsAndElemsFromVtk(msh1)
-    cog1 = getCentreOfGravity(msh1)
+    cog1 = get_cog_per_element(msh1)
 
     cell_loc=vtk.vtkCellLocator()
     cell_loc.SetDataSet(msh0)
@@ -683,12 +682,20 @@ def create_mapping(msh_left_name, msh_right_name, left_id, right_id, map_type='e
     msh_large = readVtk(path_large) # 0
     msh_small = readVtk(path_small) # 1
 
+    cog_small = global_centre_of_mass(msh_small)
+    cog_large = global_centre_of_mass(msh_large) 
+    
+    if (norm2(cog_small - cog_large) > 1) :
+        logger.warning('WARNING: Meshes are not aligned. Translating to (0,0,0)')
+        msh_large = translate_to_point(msh_large)
+        msh_small = translate_to_point(msh_small)
+
     if (map_id == 1) : # elem 
-        cog_small = getCentreOfGravity(msh_small)
-        mapping_dictionary = map_cells(msh_large, cog_small, tot_small, large_id, small_id) 
+        elem_cog_small = get_cog_per_element(msh_small)
+        mapping_dictionary = map_cells(msh_large, elem_cog_small, tot_small, large_id, small_id) 
     else : 
-        cog_small = [msh_small.GetPoint(ix) for ix in range(tot_small)]
-        cog_small = np.asarray(cog_small) 
+        elem_cog_small = [msh_small.GetPoint(ix) for ix in range(tot_small)]
+        elem_cog_small = np.asarray(elem_cog_small) 
         mapping_dictionary = map_points(msh_large, msh_small, large_id, small_id)
 
     return mapping_dictionary
@@ -724,3 +731,33 @@ def flip_xy(polydata) :
         points.SetPoint(i, modified_coords)
 
     polydata.Modified()
+
+def global_centre_of_mass(mesh) :
+    """Return the centre of mass of a mesh"""
+    pts, _ = extractPointsAndElemsFromVtk(mesh)
+    return np.mean(pts, axis=0)
+
+def translate_to_point(mesh, point=[0,0,0]) :
+    """Translate a mesh to a point"""
+    cog = global_centre_of_mass(mesh)
+    transform = vtk.vtkTransform()
+    transform.Translate(point[0]-cog[0], point[1]-cog[1], point[2]-cog[2]) 
+
+    transform_filter = vtk.vtkTransformPolyDataFilter()
+    transform_filter.SetInputData(mesh)
+    transform_filter.SetTransform(transform)
+    transform_filter.Update()
+
+    return transform_filter.GetOutput()
+
+def get_filtered_array(df: pd.DataFrame, field: str, mesh_path: str, mesh_scalar_field='scalars', dist_field='distance_manual', max_distance=1.0) -> np.ndarray:
+    # filter the DataFrame by distance_manual
+    df_filtered = df[df[dist_field] < max_distance] 
+    mesh_indices = df_filtered[field].values
+
+    # read the mesh and extract the scalar data
+    msh = readVtk(mesh_path)
+    mesh_array = convertCellDataToNpArray(msh, mesh_scalar_field)
+    mesh_array = mesh_array[mesh_indices]
+    
+    return mesh_array, df_filtered

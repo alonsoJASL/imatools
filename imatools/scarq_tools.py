@@ -46,7 +46,7 @@ def extract_path(some_str, extract_base_dir=False, base_dir="") -> str:
     
     return path
 
-def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', iterations=1, isovalue=0.5, blur=0.0, debug=False, help=False):
+def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', iterations=1, isovalue=0.5, blur=0.0, clip_mv='prodMVI.vtk', debug=False, help=False):
     """
     Creates segmentation.vtk surface mesh with MIRTK libraries
 
@@ -58,9 +58,10 @@ def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', ite
     --surf-iterations : Number of iterations (default 1)
     --surf-isovalue : Isovalue (default 0.5)
     --surf-blur : Blur (default 0.0)
+    --clip-mitral-valve : Clip mitral valve name (default None)
 
     Usage:
-    python scarq_tools.py surf --base-dir /path/to/data --input PVeinsCroppedImage.nii [--surf-iterations 1] [--surf-isovalue 0.5] [--surf-blur 0.0]
+    python scarq_tools.py surf --base-dir /path/to/data --input PVeinsCroppedImage.nii [--surf-iterations 1] [--surf-isovalue 0.5] [--surf-blur 0.0] [--clip-mitral-valve prodMVI.vtk]
     """
     if help :
         print(create_segmentation_mesh.__doc__)
@@ -70,8 +71,13 @@ def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', ite
         milog.error("No input file specified. Exiting...")
         return
 
-    scarq = ScarQuantificationTools(mirtk_folder=MIRTK[chooseplatform()])
-
+    scarq = ScarQuantificationTools(
+        cemrg_folder=CEMRG[chooseplatform()], 
+        mirtk_folder=MIRTK[chooseplatform()], 
+        scar_cmd_name=SCAR_CMD[chooseplatform()], 
+        clip_cmd_name=CLIP_CMD[chooseplatform()]
+        )
+    
     if scarq.check_mirtk(test=MIRTK_TEST) is False:
         milog.error(f"MIRTK not found in {scarq.mirtk}. Exiting...")
         return
@@ -83,6 +89,9 @@ def create_segmentation_mesh(dir: str, pveins_file='PVeinsCroppedImage.nii', ite
         itku.save_image(seg, os.path.dirname(pveins_file), os.path.basename(pveins_file))
 
     scarq.create_segmentation_mesh(dir, pveins_file, iterations, isovalue, blur, debug)
+
+    if clip_mv is not None :
+        scarq.clip_mitral_valve(dir, pveins_file, clip_mv)
   
 
 def create_scar_options_file(dir: str, opts_file='options.json', output_dir = "OUTPUT", old = False, help=False) :
@@ -296,7 +305,7 @@ def main(args):
             input_path = os.path.dirname(args.input) if extract_base_dir else args.base_dir
 
         # create segmentation mesh
-        create_segmentation_mesh(input_path, input_file, debug=args.debug, help=myhelp)
+        create_segmentation_mesh(input_path, input_file, clip_mv=args.clip_mitral_valve, debug=args.debug, help=myhelp)
 
     elif args.mode == "scar_opts" : 
         input_path_file = extract_path(args.input, extract_base_dir, args.base_dir)
@@ -353,6 +362,7 @@ if __name__ == "__main__":
     surf_group.add_argument("--surf-iterations", type=int, help="Number of iterations", default=1)
     surf_group.add_argument("--surf-isovalue", type=float, help="Isovalue", default=0.5)
     surf_group.add_argument("--surf-blur", type=float, help="Blur", default=0.0)
+    surf_group.add_argument("--clip-mitral-valve", type=str, default=None)
 
     scar_group = input_parser.add_argument_group("scar", "Arguments for scar mode")
     scar_group.add_argument("--scar-seg", type=str, help="Segmentation file name", default="PVeinsCroppedImage.nii")

@@ -134,7 +134,18 @@ class ScarQuantificationTools :
         seg_5_out, _ = self.run_cmd(self._mirtk, 'smooth-surface', arguments, debug)
         if seg_5_out != 0:
             logger.error('Error in smooth image')
-        
+    
+    def clip_mitral_valve(self, dir:str, pveins_file:str, mvi_name='prodMVI.vtk', debug=False) : 
+        arguments = ['-i']
+        arguments.append(os.path.join(dir, pveins_file))
+        arguments.append('-mv')
+        arguments.append('-mvname')
+        arguments.append(mvi_name)
+
+        mvi_out, _ = self.run_clip(arguments)
+        if mvi_out != 0:
+            logger.error('Error in clipping mitral valve')
+
     def create_scar_options_file(self, dir: str, opt_file='options.json', 
                                  output_dir='OUTPUT', legacy=False, limits=[-1, 3], radius=False, 
                                  method=1, threshold_values=[0.97, 1.2, 1.32] ) -> None:
