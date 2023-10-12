@@ -278,13 +278,53 @@ def get_boxplot_values(data, whisker=1.5):
     return midic
 
 def compare_large_arrays(s0, s1, name0='s0', name1='s1') : 
+    from scipy.spatial.distance import cosine 
     l2 = (s0-s1)**2 
     abs_diff = np.abs(s0-s1)
+    cosine_similarity = 1 - cosine(s0, s1)
     midic = {
         'diff_square' : l2, 
         'diff_abs' : abs_diff,
+        'cosine_similarity' : cosine_similarity,
         name0 : s0 ,
         name1 : s1
     }
 
     return midic
+
+def classify_array(arr , thresholds: list):
+    """
+    Classifies an array based on given thresholds.
+
+    Parameters:
+    arr (numpy.ndarray): Array of values to classify.
+    thresholds (list): List of tuples where each tuple contains the name of the classification and the corresponding threshold values.
+
+    Returns:
+    numpy.ndarray: Array of classifications.
+    """
+    classifications = np.zeros_like(arr, dtype=int)
+    for i, value in enumerate(arr):
+        for j, threshold in enumerate(thresholds):
+            if threshold[0] <= value < threshold[1]:
+                classifications[i] = j
+                break
+    return classifications
+
+def count_values_in_ranges(arr, thresholds: list) -> dict :
+    """
+    Counts the number of values in each range.
+
+    Parameters:
+    arr (numpy.ndarray): Array of values to classify.
+    thresholds (list): List of tuples where each tuple contains the name of the classification and the corresponding threshold values.
+
+    Returns:
+    dict: Dictionary containing the number of values in each range.
+    """
+    classifications = classify_array(arr, thresholds)
+    counts = { }
+    for ix in range(len(thresholds)):
+        counts[ix] = np.count_nonzero(classifications == ix)
+        
+    return counts

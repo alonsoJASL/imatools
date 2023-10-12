@@ -761,3 +761,20 @@ def get_filtered_array(df: pd.DataFrame, field: str, mesh_path: str, mesh_scalar
     mesh_array = mesh_array[mesh_indices]
     
     return mesh_array, df_filtered
+
+def np_to_vtk_array(data: np.ndarray, name: str) -> vtk.vtkFloatArray:
+    vtk_array = vtknp.numpy_to_vtk(data)
+    vtk_array.SetName(name)
+
+    return vtk_array
+
+def set_vtk_scalars(msh, array, indices = None) -> vtk.vtkPolyData: 
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh)
+    inav_array = -1*np.ones_like(convertCellDataToNpArray(omsh, 'scalars')) 
+
+    if indices is not None :
+        inav_array[indices] = array
+
+    omsh.GetCellData().SetScalars(np_to_vtk_array(inav_array, 'scalars'))
+    return omsh
