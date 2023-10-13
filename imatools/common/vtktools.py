@@ -775,6 +775,14 @@ def set_vtk_scalars(msh, array, indices = None) -> vtk.vtkPolyData:
 
     if indices is not None :
         inav_array[indices] = array
+    else: 
+        inav_array = array
 
     omsh.GetCellData().SetScalars(np_to_vtk_array(inav_array, 'scalars'))
     return omsh
+
+def indices_at_scalar(msh, scalar=0.0, fieldname='scalars') -> np.ndarray:
+    scalars = convertCellDataToNpArray(msh, fieldname)
+    indices = np.where(scalars == scalar)[0]
+
+    return indices
