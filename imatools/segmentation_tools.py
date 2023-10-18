@@ -70,9 +70,14 @@ def main(args):
             return 1
 
         label = args.label
-        removed_image = itku.exchange_labels(input_image, label, 0)
+        removed_image = input_image
+        labels_removed_str = ""
+        for l in label:
+            removed_image = itku.exchange_labels(removed_image, l, 0)
+            labels_removed_str += f"{l}_"
         
-        output_name = f'{outname}_removed_{str(label)}.nii'
+        outname = outname[:-4] if outname[-4:] == '.nii' else outname
+        output_name = f'{outname}_removed_{labels_removed_str}.nii'
         itku.save_image(removed_image, base_dir, output_name)
 
     elif args.mode == "merge":
