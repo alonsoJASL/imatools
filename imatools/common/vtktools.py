@@ -1,4 +1,5 @@
 import sys
+import os
 
 import numpy as np
 import pandas as pd
@@ -23,10 +24,13 @@ def readVtk(fname):
     return reader.GetOutput()
 
 def writeVtk(mesh, directory, outname="output"):
+    filename = os.path.join(directory, outname)
+    filename += ".vtk" if not filename.endswith(".vtk") else ""
+
     writer=vtk.vtkPolyDataWriter()
     writer.WriteArrayMetaDataOff()
     writer.SetInputData(mesh)
-    writer.SetFileName(directory+"/"+outname+".vtk")
+    writer.SetFileName(filename)
     writer.SetFileTypeToASCII()
     # check for vtk version 
     if vtk.vtkVersion().GetVTKMajorVersion() >= 9 and vtk.vtkVersion().GetVTKMinorVersion() >= 1:
@@ -768,6 +772,21 @@ def np_to_vtk_array(data: np.ndarray, name: str) -> vtk.vtkFloatArray:
 
     return vtk_array
 
+def mask_cell_scalars(msh, values, indices, scalar_field='scalars') : 
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh)
+    array = convertCellDataToNpArray(omsh, scalar_field)
+
+    if len(indices) != len(values) : 
+        raise ValueError('Indices and values must have the same length')
+    
+    for ix, indx in enumerate(indices) :
+        array[indx] = values[ix]
+
+    omsh.GetCellData().SetScalars(np_to_vtk_array(array, scalar_field))
+    return omsh
+
+    
 def set_vtk_scalars(msh, array, indices = None) -> vtk.vtkPolyData: 
     omsh = vtk.vtkPolyData()
     omsh.DeepCopy(msh)
@@ -786,3 +805,33 @@ def indices_at_scalar(msh, scalar=0.0, fieldname='scalars') -> np.ndarray:
     indices = np.where(scalars == scalar)[0]
 
     return indices
+
+def verify_cell_indices(msh, test_indices, test_locations) : 
+    """
+    Verifies that the test_indices in the mesh (msh) 
+    are the same as the test_locations.
+
+    test_locations is linked to test_indices via the
+    centre of gravity of the mesh elements.
+    """
+
+    cog = get_cog_per_element(msh)
+    test_cog = cog[test_indices, :]
+    diff = np.linalg.norm(test_cog - test_locations, axis=1)
+
+    return np.sum(diff)
+
+
+def verify_cell_indices_from_mesh(msh1, msh_test, test_indices) :
+    """
+    Verifies that the test_indices in the mesh (msh) 
+    are the same as the test_locations.
+
+    test_locations is linked to test_indices via the
+    centre of gravity of the mesh elements.
+    """
+
+    cog_test = get_cog_per_element(msh_test)
+    test_cog = cog_test[test_indices, :]
+   
+    return verify_cell_indices(msh1, test_indices, test_cog)
