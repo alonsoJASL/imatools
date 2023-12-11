@@ -676,7 +676,9 @@ def create_normal_vector_for_plane(axis, angle) :
 
 def create_image_at_plane(image: sitk.Image, point_on_plane: np.array, axis:str, angle:float) :
     normal_vector = create_normal_vector_for_plane(axis, angle)
+    return create_image_at_plane_from_vector(image, point_on_plane, normal_vector)
 
+def create_image_at_plane_from_vector(image: sitk.Image, point_on_plane: np.array, normal_vector: np.array): 
     transform = sitk.AffineTransform(3)
     transform.SetMatrix(normal_vector + [0, 0, 1])
 
@@ -703,3 +705,4 @@ def create_image_at_plane(image: sitk.Image, point_on_plane: np.array, axis:str,
     slice_2d = array[:, :, slice_index]
 
     return slice_2d
+
