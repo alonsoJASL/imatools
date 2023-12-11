@@ -634,3 +634,72 @@ def check_for_existing_label(im: sitk.Image, label) -> bool :
     """
     labels_in_im = get_labels(im)
     return (label in labels_in_im )
+
+def create_normal_vector_for_plane(axis, angle) : 
+    """
+    Returns a normal vector for a plane rotated around the given axis by the given angle
+    """
+    AXES = ['x', 'y', 'z']
+    if axis not in AXES : 
+        raise ValueError(f'Axis {axis} not recognised')
+    
+    vector = np.zeros(3)
+    vector[AXES.index(axis)] = 1
+
+    angle_rad = np.radians(angle)
+
+    if axis == 'x':
+        rotation_matrix = np.array([
+            [1, 0, 0],
+            [0, np.cos(angle), -np.sin(angle)],
+            [0, np.sin(angle), np.cos(angle)]
+        ])
+    elif axis == 'y':
+        rotation_matrix = np.array([
+            [np.cos(angle), 0, np.sin(angle)],
+            [0, 1, 0],
+            [-np.sin(angle), 0, np.cos(angle)]
+        ])
+    elif axis == 'z':
+        rotation_matrix = np.array([
+            [np.cos(angle), -np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1]
+        ])
+
+    # Apply the rotation matrix to the initial vector
+    normal_vector = np.dot(rotation_matrix, vector)
+    normal_vector = normal_vector / np.linalg.norm(normal_vector)
+
+    return normal_vector
+
+
+def create_image_at_plane(image: sitk.Image, point_on_plane: np.array, axis:str, angle:float) :
+    normal_vector = create_normal_vector_for_plane(axis, angle)
+
+    transform = sitk.AffineTransform(3)
+    transform.SetMatrix(normal_vector + [0, 0, 1])
+
+    i_transform = transform.GetInverse()
+
+    im_size = image.GetSize()
+    spacing = image.GetSpacing()
+
+    # Transform the point on the plane to the image's coordinate system
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetOutputDirection([0, 0, -1, 0, -1, 0, 1, 0, 0])
+    resampler.SetOutputOrigin(point_on_plane)
+    resampler.SetSize(im_size)
+    resampler.SetOutputSpacing(spacing)
+    resampler.SetTransform(i_transform)
+
+    resampled_im = resampler.Execute(image)
+
+    # Convert the 3D image to a 2D array
+    array = sitk.GetArrayViewFromImage(resampled_im)
+
+    # Select the middle slice along the third dimension
+    slice_index = array.shape[2] // 2
+    slice_2d = array[:, :, slice_index]
+
+    return slice_2d
