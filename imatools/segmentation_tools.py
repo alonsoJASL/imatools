@@ -4,9 +4,12 @@ import argparse
 from common import itktools as itku
 from common import config  
 
-logger = config.configure_logging(log_name=__name__) 
+logger = config.configure_logging(log_name=__name__)
 
-def main(args): 
+def rm_ext(name):
+    return os.path.splitext(name)[0]
+
+def get_base_inputs(args):
     im_path = args.input_image
     # name remove extension
     im_name = os.path.basename(im_path)
@@ -16,157 +19,342 @@ def main(args):
 
     base_dir = os.path.dirname(im_path)
 
-    outname = name if args.output_name == "" else args.output_name
+    output_not_set = (args.output_name == "")
+
+    outname = name if output_not_set else args.output_name
     outname += '.nii' if '.nii' not in outname else '' 
+
+    print(output_not_set, outname)
+
     input_image = itku.load_image(im_path)
+    return base_dir, name, input_image, outname, output_not_set
 
-    if args.mode == "extract":
-        # remove extension from outname 
-        outname, _ = os.path.splitext(outname) if '.nii' in outname else (outname, '')
-        if args.label == -1:
-            # find all the labels in image and extract them all into different files 
-            labels = itku.get_labels(input_image)
-            for label in labels:
-                this_im = itku.extract_single_label(input_image, label, args.binarise)
-                itku.save_image(this_im, base_dir, f'{outname}_label_{str(label)}.nii')
+def execute_extract(args):
+    """
+    Extracts a single label from a label map image.
 
-        else:
-            labels = args.label
-            for label in labels:
-                label_image = itku.extract_single_label(input_image, label, args.binarise)
-                itku.save_image(label_image, base_dir, f'{outname}_label_{str(label)}.nii')
+    USAGE:
+        python segmentation_tools.py extract -in <input_image> -l <label> [-out <output_name>]
+    """
+    if(args.help) : 
+        print(execute_extract.__doc__)
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     
-    elif args.mode == "mask":
-        if args.secondary_image == "":
-            logger.error("Error: No image to mask. Set it with the -in2 flag.")
-            return 1
-            
-        secondary_image = itku.load_image(args.secondary_image)
-        ignore_image = None if args.mask_ignore == "" else itku.load_image(args.mask_ignore)
+    if args.label == -1:
+        # find all the labels in image and extract them all into different files 
+        labels = itku.get_labels(input_image)
+        for label in labels:
+            this_im = itku.extract_single_label(input_image, label, args.binarise)
+            outn = outname if output_not_set else f'{rm_ext(outname)}_label_{str(label)}.nii'
+            itku.save_image(this_im, base_dir, outn)
+    else:
+        labels = args.label
+        for label in labels:
+            label_image = itku.extract_single_label(input_image, label, args.binarise)
+            outn = outname if output_not_set else f'{rm_ext(outname)}_label_{str(label)}.nii'
+            itku.save_image(label_image, base_dir, outn)
         
-        mask_name = os.path.basename(args.secondary_image)
-        masked_image = itku.mask_image(input_image, secondary_image, args.mask_value, ignore_image)
+def execute_mask(args):
+    """
+    Masks a label map image with another label map image.
 
-        if args.output_name == "":
-            outname = f'{name}_masked_{mask_name}.nii'
+    USAGE:
+        python segmentation_tools.py mask -in <input_image> -in2 <secondary_image> [-out <output_name>]
+    """
+    if(args.help) : 
+        print(execute_mask.__doc__)
 
-        itku.save_image(masked_image, base_dir, outname)
-
-    elif args.mode == "relabel":
-        # assumes that this image only has one label, thus relabels all labels to the same value
-        if args.label == -1:
-            logger.error("Error: No label to relabel. Set it with the -l flag.")
-            return 1
-
-        label = args.label
-        relabelled_image = itku.relabel_image(input_image, label)
-        
-        output_name = f'{outname}_relabelled_{str(label)}.nii'
-        itku.save_image(relabelled_image, base_dir, output_name)
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.secondary_image == "":
+        logger.error("Error: No image to mask. Set it with the -in2 flag.")
+        return 1
+    secondary_image = itku.load_image(args.secondary_image)
+    ignore_image = None if args.mask_ignore == "" else itku.load_image(args.mask_ignore)
     
-    elif args.mode == "remove":
-        if args.label == -1:
-            logger.error("Error: No label to remove. Set it with the -l flag.")
-            return 1
+    mask_name = os.path.basename(args.secondary_image)
+    masked_image = itku.mask_image(input_image, secondary_image, args.mask_value, ignore_image)
 
-        label = args.label
-        removed_image = input_image
-        labels_removed_str = ""
-        for l in label:
-            removed_image = itku.exchange_labels(removed_image, l, 0)
-            labels_removed_str += f"{l}_"
-        
-        outname = outname[:-4] if outname[-4:] == '.nii' else outname
-        output_name = f'{outname}_removed_{labels_removed_str}.nii'
-        itku.save_image(removed_image, base_dir, output_name)
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_masked_{mask_name}.nii'
 
-    elif args.mode == "merge":
-        merge_labels = args.merge_labels
-        if merge_labels == -1:
-            logger.error("Error: No labels to merge. Set them with the -m flag.")
-            return 1
+    itku.save_image(masked_image, base_dir, outname)
 
-        merge_labels_str = list(map(str, merge_labels))
-        label_images = []
-        for label in merge_labels:
-            label_images.append(itku.extract_single_label(input_image, label, args.binarise))
+def execute_relabel(args):
+    """
+    Relabels a label map image.
 
-        merged_image = itku.merge_label_images(label_images)
-        output_name = f'{outname}_merged_{"_".join(merge_labels_str)}.nii'
-        itku.save_image(merged_image, base_dir, output_name)
+    USAGE:
+        python segmentation_tools.py relabel -in <input_image> -l <label> [-out <output_name>]
+    """
+    if(args.help) : 
+        print(execute_relabel.__doc__)
 
-    elif args.mode == "split":
-        if -1 in args.label:
-            labels = itku.get_labels(input_image)
-        else :
-            labels = args.label 
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.label == -1:
+        logger.error("Error: No label to relabel. Set it with the -l flag.")
+        return 1
 
-        for l in labels: 
-            logger.info(f'Processing label: {l}')
-            input_image = itku.split_labels_on_repeats(input_image, label=l, open_image=True, open_radius=args.split_radius)
-
-        itku.save_image(input_image, base_dir, outname) 
+    label = args.label
+    relabelled_image = itku.relabel_image(input_image, label)
     
-    elif args.mode == "gaps":
-        gaps = itku.find_gaps(input_image, multilabel_images=True)
-        if args.output_name == "":
-            outname = f'{name}_gaps.nii'
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_relabelled_{label}.nii'
+    print(output_not_set, outname)
+    itku.save_image(relabelled_image, base_dir, outname)
 
-        itku.save_image(gaps, base_dir, outname)
+def execute_remove(args):
+    """
+    Removes a label from a label map image.
+
+    USAGE:
+        python segmentation_tools.py remove -in <input_image> -l <label> [-out <output_name>]
+    """
+    if(args.help) : 
+        print(execute_remove.__doc__)
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.label == -1:
+        logger.error("Error: No label to remove. Set it with the -l flag.")
+        return 1
+
+    label = args.label
+    removed_image = input_image
+    labels_removed_str = ""
+    for l in label:
+        removed_image = itku.exchange_labels(removed_image, l, 0)
+        labels_removed_str += f"{l}_"
     
-    elif args.mode == "add":
-        if args.secondary_image == "":
-            logger.error("Error: No image to add. Set it with the -add-in flag.")
-            return 1
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_removed_{labels_removed_str}.nii'
+    itku.save_image(removed_image, base_dir, outname)
 
-        secondary_image = itku.load_image(args.secondary_image)
-        add_name = os.path.basename(args.secondary_image)
-        added = itku.add_images(input_image, secondary_image)
+def execute_merge(args):
+    """
+    Merges labels from a label map image.
 
-        if args.output_name == "":
-            outname = f'{name}_added_{add_name}.nii'
+    USAGE:
+        python segmentation_tools.py merge -in <input_image> -m <merge_labels> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_merge.__doc__)
 
-        itku.save_image(added, base_dir, outname)
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.merge_labels == -1:
+        logger.error("Error: No labels to merge. Set them with the -m flag.")
+        return 1
 
-    elif args.mode == "fill":
+    merge_labels_str = list(map(str, args.merge_labels))
+    label_images = []
+    for label in args.merge_labels:
+        label_images.append(itku.extract_single_label(input_image, label, args.binarise))
 
-        old_segmentation = None if args.secondary_image == "" else itku.load_image(args.secondary_image)
-        filled = itku.fill_gaps(input_image, old_segmentation, multilabel_images=True)
-        
-        if args.output_name == "":
-            outname = f'{name}_filled.nii'
+    merged_image = itku.merge_label_images(label_images)
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_merged_{"_".join(merge_labels_str)}.nii'
+    itku.save_image(merged_image, base_dir, outname)
 
-        itku.save_image(filled, base_dir, outname)
+def execute_merge(args):
+    """
+    Merges labels from a label map image.
 
-    elif args.mode == "morph":
-        logger.info(f'Performing morphological operation: {args.morphological} on image: {im_path}')
-        itku.save_image(itku.morph_operations(input_image, args.morphological, radius=args.split_radius, kernel_type='ball'), base_dir, outname) 
+    USAGE:
+        python segmentation_tools.py merge -in <input_image> -m <merge_labels> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_merge.__doc__)
 
-    elif args.mode == "op":
-        if args.secondary_image == "":
-            logger.error("Error: No image to perform op operation on. Set it with the -in2 flag.")
-            return 1
-        
-        input_image = itku.relabel_image(input_image, 1)
-        secondary_image = itku.load_image(args.secondary_image)
-        secondary_image = itku.relabel_image(secondary_image, 1)
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.merge_labels == -1:
+        logger.error("Error: No labels to merge. Set them with the -m flag.")
+        return 1
 
-        op = itku.image_operation(args.op, input_image, secondary_image)
-        if args.output_name == "":
-            outname = f'{args.op}.nii'
+    merge_labels_str = list(map(str, args.merge_labels))
+    label_images = []
+    for label in args.merge_labels:
+        label_images.append(itku.extract_single_label(input_image, label, args.binarise))
 
-        itku.save_image(op, base_dir, outname)
+    merged_image = itku.merge_label_images(label_images)
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_merged_{"_".join(merge_labels_str)}.nii'
+    itku.save_image(merged_image, base_dir, outname)
 
-    elif args.mode == "show":
+def execute_split(args):
+    """
+    Splits labels from a label map image.
+
+    USAGE:
+        python segmentation_tools.py split -in <input_image> -l <label> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_split.__doc__)
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.label == -1:
+        logger.error("Error: No label to split. Set it with the -l flag.")
+        return 1
+
+    label = args.label
+    split_image = itku.split_labels_on_repeats(input_image, label, open_image=True, open_radius=args.split_radius)
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_split_{label}.nii'
+    itku.save_image(split_image, base_dir, outname)
+
+def execute_gaps(args):
+    """
+    Finds gaps in a label map image.
+
+    USAGE:
+        python segmentation_tools.py gaps -in <input_image> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_gaps.__doc__)
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    gaps = itku.find_gaps(input_image, multilabel_images=True)
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_gaps.nii'
+    itku.save_image(gaps, base_dir, outname)
+
+def execute_add(args):
+    """
+    Adds two label map images together.
+
+    USAGE:
+        python segmentation_tools.py add -in <input_image> -in2 <secondary_image> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_add.__doc__)
+
+    base_dir, name, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.secondary_image == "":
+        logger.error("Error: No image to add. Set it with the --secondary-image flag.")
+        return 1
+
+    secondary_image = itku.load_image(args.secondary_image)
+    add_name = os.path.basename(args.secondary_image)
+    added = itku.add_images(input_image, secondary_image)
+
+    if output_not_set:
+        outname = f'{rm_ext(name)}_added_{rm_ext(add_name)}.nii'
+
+    itku.save_image(added, base_dir, outname)
+
+def execute_fill(args):
+    """
+    Fills gaps in a label map image.
+
+    USAGE:
+        python segmentation_tools.py fill -in <input_image> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_fill.__doc__)
+
+    base_dir, name, input_image, outname, output_not_set = get_base_inputs(args)
+    old_segmentation = None if args.secondary_image == "" else itku.load_image(args.secondary_image)
+    filled = itku.fill_gaps(input_image, old_segmentation, multilabel_images=True)
+    
+    if output_not_set:
+        outname = f'{rm_ext(name)}_filled.nii'
+
+    itku.save_image(filled, base_dir, outname)
+
+def execute_morph(args):
+    """
+    Performs a morphological operation on a label map image.
+
+    USAGE:
+        python segmentation_tools.py morph -in <input_image> -morph <morphological_operation> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_morph.__doc__)
+
+    base_dir, name, input_image, outname, output_not_set = get_base_inputs(args)
+    morphed = itku.morph_operations(input_image, args.morphological, radius=args.split_radius, kernel_type='ball')
+    
+    if output_not_set:
+        outname = f'{rm_ext(name)}_morphed_{args.morphological}.nii'
+
+    itku.save_image(morphed, base_dir, outname)
+
+def execute_op(args):
+    """
+    Performs an operation on two label map images.
+
+    USAGE:
+        python segmentation_tools.py op -in <input_image> -op <operation> -in2 <secondary_image> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_op.__doc__)
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.secondary_image == "":
+        logger.error("Error: No image to perform op operation on. Set it with the -in2 flag.")
+        return 1
+    
+    # input_image = itku.relabel_image(input_image, 1)
+    secondary_image = itku.load_image(args.secondary_image)
+    # secondary_image = itku.relabel_image(secondary_image, 1)
+
+    op = itku.image_operation(args.op, input_image, secondary_image)
+    if output_not_set:
+        outname = f'{args.op}.nii'
+
+    itku.save_image(op, base_dir, outname)
+
+def main(args): 
+    mode = args.mode
+
+    if mode == "extract":
+        execute_extract(args)
+    
+    elif mode == "mask":
+        execute_mask(args)
+
+    elif mode == "relabel":
+        execute_relabel(args)
+
+    elif mode == "remove":
+        execute_remove(args)
+
+    elif mode == "merge":
+        execute_merge(args)
+
+    elif mode == "split":
+        execute_split(args)
+    
+    elif mode == "gaps":
+        execute_gaps(args)
+
+    elif mode == "add":
+        execute_add(args)
+
+    elif mode == "fill":
+        execute_fill(args)
+
+    elif mode == "morph":
+        execute_morph(args) 
+
+    elif mode == "op":
+        execute_op(args)
+
+    elif mode == "show":
+        if(args.help) : 
+            print("python segmentation_tools.py show -in <input_image>")
+
+        _, _, input_image, _, _ = get_base_inputs(args)
         itku.show_labels(input_image)
 
-    elif args.mode == "inr":
+    elif mode == "inr":
+        if(args.help) :
+            print("python segmentation_tools.py inr -in <input_image> -out <output_name>")
+        base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
         itku.convert_to_inr(input_image, os.path.join(base_dir, f'{outname}.inr'))
 
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
     input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph"], help="The mode to run the script in.")
+    input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--op", "-op", choices=[ "add", "subtract", "multiply", "divide", "and", "or", "xor", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--input-image", "-in", required=True, help="The input image.")
