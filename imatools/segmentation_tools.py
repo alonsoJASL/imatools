@@ -301,6 +301,26 @@ def execute_op(args):
 
     itku.save_image(op, base_dir, outname)
 
+def execute_compare(args):
+    """
+    Compares two label map images. Assumes they have the same labels.
+    """
+    if(args.help) : 
+        print(execute_compare.__doc__)
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    if args.secondary_image == "":
+        logger.error("Error: No image to compare. Set it with the -in2 flag.")
+        return 1
+    
+    secondary_image = itku.load_image(args.secondary_image)
+    scores, unique_labels = itku.compare_images(input_image, secondary_image) 
+
+    for key in scores:
+        print(f"{key}: {scores[key]}")
+    
+    print(f"Unique labels: {unique_labels}")
+
 def main(args): 
     mode = args.mode
 
@@ -349,11 +369,15 @@ def main(args):
             print("python segmentation_tools.py inr -in <input_image> -out <output_name>")
         base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
         itku.convert_to_inr(input_image, os.path.join(base_dir, f'{outname}.inr'))
+    
+    elif mode == "compare": 
+        execute_compare(args)
+        
 
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
-    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph"], help="The mode to run the script in.")
+    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph", "compare"], help="The mode to run the script in.")
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--op", "-op", choices=[ "add", "subtract", "multiply", "divide", "and", "or", "xor", ""], default="", required=False, help="The operation to perform.")

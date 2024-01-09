@@ -706,3 +706,28 @@ def create_image_at_plane_from_vector(image: sitk.Image, point_on_plane: np.arra
 
     return slice_2d
 
+def dice_score(true, pred):
+    true = sitk.GetArrayViewFromImage(true)
+    pred = sitk.GetArrayViewFromImage(pred)
+    intersection = (true * pred).sum()
+    return (2. * intersection) / (true.sum() + pred.sum())
+
+def compare_images(im1: sitk.Image, im2: sitk.Image) :
+    """
+    Returns a dictionary where the keys are the common labels between the two
+    images and the values are the Dice scores for each label.
+    It also returns a list of labels that are only present in one of the images. 
+    """
+    labels_im1 = get_labels(im1)
+    labels_im2 = get_labels(im2)
+
+    common_labels = set(labels_im1).intersection(labels_im2)
+    unique_labels = set(labels_im1).symmetric_difference(labels_im2)
+
+    scores = {}
+    for label in common_labels:
+        im1_label = extract_single_label(im1, label, binarise=True)
+        im2_label = extract_single_label(im2, label, binarise=True)
+        scores[label] = dice_score(im1_label, im2_label)
+
+    return scores, unique_labels
