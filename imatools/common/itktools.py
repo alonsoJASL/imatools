@@ -198,7 +198,7 @@ def convert_to_inr(image, out_path):
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
-def get_labels(image : sitk.Image ):
+def get_labels(image : sitk.Image ) -> list:
     """
     Returns a list of labels in an image.
     """
@@ -731,3 +731,58 @@ def compare_images(im1: sitk.Image, im2: sitk.Image) :
         scores[label] = dice_score(im1_label, im2_label)
 
     return scores, unique_labels
+
+def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.5, im_close=True):
+    # import itk
+
+    # Get all unique labels in the image
+    unique_labels = get_labels(im)
+    im_size = im.GetSize()
+    new_size = [int(im_size[i] * im.GetSpacing()[i] / spacing[i]) for i in range(3)]
+
+    pixel_type = sitk.sitkUInt8
+
+    # Initialize an empty image to hold the final result
+    resampled_im = sitk.Image(new_size, pixel_type )
+    resampled_im.SetSpacing(spacing)
+    resampled_im.SetOrigin(im.GetOrigin())
+
+    # Resample each label separately
+    for label in unique_labels:
+        # Create a binary image for the current label
+
+        binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
+        # binary_im = extract_single_label(im, label, binarise=True)
+
+        # Resample the binary image using a Gaussian interpolator
+        resampler = sitk.ResampleImageFilter()
+        resampler.SetOutputSpacing(spacing)
+        resampler.SetSize(resampled_im.GetSize())
+        resampler.SetOutputDirection(im.GetDirection())
+        resampler.SetOutputOrigin(im.GetOrigin())
+        resampler.SetTransform(sitk.Transform())
+        # resampler.SetInterpolator(sitk.sitkGaussian)
+        resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+
+        resampled_label_im = resampler.Execute(binary_im)
+        resampled_label_im.CopyInformation(resampled_im)
+
+        smooth_filter = sitk.SmoothingRecursiveGaussianImageFilter()
+        smooth_filter.SetSigma(sigma)
+        resampled_label_im = smooth_filter.Execute(resampled_label_im)
+
+        resampled_label_im = sitk.BinaryThreshold(resampled_label_im, lowerThreshold=threshold, upperThreshold=2) 
+
+        if im_close :
+            resampled_label_im = morph_operations(resampled_label_im, "close")
+
+        # Check for overlapping voxels and remove them from resampled_label_im
+        overlapping_voxels = sitk.And(resampled_im, sitk.Cast(resampled_label_im, pixel_type))
+        resampled_label_im = sitk.Subtract(sitk.Cast(resampled_label_im, pixel_type), overlapping_voxels)
+        resampled_label_im = sitk.Multiply(resampled_label_im, label)
+
+        # Add the resampled label image to the final result
+        resampled_im = sitk.Add(resampled_im, resampled_label_im)
+
+
+    return resampled_im
