@@ -38,6 +38,7 @@ def execute_extract(args):
     """
     if(args.help) : 
         print(execute_extract.__doc__)
+        return
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     
     if args.label == -1:
@@ -63,6 +64,7 @@ def execute_mask(args):
     """
     if(args.help) : 
         print(execute_mask.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.secondary_image == "":
@@ -88,6 +90,7 @@ def execute_relabel(args):
     """
     if(args.help) : 
         print(execute_relabel.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.label == -1:
@@ -111,6 +114,7 @@ def execute_remove(args):
     """
     if(args.help) : 
         print(execute_remove.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.label == -1:
@@ -137,6 +141,7 @@ def execute_merge(args):
     """
     if(args.help) : 
         print(execute_merge.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.merge_labels == -1:
@@ -162,6 +167,7 @@ def execute_merge(args):
     """
     if(args.help) : 
         print(execute_merge.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.merge_labels == -1:
@@ -187,6 +193,7 @@ def execute_split(args):
     """
     if(args.help) : 
         print(execute_split.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.label == -1:
@@ -208,6 +215,7 @@ def execute_gaps(args):
     """
     if(args.help) : 
         print(execute_gaps.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     gaps = itku.find_gaps(input_image, multilabel_images=True)
@@ -224,6 +232,7 @@ def execute_add(args):
     """
     if(args.help) : 
         print(execute_add.__doc__)
+        return
 
     base_dir, name, input_image, outname, output_not_set = get_base_inputs(args)
     if args.secondary_image == "":
@@ -248,6 +257,7 @@ def execute_fill(args):
     """
     if(args.help) : 
         print(execute_fill.__doc__)
+        return
 
     base_dir, name, input_image, outname, output_not_set = get_base_inputs(args)
     old_segmentation = None if args.secondary_image == "" else itku.load_image(args.secondary_image)
@@ -267,6 +277,7 @@ def execute_morph(args):
     """
     if(args.help) : 
         print(execute_morph.__doc__)
+        return
 
     base_dir, name, input_image, outname, output_not_set = get_base_inputs(args)
     morphed = itku.morph_operations(input_image, args.morphological, radius=args.split_radius, kernel_type='ball')
@@ -285,6 +296,7 @@ def execute_op(args):
     """
     if(args.help) : 
         print(execute_op.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.secondary_image == "":
@@ -307,6 +319,7 @@ def execute_compare(args):
     """
     if(args.help) : 
         print(execute_compare.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     if args.secondary_image == "":
@@ -324,9 +337,13 @@ def execute_compare(args):
 def execute_resample(args): 
     """
     Resamples a label map image. 
+
+    USAGE:
+        python segmentation_tools.py resample -in <input_image> [-out <outname>]
     """
     if(args.help) : 
         print(execute_resample.__doc__)
+        return
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     sp = args.resample_spacing
@@ -342,6 +359,9 @@ def execute_resample(args):
 
 def main(args): 
     mode = args.mode
+    if args.help == False and args.input_image == "":
+        logger.error("Error: No input image. Set it with the -in flag.")
+        return 1
 
     if mode == "extract":
         execute_extract(args)
@@ -403,7 +423,7 @@ if __name__ == "__main__":
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--op", "-op", choices=[ "add", "subtract", "multiply", "divide", "and", "or", "xor", ""], default="", required=False, help="The operation to perform.")
-    input_parser.add_argument("--input-image", "-in", required=True, help="The input image.")
+    input_parser.add_argument("--input-image", "-in", required=False, help="The input image.", default="")
     input_parser.add_argument("--secondary-image", "-in2", default="", required=False, help="The secondary input image (use in: add, mask, fill).")
     input_parser.add_argument("--label", "-l", type=int, nargs="+", default=-1, help="The label to extract. Default: -1 (all labels)")
     input_parser.add_argument("--output-name", "-out", default="", type=str, help="The output image prefix. (Default: <input_image>_label_<label_value>)")
