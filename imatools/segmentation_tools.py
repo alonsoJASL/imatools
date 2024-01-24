@@ -338,6 +338,12 @@ def execute_resample(args):
     """
     Resamples a label map image. 
 
+    Parameters: 
+        --resample-spacing
+        --resample-sigma
+        --resample-smth-threshold
+        --resample-close
+
     USAGE:
         python segmentation_tools.py resample -in <input_image> [-out <outname>]
     """
