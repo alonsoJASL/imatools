@@ -332,7 +332,7 @@ def execute_resample(args):
     sp = args.resample_spacing
     sig = args.resample_sigma
     smth_threshold = args.resample_smth_threshold
-    im_close = args.ressample_close
+    im_close = args.resample_close
     resampled_image = itku.resample_smooth_label(input_image, spacing=sp, sigma=sig, threshold=smth_threshold, im_close=im_close)
 
     if output_not_set:
@@ -416,7 +416,7 @@ if __name__ == "__main__":
     resample_group.add_argument("--resample-spacing", type=float, nargs=3, default=[1.0, 1.0, 1.0], help="[MODE=resample] The new spacing to resample to.")
     resample_group.add_argument("--resample-sigma", type=float, default=3.0, help="[MODE=resample] The sigma for the gaussian kernel.")
     resample_group.add_argument("--resample-smth-threshold", type=float, default=0.5, help="[MODE=resample] The threshold for smoothing.")
-    resample_group.add_argument("--ressample-close", action="store_true", help="[MODE=resample] Close the image after resampling.")
+    resample_group.add_argument("--resample-close", action="store_true", help="[MODE=resample] Close the image after resampling.")
     
     args = input_parser.parse_args()
     main(args)
