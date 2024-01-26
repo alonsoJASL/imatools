@@ -239,11 +239,10 @@ class ScarQuantificationTools :
             logger.info(f'State file {fname} already exists. Overwriting...')
 
         state = {
-            'cemrg' : {sys.platform, self.cemrg},
-            'mirtk' : {sys.platform, self.mirtk},
+            'cemrg' : {sys.platform: self.cemrg},
+            'mirtk' : {sys.platform: self.mirtk},
             'scar_cmd_name' : self.scar_cmd_name,
             'clip_cmd_name' : self.clip_cmd_name,
-            'scar_method' : self.scar_method
         }
         with open(os.path.join(dir, fname), 'w') as f:
             json.dump(state, f)
@@ -259,9 +258,8 @@ class ScarQuantificationTools :
             return False
         
         self.cemrg = state['cemrg'][sys.platform]
-        self.mirtk = state['cemrg'][sys.platform]
+        self.mirtk = state['mirtk'][sys.platform]
         self.scar_cmd_name = state['scar_cmd_name']
         self.clip_cmd_name = state['clip_cmd_name']
-        self.scar_method = state['scar_method']
 
         return True

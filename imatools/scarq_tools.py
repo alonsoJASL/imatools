@@ -75,7 +75,7 @@ def set_scarq_state(state_file:str, cemrg_dir: str, mirtk_dir: str, scar_cmd: st
     clip_cmd += "_release.bat" if chooseplatform() == "win32" else ""
     
     scarq = ScarQuantificationTools(cemrg_folder=cemrg_dir, mirtk_folder=mirtk_dir, scar_cmd_name=scar_cmd, clip_cmd_name=clip_cmd)
-    scarq.save_state("scarq_state.json")
+    scarq.save_state(".","scarq_state.json")
     return scarq
 
 def scar_image_debug(image_size, prism_size, method, origin, spacing, simple, help=False):
@@ -155,7 +155,7 @@ def execute_surf(args, help=False):
         print(execute_surf.__doc__)
         return
 
-    extract_base_dir, no_output_set, output_path = get_io_folders(args)
+    extract_base_dir, _, _ = get_io_folders(args)
 
     if args.input is None:
         dir = ""
@@ -184,11 +184,39 @@ def execute_surf(args, help=False):
     isovalue = args.surf_isovalue
     blur = args.surf_blur
     debug = args.debug
-    scarq.create_segmentation_mesh(dir, pveins_file, iterations, isovalue, blur, debug)
+    if args.surf_multilabel :
+        milog.info("Using multilabel segmentation")
+        labels = itku.get_labels(seg)
+        for label in labels :
+            milog.info(f"Creating mesh for label {label}")
+            seg_label = itku.extract_single_label(seg, label)
+            label_name = f"segmentation_{label}"
 
-    clip_mv = args.clip_mitral_valve
-    if clip_mv is not None :
-        scarq.clip_mitral_valve(dir, pveins_file, clip_mv)
+            itku.save_image(seg_label, dir, f"{label_name}.nii")
+            scarq.create_segmentation_mesh(dir, f"{label_name}.nii", iterations, isovalue, blur, debug)
+            os.rename(os.path.join(dir, "segmentation.vtk"), os.path.join(dir, f"{label_name}.vtk"))
+
+            vtklabel = vtku.readVtk(os.path.join(dir, f"{label_name}.vtk"))
+            vtklabel = vtku.set_cell_scalars(vtklabel, label)
+            vtku.writeVtk(vtklabel, dir, f"{label_name}.vtk")
+
+            if label == labels[0] :
+                vtkout = vtku.readVtk(os.path.join(dir, f"{label_name}.vtk"))
+            else :
+                vtkout = vtku.join_vtk(vtkout, vtku.readVtk(os.path.join(dir, f"{label_name}.vtk")))
+        
+        vtku.writeVtk(vtkout, dir, "segmentation.vtk")
+        
+    else :
+        scarq.create_segmentation_mesh(dir, pveins_file, iterations, isovalue, blur, debug)
+
+        clip_mv = args.clip_mitral_valve
+        if clip_mv is not None :
+            scarq.clip_mitral_valve(dir, pveins_file, clip_mv)
+
+    if args.surf_output != "segmentation" :
+        milog.info(f"Renaming segmentation.vtk to {args.surf_output}.vtk")
+        os.rename(os.path.join(dir, "segmentation.vtk"), os.path.join(dir, args.surf_output + ".vtk"))
 
 def execute_scar_opts(args, help=False):
     """
@@ -407,10 +435,13 @@ if __name__ == "__main__":
     lge_group.add_argument("--lge-simple", action="store_true", help="Use simple scar generation method")
 
     surf_group = input_parser.add_argument_group("surf", "Arguments for surf mode")
+    surf_group.add_argument("--surf-multilabel", action="store_true", help="Use multilabel segmentation")
     surf_group.add_argument("--surf-iterations", type=int, help="Number of iterations", default=1)
     surf_group.add_argument("--surf-isovalue", type=float, help="Isovalue", default=0.5)
     surf_group.add_argument("--surf-blur", type=float, help="Blur", default=0.0)
     surf_group.add_argument("--clip-mitral-valve", type=str, default=None)
+    surf_group.add_argument("--flip-xy", action="store_true", help="Flip xy axis")
+    surf_group.add_argument("--surf-output", type=str, help="Output file name", default="segmentation")
 
     scar_group = input_parser.add_argument_group("scar", "Arguments for scar mode")
     scar_group.add_argument("--scar-seg", type=str, help="Segmentation file name", default="PVeinsCroppedImage.nii")

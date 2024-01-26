@@ -790,6 +790,15 @@ def mask_cell_scalars(msh, values, indices, scalar_field='scalars') :
 def set_vtk_scalars(msh, array, indices = None) -> vtk.vtkPolyData: 
     omsh = vtk.vtkPolyData()
     omsh.DeepCopy(msh)
+    
+    # Check if 'scalars' array exists
+    scalars = omsh.GetCellData().GetScalars()
+    if scalars is None:
+        # If 'scalars' array does not exist, create it
+        scalars = vtk.vtkFloatArray()
+        scalars.SetName('scalars')
+        omsh.GetCellData().SetScalars(scalars)
+
     inav_array = -1*np.ones_like(convertCellDataToNpArray(omsh, 'scalars')) 
 
     if indices is not None :
@@ -835,3 +844,28 @@ def verify_cell_indices_from_mesh(msh1, msh_test, test_indices) :
     test_cog = cog_test[test_indices, :]
    
     return verify_cell_indices(msh1, test_indices, test_cog)
+
+def flip_xy(polydata) :
+    points = polydata.GetPoints()
+    num_points = points.GetNumberOfPoints()
+
+    for i in range(num_points):
+        original_coords = points.GetPoint(i)
+        modified_coords = [-original_coords[0], -original_coords[1], original_coords[2]]
+        points.SetPoint(i, modified_coords)
+
+    polydata.Modified()
+
+def join_vtk(msh0, msh1) :
+    appendFilter = vtk.vtkAppendPolyData()
+    appendFilter.AddInputData(msh0)
+    appendFilter.AddInputData(msh1)
+    appendFilter.Update()
+
+    return appendFilter.GetOutput()
+
+def set_cell_scalars(vtklabel, label) : 
+    """
+    Set the cell scalars of a vtkPolyData object
+    """
+    return set_vtk_scalars(vtklabel, np.ones(vtklabel.GetNumberOfCells())*label)
