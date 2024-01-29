@@ -493,6 +493,11 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
 
     # Create an array with all voxels set to 100 initially
     voxel_values = sitk.GetArrayFromImage(image)
+    print(f'image size: {image_size}')
+    print(f'size_adjusted: {size_adjusted}')
+    print(f'size random_background: {random_background.shape}')
+    print(f'voxel vlues size: {voxel_values.shape}')
+
     voxel_values[0:image_size[2], 0:image_size[1], 0:image_size[0]] = random_background
     voxel_values[start_indx[0]:end_indx[0], start_indx[1]:end_indx[1], start_indx[2]:end_indx[2]] = values_inside_prism
 

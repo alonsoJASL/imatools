@@ -835,3 +835,18 @@ def verify_cell_indices_from_mesh(msh1, msh_test, test_indices) :
     test_cog = cog_test[test_indices, :]
    
     return verify_cell_indices(msh1, test_indices, test_cog)
+
+def vtk_from_points_file(file_path:str, mydelim=',') : 
+    """
+    Creates a vtkPolyData object from a points file
+    """
+    points_read = np.loadtxt(file_path, delimiter=mydelim)
+    points = vtk.vtkPoints()
+
+    for pt in points_read : 
+        points.InsertNextPoint(pt[0], pt[1], pt[2]) 
+    
+    polydata = vtk.vtkPolyData()
+    polydata.SetPoints(points)
+
+    return polydata
