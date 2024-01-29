@@ -198,7 +198,7 @@ def convert_to_inr(image, out_path):
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
-def get_labels(image : sitk.Image ):
+def get_labels(image : sitk.Image ) -> list:
     """
     Returns a list of labels in an image.
     """
@@ -639,3 +639,155 @@ def check_for_existing_label(im: sitk.Image, label) -> bool :
     """
     labels_in_im = get_labels(im)
     return (label in labels_in_im )
+
+def create_normal_vector_for_plane(axis, angle) : 
+    """
+    Returns a normal vector for a plane rotated around the given axis by the given angle
+    """
+    AXES = ['x', 'y', 'z']
+    if axis not in AXES : 
+        raise ValueError(f'Axis {axis} not recognised')
+    
+    vector = np.zeros(3)
+    vector[AXES.index(axis)] = 1
+
+    angle_rad = np.radians(angle)
+
+    if axis == 'x':
+        rotation_matrix = np.array([
+            [1, 0, 0],
+            [0, np.cos(angle), -np.sin(angle)],
+            [0, np.sin(angle), np.cos(angle)]
+        ])
+    elif axis == 'y':
+        rotation_matrix = np.array([
+            [np.cos(angle), 0, np.sin(angle)],
+            [0, 1, 0],
+            [-np.sin(angle), 0, np.cos(angle)]
+        ])
+    elif axis == 'z':
+        rotation_matrix = np.array([
+            [np.cos(angle), -np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1]
+        ])
+
+    # Apply the rotation matrix to the initial vector
+    normal_vector = np.dot(rotation_matrix, vector)
+    normal_vector = normal_vector / np.linalg.norm(normal_vector)
+
+    return normal_vector
+
+
+def create_image_at_plane(image: sitk.Image, point_on_plane: np.array, axis:str, angle:float) :
+    normal_vector = create_normal_vector_for_plane(axis, angle)
+    return create_image_at_plane_from_vector(image, point_on_plane, normal_vector)
+
+def create_image_at_plane_from_vector(image: sitk.Image, point_on_plane: np.array, normal_vector: np.array): 
+    transform = sitk.AffineTransform(3)
+    transform.SetMatrix(normal_vector + [0, 0, 1])
+
+    i_transform = transform.GetInverse()
+
+    im_size = image.GetSize()
+    spacing = image.GetSpacing()
+
+    # Transform the point on the plane to the image's coordinate system
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetOutputDirection([0, 0, -1, 0, -1, 0, 1, 0, 0])
+    resampler.SetOutputOrigin(point_on_plane)
+    resampler.SetSize(im_size)
+    resampler.SetOutputSpacing(spacing)
+    resampler.SetTransform(i_transform)
+
+    resampled_im = resampler.Execute(image)
+
+    # Convert the 3D image to a 2D array
+    array = sitk.GetArrayViewFromImage(resampled_im)
+
+    # Select the middle slice along the third dimension
+    slice_index = array.shape[2] // 2
+    slice_2d = array[:, :, slice_index]
+
+    return slice_2d
+
+def dice_score(true, pred):
+    true = sitk.GetArrayViewFromImage(true)
+    pred = sitk.GetArrayViewFromImage(pred)
+    intersection = (true * pred).sum()
+    return (2. * intersection) / (true.sum() + pred.sum())
+
+def compare_images(im1: sitk.Image, im2: sitk.Image) :
+    """
+    Returns a dictionary where the keys are the common labels between the two
+    images and the values are the Dice scores for each label.
+    It also returns a list of labels that are only present in one of the images. 
+    """
+    labels_im1 = get_labels(im1)
+    labels_im2 = get_labels(im2)
+
+    common_labels = set(labels_im1).intersection(labels_im2)
+    unique_labels = set(labels_im1).symmetric_difference(labels_im2)
+
+    scores = {}
+    for label in common_labels:
+        im1_label = extract_single_label(im1, label, binarise=True)
+        im2_label = extract_single_label(im2, label, binarise=True)
+        scores[label] = dice_score(im1_label, im2_label)
+
+    return scores, unique_labels
+
+def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.5, im_close=True):
+    # import itk
+
+    # Get all unique labels in the image
+    unique_labels = get_labels(im)
+    im_size = im.GetSize()
+    new_size = [int(im_size[i] * im.GetSpacing()[i] / spacing[i]) for i in range(3)]
+
+    pixel_type = sitk.sitkUInt8
+
+    # Initialize an empty image to hold the final result
+    resampled_im = sitk.Image(new_size, pixel_type )
+    resampled_im.SetSpacing(spacing)
+    resampled_im.SetOrigin(im.GetOrigin())
+
+    # Resample each label separately
+    for label in unique_labels:
+        # Create a binary image for the current label
+
+        binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
+        # binary_im = extract_single_label(im, label, binarise=True)
+
+        # Resample the binary image using a Gaussian interpolator
+        resampler = sitk.ResampleImageFilter()
+        resampler.SetOutputSpacing(spacing)
+        resampler.SetSize(resampled_im.GetSize())
+        resampler.SetOutputDirection(im.GetDirection())
+        resampler.SetOutputOrigin(im.GetOrigin())
+        resampler.SetTransform(sitk.Transform())
+        # resampler.SetInterpolator(sitk.sitkGaussian)
+        resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+
+        resampled_label_im = resampler.Execute(binary_im)
+        resampled_label_im.CopyInformation(resampled_im)
+
+        smooth_filter = sitk.SmoothingRecursiveGaussianImageFilter()
+        smooth_filter.SetSigma(sigma)
+        resampled_label_im = smooth_filter.Execute(resampled_label_im)
+
+        resampled_label_im = sitk.BinaryThreshold(resampled_label_im, lowerThreshold=threshold, upperThreshold=2) 
+
+        if im_close :
+            resampled_label_im = morph_operations(resampled_label_im, "close")
+
+        # Check for overlapping voxels and remove them from resampled_label_im
+        overlapping_voxels = sitk.And(resampled_im, sitk.Cast(resampled_label_im, pixel_type))
+        resampled_label_im = sitk.Subtract(sitk.Cast(resampled_label_im, pixel_type), overlapping_voxels)
+        resampled_label_im = sitk.Multiply(resampled_label_im, label)
+
+        # Add the resampled label image to the final result
+        resampled_im = sitk.Add(resampled_im, resampled_label_im)
+
+
+    return resampled_im

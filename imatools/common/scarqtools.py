@@ -232,3 +232,34 @@ class ScarQuantificationTools :
         seg = itku.load_image(seg_path)
         masked_seg = itku.simple_mask(im=seg, mask=mask_from_im, mask_value=mask_value)
         return masked_seg
+
+    def save_state(self, dir, fname) : 
+        state_available = self.load_state(dir, fname)
+        if state_available:
+            logger.info(f'State file {fname} already exists. Overwriting...')
+
+        state = {
+            'cemrg' : {sys.platform: self.cemrg},
+            'mirtk' : {sys.platform: self.mirtk},
+            'scar_cmd_name' : self.scar_cmd_name,
+            'clip_cmd_name' : self.clip_cmd_name,
+        }
+        with open(os.path.join(dir, fname), 'w') as f:
+            json.dump(state, f)
+
+    def load_state(self, dir, fname) : 
+        if not os.path.isfile(os.path.join(dir, fname)):
+            return False
+        
+        try:
+            with open(os.path.join(dir, fname), 'r') as f:
+                state = json.load(f)
+        except:
+            return False
+        
+        self.cemrg = state['cemrg'][sys.platform]
+        self.mirtk = state['mirtk'][sys.platform]
+        self.scar_cmd_name = state['scar_cmd_name']
+        self.clip_cmd_name = state['clip_cmd_name']
+
+        return True
