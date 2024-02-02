@@ -412,6 +412,7 @@ def main(args):
     elif mode == "inr":
         if(args.help) :
             print("python segmentation_tools.py inr -in <input_image> -out <output_name>")
+            return 
         base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
         itku.convert_to_inr(input_image, os.path.join(base_dir, f'{outname}.inr'))
     

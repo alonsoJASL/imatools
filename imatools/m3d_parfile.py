@@ -98,7 +98,7 @@ if __name__ == '__main__':
     iparse.add_argument('--filepath', '-f', type=str, required=True, help='Output Meshtools3d parameter file')
     iparse.add_argument('--template', '-t', type=str, help='Path to template parameter file (JSON or .par)') 
     iparse.add_argument('--json', '-json', action="store_true", help='If set, saves output as a JSON file')
-    iparse.add_argument('--seg_dir', '-seg_dir', type=str)
+    iparse.add_argument('--seg_dir', '-seg_dir', type=str, default='.')
     iparse.add_argument('--seg_name', '-seg_name', type=str, default='converted.inr')
     iparse.add_argument('--mesh_from_segmentation', '-mesh_from_segmentation', type=bool, metavar='1/0')
     iparse.add_argument('--boundary_relabelling', '-boundary_relabelling', type=bool, metavar='1/0')
