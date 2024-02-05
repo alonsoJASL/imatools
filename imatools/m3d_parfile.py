@@ -77,6 +77,11 @@ def main(args):
         error_in_paths(final_pot)
 
     elif args.mode == 'par' :
+        if args.help:
+            print('This mode is used to update a parameter file with the given arguments')
+            print('The arguments are the same as the ones used in the new mode')
+            return 
+
         if args.template is None:
             raise ValueError('Please specify a template file')
 
