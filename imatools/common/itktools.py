@@ -1,9 +1,11 @@
 import os
 
 import SimpleITK as sitk
+import vtk 
 import numpy as np
 import json
 
+import imatools.common.vtktools as vtku 
 from imatools.common.config import configure_logging
 logger = configure_logging(log_name=__name__) 
 
@@ -791,3 +793,22 @@ def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.
 
 
     return resampled_im
+
+def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False) -> vtk.vtkPolyData :
+    cog = vtku.get_cog_per_element(surface)    
+    scalars = surface.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(surface.GetNumberOfCells()) :
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix) 
+        index = segmentation.TransformPhysicalPointToIndex((x,y,z))
+
+        if visited_indices.__contains__(index) and check_visited :
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
+
+    

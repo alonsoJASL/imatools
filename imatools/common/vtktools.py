@@ -57,7 +57,7 @@ def setCellDataToPointData(msh, fieldname='scalars') :
     print(__doc__)
     return set_cell_to_point_data(msh, fieldname)
 
-def get_cog_per_element(msh):
+def get_cog_per_element(msh) -> np.ndarray:
     pts, el = extractPointsAndElemsFromVtk(msh)
     element_coordinates = pts[el]
 
