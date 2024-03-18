@@ -325,7 +325,20 @@ def image_operation(operation, image1, image2=None) :
     else :
         image1 = sitk.Cast(image1, sitk.sitkUInt16)
         image2 = sitk.Cast(image2, sitk.sitkUInt16)
+        # save image 1's origin and spacing
+        image1_origin = image1.GetOrigin()
+        image1_spacing = image1.GetSpacing()
+        image1_direction = image1.GetDirection()
+
+        # remove origin from both images 
+        image1.SetOrigin((0, 0, 0))
+        image2.SetOrigin((0, 0, 0))
         res_im = switcher_operation.get(operation, lambda: "Invalid operation")(image1, image2)
+
+        # set the origin and spacing back to image 1's
+        res_im.SetOrigin(image1_origin)
+        res_im.SetSpacing(image1_spacing)
+        res_im.SetDirection(image1_direction)
 
     res_im.CopyInformation(image1)
     return res_im
