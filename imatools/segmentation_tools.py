@@ -363,6 +363,31 @@ def execute_resample(args):
 
     itku.save_image(resampled_image, base_dir, outname)
 
+def execute_smooth(args):
+    """
+    Smooths a label map image. 
+
+    Parameters: 
+        --resample-sigma
+        --resample-smth-threshold
+        --resample-close
+
+    USAGE:
+        python segmentation_tools.py smooth -in <input_image> --resample-sigma <sigma> [-out <outname>]
+    """
+    if(args.help) : 
+        print(execute_smooth.__doc__)
+        return
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    sigma = args.resample_sigma
+    smoothed_image = itku.smooth_labels(input_image, sigma=args.resample_sigma, threshold=args.resample_smth_threshold, im_close=args.resample_close)
+
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_smoothed.nii'
+
+    itku.save_image(smoothed_image, base_dir, outname)
+
 def main(args): 
     mode = args.mode
     if args.help == False and args.input_image == "":
@@ -414,6 +439,8 @@ def main(args):
             print("python segmentation_tools.py inr -in <input_image> -out <output_name>")
             return 
         base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+        if outname.endswith('.nii') == True :
+            outname = outname.replace('.nii', '')
         itku.convert_to_inr(input_image, os.path.join(base_dir, f'{outname}.inr'))
     
     elif mode == "compare": 
@@ -421,12 +448,15 @@ def main(args):
 
     elif mode == "resample":
         execute_resample(args)
+
+    elif mode == "smooth" : 
+        execute_smooth(args)
         
 
 
 if __name__ == "__main__":
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
-    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph", "compare", "resample"], help="The mode to run the script in.")
+    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph", "compare", "resample","smooth"], help="The mode to run the script in.")
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--op", "-op", choices=[ "add", "subtract", "multiply", "divide", "and", "or", "xor", ""], default="", required=False, help="The operation to perform.")

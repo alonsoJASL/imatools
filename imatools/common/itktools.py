@@ -804,8 +804,45 @@ def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.
         # Add the resampled label image to the final result
         resampled_im = sitk.Add(resampled_im, resampled_label_im)
 
-
     return resampled_im
+
+def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
+    unique_labels = get_labels(im)
+    im_size = im.GetSize()
+
+    pixel_type = sitk.sitkUInt8
+    output_im = sitk.Image(im_size, pixel_type)
+    output_im.CopyInformation(im)
+
+    for label in unique_labels:
+        # Create a binary image for the current label
+        binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
+        binary_im.CopyInformation(im)
+
+        smooth_filter = sitk.SmoothingRecursiveGaussianImageFilter()
+        smooth_filter.SetSigma(sigma)
+        label_im = smooth_filter.Execute(binary_im)
+
+        label_im = sitk.BinaryThreshold(label_im, lowerThreshold=threshold, upperThreshold=2)
+
+        if im_close:
+            label_im = morph_operations(label_im, "close")
+        
+        # Check for overlapping voxels and remove them from label_im
+        overlapping_voxels = sitk.And(output_im, sitk.Cast(label_im, pixel_type))
+        label_im = sitk.Subtract(sitk.Cast(label_im, pixel_type), overlapping_voxels)
+        label_im = sitk.Multiply(label_im, label)
+
+        # Add the resampled label image to the final result
+        output_im = sitk.Add(output_im, label_im)
+
+    return output_im
+
+
+
+
+
+
 
 def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False) -> vtk.vtkPolyData :
     cog = vtku.get_cog_per_element(surface)    
