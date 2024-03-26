@@ -327,6 +327,8 @@ def execute_compare(args):
         return 1
     
     secondary_image = itku.load_image(args.secondary_image)
+    if args.swap_axes:
+        secondary_image = itku.swap_axes(secondary_image, [0, 2])
     scores, unique_labels = itku.compare_images(input_image, secondary_image) 
 
     for key in scores:
@@ -469,6 +471,7 @@ if __name__ == "__main__":
     input_parser.add_argument("--merge-labels", "-m", nargs="+", type=int, default=-1, help="The labels to merge.")
     input_parser.add_argument("--binarise", "-bin", action="store_true", help="Binarise the label image.")
     input_parser.add_argument("--split-radius", "-radius", type=int, default=3, help="[MODE=split] Radius of morphological element")
+    input_parser.add_argument("--swap-axes", "-swap", action="store_true", help="Swap the axes [0, 2] of the image.")
     resample_group = input_parser.add_argument_group("Resample mode")
     resample_group.add_argument("--resample-spacing", type=float, nargs=3, default=[1.0, 1.0, 1.0], help="[MODE=resample] The new spacing to resample to.")
     resample_group.add_argument("--resample-sigma", type=float, default=3.0, help="[MODE=resample] The sigma for the gaussian kernel.")

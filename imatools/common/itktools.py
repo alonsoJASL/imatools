@@ -861,4 +861,17 @@ def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtk
 
     return segmentation
 
-    
+def swap_axes(im: sitk.Image, axes: list) -> sitk.Image :
+    """
+    Swaps the axes of a 3D image according to the given list.
+    """
+    # Get the image data as a NumPy array
+    data = sitk.GetArrayFromImage(im)
+
+    # Swap the axes of the NumPy array
+    data = np.swapaxes(data, axes[0], axes[1])
+    # Create a new SimpleITK image from the modified NumPy array
+    new_im = sitk.GetImageFromArray(data)
+    new_im.CopyInformation(im)
+
+    return new_im
