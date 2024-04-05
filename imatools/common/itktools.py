@@ -744,13 +744,22 @@ def compare_images(im1: sitk.Image, im2: sitk.Image) :
     common_labels = set(labels_im1).intersection(labels_im2)
     unique_labels = set(labels_im1).symmetric_difference(labels_im2)
 
+    # find which image has the unique_labels
+    unique_labels_im1 = unique_labels.intersection(labels_im1)
+    unique_labels_im2 = unique_labels.intersection(labels_im2)
+
+    unique_labels_dic = {
+        'im1': unique_labels_im1,
+        'im2': unique_labels_im2
+    }
+
     scores = {}
     for label in common_labels:
         im1_label = extract_single_label(im1, label, binarise=True)
         im2_label = extract_single_label(im2, label, binarise=True)
         scores[label] = dice_score(im1_label, im2_label)
 
-    return scores, unique_labels
+    return scores, unique_labels_dic
 
 def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.5, im_close=True):
     # import itk
