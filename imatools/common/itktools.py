@@ -25,7 +25,7 @@ def load_image(path_to_file) :
     sitk_t1 = sitk.ReadImage(path_to_file)
     return sitk_t1
 
-def extract_single_label(image, label, binarise=False):
+def extract_single_label(image, label, binarise=False) -> sitk.Image:
     """
     Extracts a single label from a label map image.
     """
@@ -732,7 +732,7 @@ def dice_score(true, pred):
     intersection = (true * pred).sum()
     return (2. * intersection) / (true.sum() + pred.sum())
 
-def compare_images(im1: sitk.Image, im2: sitk.Image) :
+def compare_images(im1: sitk.Image, im2: sitk.Image, return_comparison=False) :
     """
     Returns a dictionary where the keys are the common labels between the two
     images and the values are the Dice scores for each label.
@@ -758,8 +758,39 @@ def compare_images(im1: sitk.Image, im2: sitk.Image) :
         im1_label = extract_single_label(im1, label, binarise=True)
         im2_label = extract_single_label(im2, label, binarise=True)
         scores[label] = dice_score(im1_label, im2_label)
-
+    
     return scores, unique_labels_dic
+
+def multilabel_comparison(im1: sitk.Image, im2: sitk.Image, l1: list = None, l2: list = None) -> sitk.Image :
+    """
+    Compare two multilabel images and return a new image with the following values:
+        - 1 if the label is present in both images
+        - 2 if the label is present in im1 but not in im2
+        - 3 if the label is present in im2 but not in im1
+    """
+    if l1 is None :
+        l1 = get_labels(im1)
+    if l2 is None :
+        l2 = get_labels(im2)
+
+    common_labels = set(l1).intersection(l2)
+    # unique_labels = set(l1).symmetric_difference(l2)
+
+    new_array = sitk.GetArrayFromImage(im1)
+
+    for label in common_labels:
+        im1_label = extract_single_label(im1, label, binarise=True)
+        im2_label = extract_single_label(im2, label, binarise=True)
+
+        imc = sitk.And(im1_label, im2_label)
+        imc_array = sitk.GetArrayViewFromImage(imc)
+        new_array[imc_array > 0] = 0
+        
+
+    new_im = sitk.GetImageFromArray(new_array)
+    new_im.CopyInformation(im1)
+
+    return new_im
 
 def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.5, im_close=True):
     # import itk

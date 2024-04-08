@@ -23,9 +23,7 @@ def get_base_inputs(args):
 
     outname = name if output_not_set else args.output_name
     outname += '.nii' if '.nii' not in outname else '' 
-
-    print(output_not_set, outname)
-
+    
     input_image = itku.load_image(im_path)
     return base_dir, name, input_image, outname, output_not_set
 
@@ -330,6 +328,12 @@ def execute_compare(args):
     if args.swap_axes:
         secondary_image = itku.swap_axes(secondary_image, [0, 2])
     scores, unique_labels = itku.compare_images(input_image, secondary_image) 
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+
+    if not output_not_set:
+        imc = itku.multilabel_comparison(input_image, secondary_image)
+        itku.save_image(imc, base_dir, outname)
 
     for key in scores:
         print(f"{key}: {scores[key]}")
