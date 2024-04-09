@@ -754,6 +754,8 @@ def compare_images(im1: sitk.Image, im2: sitk.Image, return_comparison=False) :
     }
 
     scores = {}
+    # sort common_labels to ensure consistent results
+    common_labels = sorted(list(common_labels))
     for label in common_labels:
         im1_label = extract_single_label(im1, label, binarise=True)
         im2_label = extract_single_label(im2, label, binarise=True)
