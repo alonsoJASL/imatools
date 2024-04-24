@@ -794,6 +794,36 @@ def multilabel_comparison(im1: sitk.Image, im2: sitk.Image, l1: list = None, l2:
 
     return new_im
 
+# def multilabel_curvature(im: sitk.Image, gradient_sigma=1.0) -> sitk.Image :
+#     """
+#     Calculate the curvature of a multilabel image.
+#     """
+#     unique_labels = get_labels(im)
+#     im_size = im.GetSize()
+
+#     pixel_type = sitk.sitkUInt8
+#     output_im = sitk.Image(im_size, pixel_type)
+#     output_im.CopyInformation(im)
+
+#     for label in unique_labels:
+#         # Create a binary image for the current label
+#         binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
+#         binary_im.CopyInformation(im)
+
+#         # Calculate the curvature of the binary image
+#         curvature_im = sitk.CurvatureFlow(binary_im, timeStep=0.125, numberOfIterations=5)
+#         curvature_im = sitk.BinaryThreshold(curvature_im, lowerThreshold=0.5, upperThreshold=1.5)
+
+#         # Check for overlapping voxels and remove them from curvature_im
+#         overlapping_voxels = sitk.And(output_im, sitk.Cast(curvature_im, pixel_type))
+#         curvature_im = sitk.Subtract(sitk.Cast(curvature_im, pixel_type), overlapping_voxels)
+#         curvature_im = sitk.Multiply(curvature_im, label)
+
+#         # Add the resampled label image to the final result
+#         output_im = sitk.Add(output_im, curvature_im)
+
+#     return output_im
+
 def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.5, im_close=True):
     # import itk
 
@@ -880,12 +910,6 @@ def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
 
     return output_im
 
-
-
-
-
-
-
 def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False) -> vtk.vtkPolyData :
     cog = vtku.get_cog_per_element(surface)    
     scalars = surface.GetCellData().GetScalars()
@@ -917,3 +941,38 @@ def swap_axes(im: sitk.Image, axes: list) -> sitk.Image :
     new_im.CopyInformation(im)
 
     return new_im
+
+def segmentation_curvature(im: sitk.Image, gradient_sigma = 1.0) -> sitk.Image :
+    """
+    Calculate the segmentation curvature of an input image.
+
+    Parameters:
+        im (sitk.Image): The input image.
+        gradient_sigma (float): The sigma value for the gradient magnitude filter. Default is 1.0.
+
+    Returns:
+        sitk.Image: The segmentation curvature image.
+    """
+    gradient_filter = sitk.GradientMagnitudeRecursiveGaussianImageFilter()
+    gradient_filter.SetSigma(gradient_sigma)
+    gradient_im = gradient_filter.Execute(im)
+
+    return gradient_im
+
+def segmentation_curvature_value(im: sitk.Image, gradient_sigma = 1.0) -> float :
+    """
+    Calculate the segmentation curvature of an input image.
+
+    Parameters:
+        im (sitk.Image): The input image.
+        gradient_sigma (float): The sigma value for the gradient magnitude filter. Default is 1.0.
+
+    Returns:
+        float: The segmentation curvature value, which is the mean gradient magnitude divided by the total number of voxels in the image.
+    """
+    gradient_im = segmentation_curvature(im, gradient_sigma)
+    total_voxels = im.GetNumberOfPixels()
+    mean_gradient = sitk.GetArrayViewFromImage(gradient_im).mean()
+
+    return mean_gradient / total_voxels
+

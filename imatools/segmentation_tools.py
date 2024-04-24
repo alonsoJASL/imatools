@@ -461,8 +461,10 @@ def main(args):
 
 
 if __name__ == "__main__":
+    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'op', 'morph', 'compare', 'resample', 'smooth']
+    #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
-    input_parser.add_argument("mode", choices=["extract", "relabel", "remove", "mask", "merge", "split", "show", "gaps", "add", "fill", "inr", "op","morph", "compare", "resample","smooth"], help="The mode to run the script in.")
+    input_parser.add_argument("mode", choices=mychoices, help="The mode to run the script in.")
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("--morphological", "-morph", choices=["open", "close", "fillholes", "dilate", "erode", ""], default="", required=False, help="The operation to perform.")
     input_parser.add_argument("--op", "-op", choices=[ "add", "subtract", "multiply", "divide", "and", "or", "xor", ""], default="", required=False, help="The operation to perform.")
