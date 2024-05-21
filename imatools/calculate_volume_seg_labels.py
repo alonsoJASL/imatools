@@ -50,10 +50,12 @@ def main(args) :
 		for i in sorted(vols.keys()):
 			iou.cout(volume_message(i, vols, units), logger=logger)
 	else :
+		output_path = os.path.join(base_dir, args.output)
+		iou.cout(f"Saving volumes to {output_path}", print2console=verbose, logger=logger)
 		if args.output.endswith('.json') :
-			iou.save_json(os.path.join(base_dir, args.output), vols)
+			iou.save_json(output_path, vols)
 		else :
-			with open(os.path.join(base_dir, args.output), 'w') as f:
+			with open(output_path, 'w') as f:
 				for i in sorted(vols.keys()):
 					f.write(volume_message(i, vols, units))
 
