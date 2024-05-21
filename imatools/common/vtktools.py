@@ -991,3 +991,22 @@ def vtk_from_points_file(file_path:str, mydelim=',') :
     polydata.SetPoints(points)
 
     return polydata
+
+def export_as(input_mesh, output_file: str, export_as='ply') -> None:
+    """
+    Export a vtkPolyData object to a file
+    """
+    if export_as == 'ply':
+        writer = vtk.vtkPLYWriter()
+    elif export_as == 'stl':
+        writer = vtk.vtkSTLWriter()
+    elif export_as == 'obj':
+        writer = vtk.vtkOBJWriter()
+    elif export_as == 'vtp':
+        writer = vtk.vtkXMLPolyDataWriter()
+    else:
+        raise ValueError('Export format not supported')
+
+    writer.SetFileName(output_file)
+    writer.SetInputData(input_mesh)
+    writer.Write()
