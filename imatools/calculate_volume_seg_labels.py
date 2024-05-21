@@ -19,6 +19,20 @@ def volume_message(label_indx, volume_dict: dict, units='mL') :
 	return mystr
 
 def main(args) : 
+	"""
+	Calculate volumes of all the labels in a segmentation
+
+	Parameters
+	----------
+	--input : str : Full path to the segmentation
+	--output : str : (Optional) Output file name
+	--units : str : Units of the output volumes. Choices mL or mm (default: mL)
+	--verbose : bool : Verbose output
+
+	Usage 
+	-----
+	python calculate_volume_seg_labels.py --input /path/to/segmentation.nii.gz --output volumes.txt --units mL --verbose
+	"""
 	ipth=args.input
 	base_dir=os.path.dirname(ipth)
 	units=args.units
@@ -46,7 +60,7 @@ def main(args) :
 
 
 if __name__ == "__main__":
-	inputParser = argparse.ArgumentParser(description="Get volumes of all the labels of a segmentation")
+	inputParser = argparse.ArgumentParser(description="Get volumes of all the labels of a segmentation", usage=main.__doc__)
 	inputParser.add_argument("--input", "-in", metavar="ipth", type=str, help="Full path to segmentation")
 	inputParser.add_argument("--output", '-out', metavar="out_name", type=str, default='', help="Output file name")
 	inputParser.add_argument("--units", "-units", choices=['mm', 'mL'], default='mL', help='Units of the output volumes (default: mL)')
