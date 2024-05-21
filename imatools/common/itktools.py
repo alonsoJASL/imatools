@@ -13,7 +13,7 @@ def load_image_as_np(path_to_file) :
     """ Reads image into numpy array """
     sitk_t1 = sitk.ReadImage(path_to_file)
     
-    t1 = sitk.GetArrayFromImage(sitk_t1)
+    t1 = imarray(sitk_t1)
     origin = sitk_t1.GetOrigin()
     im_size = sitk_t1.GetSize()
 
@@ -29,7 +29,7 @@ def extract_single_label(image, label, binarise=False) -> sitk.Image:
     """
     Extracts a single label from a label map image.
     """
-    image_array = sitk.GetArrayViewFromImage(image)
+    image_array = imview(image)
     label_array = np.zeros(image_array.shape, dtype=np.uint8)
     label_array[np.equal(image_array, label)] = 1 if binarise else label
     label_image = sitk.GetImageFromArray(label_array)
@@ -50,7 +50,7 @@ def binarise(image, background=0):
     """
     Returns an image with only 0s and 1s.
     """
-    image_array = sitk.GetArrayFromImage(image)
+    image_array = imarray(image)
     bin_array = np.zeros(image_array.shape, dtype=np.uint8) 
     bin_array[np.greater(image_array, background)] = 1
     binim = sitk.GetImageFromArray(bin_array) 
@@ -106,10 +106,10 @@ def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
         return image 
 
     logger.info(f'Found {num_cc_labels} connected components for label {label}')
-    image_array = sitk.GetArrayFromImage(image)
+    image_array = imarray(image)
     image_array[np.equal(image_array, label)] = 0 # remove 
 
-    cc_array = sitk.GetArrayViewFromImage(cc_im_label)
+    cc_array = imview(cc_im_label)
     for ix, ccl in enumerate(cc_labels) :
         new_label = label if ix == 0 else label*10 + (ccl-1)
 
@@ -155,7 +155,7 @@ def swap_labels(im, old_label: int, new_label=1):
     Swaps all instances of old_label with new_label in a label image.
     """
 
-    im_array = sitk.GetArrayFromImage(im)
+    im_array = imarray(im)
     im_array[np.equal(im_array, old_label)] = new_label
 
     new_image = sitk.GetImageFromArray(im_array)
@@ -179,7 +179,7 @@ def convert_to_inr(image, out_path):
     """
     print(f'Converting image to {out_path}')
     # Get the image data as a NumPy array
-    data = sitk.GetArrayViewFromImage(image)
+    data = imview(image)
     data = data.astype(np.uint8)  # Convert to uint8
 
     # Extract relevant image information
@@ -204,7 +204,7 @@ def get_labels(image : sitk.Image ) -> list:
     """
     Returns a list of labels in an image.
     """
-    image_array_view = sitk.GetArrayViewFromImage(image)
+    image_array_view = imview(image)
     labels = set(image_array_view.flatten())
     labels.discard(0) # background
     
@@ -237,7 +237,7 @@ def points_to_image(image, points, label=1, girth=2, points_are_indices=False) :
         SimpleITK.Image: The modified image with the closest voxels set to the label.
     """
     # Convert the input image to a numpy array for easier manipulation
-    image_np = sitk.GetArrayFromImage(zeros_like(image))
+    image_np = imarray(zeros_like(image))
     print(f"Image shape: {image_np.shape}")
     
     # Loop through each point and find the closest voxel in the image
@@ -369,7 +369,7 @@ def fill_gaps(image1, image2=None, multilabel_images=False) :
         gaps_im = image_operation("xor", gaps_im, gaps2)
 
     # get index where gaps is 1
-    gaps_array_view = sitk.GetArrayViewFromImage(gaps_im)
+    gaps_array_view = imview(gaps_im)
     gaps_indices = np.argwhere(gaps_array_view==1)
     
     number_of_gaps = gaps_indices.shape[0]
@@ -382,7 +382,7 @@ def fill_gaps(image1, image2=None, multilabel_images=False) :
     neighbours = find_neighbours(image1, gaps_indices)
     
     logger.info(f"Found {number_of_gaps} gaps.")
-    image1_array = sitk.GetArrayFromImage(image1)
+    image1_array = imarray(image1)
     for idx in gaps_indices:
 
         if len(neighbours[idx]) == 0:
@@ -416,7 +416,7 @@ def find_neighbours(image, indices):
     """
     logger.info(f"Finding neighbours for {len(indices)} indices.")
     # Get a NumPy array view of the image data
-    image_array_view = sitk.GetArrayViewFromImage(image)
+    image_array_view = imview(image)
 
     # Define the 26-connectivity offsets in 3D space
     offsets = [
@@ -507,7 +507,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
     std_bp = np.std(values_inside_prism)
 
     # Create an array with all voxels set to 100 initially
-    voxel_values = sitk.GetArrayFromImage(image)
+    voxel_values = imarray(image)
     print(f'image size: {image_size}')
     print(f'size_adjusted: {size_adjusted}')
     print(f'size random_background: {random_background.shape}')
@@ -517,11 +517,11 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
     voxel_values[start_indx[0]:end_indx[0], start_indx[1]:end_indx[1], start_indx[2]:end_indx[2]] = values_inside_prism
 
     # Create a prism mask with the specified dimensions
-    prism_mask = sitk.GetArrayFromImage(zeros_like(image))
+    prism_mask = imarray(zeros_like(image))
     prism_mask[start_indx[0]:end_indx[0], start_indx[1]:end_indx[1], start_indx[2]:end_indx[2]] = 1
 
     # Create the boundary region of the prism
-    boundary_mask = sitk.GetArrayFromImage(zeros_like(image))
+    boundary_mask = imarray(zeros_like(image))
     boundary_mask[start_indx[0] - 1:end_indx[0] + 1, start_indx[1] - 1:end_indx[1] + 1, start_indx[2] - 1:end_indx[2] + 1] = 1
     boundary_mask *= (1 - prism_mask)  # Exclude the inside of the prism
 
@@ -577,7 +577,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
 
 def relabel_image(input_image, new_label) :
     """Assumes input_image is a binary image, every value>0 is set to new_label"""
-    input_array = sitk.GetArrayFromImage(input_image)
+    input_array = imarray(input_image)
     input_array[np.greater(input_array, 0)] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
@@ -586,7 +586,7 @@ def relabel_image(input_image, new_label) :
     return new_image
 
 def exchange_labels(input_image, old_label, new_label) :
-    input_array = sitk.GetArrayFromImage(input_image)
+    input_array = imarray(input_image)
     input_array[np.equal(input_array, old_label)] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
@@ -601,8 +601,8 @@ def add_images(im1, im2) :
     return add_im
 
 def simple_mask(im, mask, mask_value=0) -> sitk.Image :
-    masked_im_array = sitk.GetArrayFromImage(im)
-    mask_array = sitk.GetArrayFromImage(mask)
+    masked_im_array = imarray(im)
+    mask_array = imarray(mask)
     
     masked_im_array[ mask_array > 0 ] = mask_value
     
@@ -612,20 +612,20 @@ def simple_mask(im, mask, mask_value=0) -> sitk.Image :
     return new_im
 
 def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> np.ndarray :
-    mask_array = sitk.GetArrayFromImage(mask)
+    mask_array = imarray(mask)
     if threshold > 0 :
-        im_array = sitk.GetArrayViewFromImage(im)
+        im_array = imview(im)
         mask_array[ im_array > threshold ] = 1
         
     if ignore_im is not None :
-        ignore_im_array = sitk.GetArrayViewFromImage(ignore_im)
+        ignore_im_array = imview(ignore_im)
         mask_array[ ignore_im_array > 0 ] = 0
 
     mask_array[ mask_array > 0 ] = 1
     return mask_array
 
 def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
-    masked_im_array = sitk.GetArrayFromImage(im)
+    masked_im_array = imarray(im)
     mask_array = get_mask_array_with_restrictions(im, mask, threshold=threshold, ignore_im=ignore_im)
     
     masked_im_array[ mask_array > 0 ] = mask_value
@@ -718,7 +718,7 @@ def create_image_at_plane_from_vector(image: sitk.Image, point_on_plane: np.arra
     resampled_im = resampler.Execute(image)
 
     # Convert the 3D image to a 2D array
-    array = sitk.GetArrayViewFromImage(resampled_im)
+    array = imview(resampled_im)
 
     # Select the middle slice along the third dimension
     slice_index = array.shape[2] // 2
@@ -727,8 +727,8 @@ def create_image_at_plane_from_vector(image: sitk.Image, point_on_plane: np.arra
     return slice_2d
 
 def dice_score(true, pred):
-    true = sitk.GetArrayViewFromImage(true)
-    pred = sitk.GetArrayViewFromImage(pred)
+    true = imview(true)
+    pred = imview(pred)
     intersection = (true * pred).sum()
     return (2. * intersection) / (true.sum() + pred.sum())
 
@@ -778,14 +778,14 @@ def multilabel_comparison(im1: sitk.Image, im2: sitk.Image, l1: list = None, l2:
     common_labels = set(l1).intersection(l2)
     # unique_labels = set(l1).symmetric_difference(l2)
 
-    new_array = sitk.GetArrayFromImage(im1)
+    new_array = imarray(im1)
 
     for label in common_labels:
         im1_label = extract_single_label(im1, label, binarise=True)
         im2_label = extract_single_label(im2, label, binarise=True)
 
         imc = sitk.And(im1_label, im2_label)
-        imc_array = sitk.GetArrayViewFromImage(imc)
+        imc_array = imview(imc)
         new_array[imc_array > 0] = 0
         
 
@@ -793,6 +793,36 @@ def multilabel_comparison(im1: sitk.Image, im2: sitk.Image, l1: list = None, l2:
     new_im.CopyInformation(im1)
 
     return new_im
+
+# def multilabel_curvature(im: sitk.Image, gradient_sigma=1.0) -> sitk.Image :
+#     """
+#     Calculate the curvature of a multilabel image.
+#     """
+#     unique_labels = get_labels(im)
+#     im_size = im.GetSize()
+
+#     pixel_type = sitk.sitkUInt8
+#     output_im = sitk.Image(im_size, pixel_type)
+#     output_im.CopyInformation(im)
+
+#     for label in unique_labels:
+#         # Create a binary image for the current label
+#         binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
+#         binary_im.CopyInformation(im)
+
+#         # Calculate the curvature of the binary image
+#         curvature_im = sitk.CurvatureFlow(binary_im, timeStep=0.125, numberOfIterations=5)
+#         curvature_im = sitk.BinaryThreshold(curvature_im, lowerThreshold=0.5, upperThreshold=1.5)
+
+#         # Check for overlapping voxels and remove them from curvature_im
+#         overlapping_voxels = sitk.And(output_im, sitk.Cast(curvature_im, pixel_type))
+#         curvature_im = sitk.Subtract(sitk.Cast(curvature_im, pixel_type), overlapping_voxels)
+#         curvature_im = sitk.Multiply(curvature_im, label)
+
+#         # Add the resampled label image to the final result
+#         output_im = sitk.Add(output_im, curvature_im)
+
+#     return output_im
 
 def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.5, im_close=True):
     # import itk
@@ -880,12 +910,6 @@ def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
 
     return output_im
 
-
-
-
-
-
-
 def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False) -> vtk.vtkPolyData :
     cog = vtku.get_cog_per_element(surface)    
     scalars = surface.GetCellData().GetScalars()
@@ -908,7 +932,7 @@ def swap_axes(im: sitk.Image, axes: list) -> sitk.Image :
     Swaps the axes of a 3D image according to the given list.
     """
     # Get the image data as a NumPy array
-    data = sitk.GetArrayFromImage(im)
+    data = imarray(im)
 
     # Swap the axes of the NumPy array
     data = np.swapaxes(data, axes[0], axes[1])
@@ -954,3 +978,43 @@ def get_labels_volumes(im: sitk.Image) -> dict:
         label_volumes[label] = label_volume
     
     return label_volumes
+
+def segmentation_curvature(im: sitk.Image, gradient_sigma = 1.0) -> sitk.Image :
+    """
+    Calculate the segmentation curvature of an input image.
+
+    Parameters:
+        im (sitk.Image): The input image.
+        gradient_sigma (float): The sigma value for the gradient magnitude filter. Default is 1.0.
+
+    Returns:
+        sitk.Image: The segmentation curvature image.
+    """
+    gradient_filter = sitk.GradientMagnitudeRecursiveGaussianImageFilter()
+    gradient_filter.SetSigma(gradient_sigma)
+    gradient_im = gradient_filter.Execute(im)
+
+    return gradient_im
+
+def segmentation_curvature_value(im: sitk.Image, gradient_sigma = 1.0) -> float :
+    """
+    Calculate the segmentation curvature of an input image.
+
+    Parameters:
+        im (sitk.Image): The input image.
+        gradient_sigma (float): The sigma value for the gradient magnitude filter. Default is 1.0.
+
+    Returns:
+        float: The segmentation curvature value, which is the mean gradient magnitude divided by the total number of voxels in the image.
+    """
+    gradient_im = segmentation_curvature(im, gradient_sigma)
+    total_voxels = im.GetNumberOfPixels()
+    mean_gradient = imview(gradient_im).mean()
+
+    return mean_gradient / total_voxels
+
+def imarray(im: sitk.Image) -> np.ndarray :
+    return sitk.GetArrayFromImage(im)
+
+def imview(im: sitk.Image) -> np.ndarray :
+    return sitk.GetArrayViewFromImage(im)
