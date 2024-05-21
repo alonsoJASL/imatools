@@ -942,6 +942,43 @@ def swap_axes(im: sitk.Image, axes: list) -> sitk.Image :
 
     return new_im
 
+def get_labels_volumes(im: sitk.Image) -> dict:
+    """
+    Quantifies the volumes of the labels of an image in units cubed.
+    """
+
+    # Ensure the image is of integer type
+    segmentation_image = sitk.Cast(im, sitk.sitkUInt32)
+    
+    # Get the spacing of the image (voxel size)
+    spacing = segmentation_image.GetSpacing()
+    
+    # Calculate the volume of a single voxel
+    voxel_volume = spacing[0] * spacing[1] * spacing[2]
+    
+    # Use LabelStatisticsImageFilter to compute statistics for each label
+    label_stats_filter = sitk.LabelStatisticsImageFilter()
+    label_stats_filter.Execute(segmentation_image, segmentation_image)
+    
+    # Get the list of labels
+    labels = label_stats_filter.GetLabels()
+    
+    # Initialize a dictionary to store the volume of each label
+    label_volumes = {}
+    
+    # Iterate over each label and calculate its volume
+    for label in labels:
+        # Get the number of voxels for the current label
+        voxel_count = label_stats_filter.GetCount(label)
+        
+        # Calculate the volume by multiplying voxel count with voxel volume
+        label_volume = voxel_count * voxel_volume
+        
+        # Store the result in the dictionary
+        label_volumes[label] = label_volume
+    
+    return label_volumes
+
 def segmentation_curvature(im: sitk.Image, gradient_sigma = 1.0) -> sitk.Image :
     """
     Calculate the segmentation curvature of an input image.
