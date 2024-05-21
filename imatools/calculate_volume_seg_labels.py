@@ -25,7 +25,7 @@ def main(args) :
 	Parameters
 	----------
 	--input : str : Full path to the segmentation
-	--output : str : (Optional) Output file name
+	--output : str : (Optional) Output file name (extension .json or .txt)
 	--units : str : Units of the output volumes. Choices mL or mm (default: mL)
 	--verbose : bool : Verbose output
 
@@ -50,9 +50,12 @@ def main(args) :
 		for i in sorted(vols.keys()):
 			iou.cout(volume_message(i, vols, units), logger=logger)
 	else :
-		with open(os.path.join(base_dir, args.output), 'w') as f:
-			for i in sorted(vols.keys()):
-				f.write(volume_message(i, vols, units))
+		if args.output.endswith('.json') :
+			iou.save_json(os.path.join(base_dir, args.output), vols)
+		else :
+			with open(os.path.join(base_dir, args.output), 'w') as f:
+				for i in sorted(vols.keys()):
+					f.write(volume_message(i, vols, units))
 
 	# for i in sorted(vols.keys()):
 	# 	iou.cout(f"Label {i}: {np.round(vols[i]*1e-3,3)} mL\n")

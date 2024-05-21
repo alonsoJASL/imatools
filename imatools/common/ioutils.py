@@ -333,3 +333,8 @@ def count_values_in_ranges(arr, thresholds: list) -> dict :
         counts[ix] = np.count_nonzero(classifications == ix)
         
     return counts
+
+def save_json(fname, data) : 
+    import json 
+    with open(fname, 'w') as f : 
+        json.dump(data, f)
