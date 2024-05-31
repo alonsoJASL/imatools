@@ -2,6 +2,7 @@ import glob
 import os
 import platform as pltf
 import sys
+import logging
 
 import numpy as np
 
@@ -73,12 +74,16 @@ def searchFileByType(directory, prefix='', extension=''):
     l = glob.glob(fullfile(directory, prefix + '*.' + extension))
     return l
 
-def cout(msg, typeMsg="INFO", print2console=True):
+def cout(msg, typeMsg="INFO", print2console=True, logger=None):
     """
     LOGGING FUNCTION
     """
     if print2console==True:
-        print("[{}] {}".format(typeMsg, msg))
+        if logger is not None:
+            
+            logger.info(f"_ {msg}")
+        else:
+            print(f"[{typeMsg}] {msg}")
 
 def getTotal(fname):
     """
@@ -328,3 +333,8 @@ def count_values_in_ranges(arr, thresholds: list) -> dict :
         counts[ix] = np.count_nonzero(classifications == ix)
         
     return counts
+
+def save_json(fname, data) : 
+    import json 
+    with open(fname, 'w') as f : 
+        json.dump(data, f)
