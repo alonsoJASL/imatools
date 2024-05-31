@@ -9,7 +9,7 @@ def get_empty_pot() -> dict:
                 'seg_dir': None,
                 'seg_name': None,
                 'mesh_from_segmentation': True, 
-                'boundary_relabelling': False},
+                'boundary_relabeling': False}, # bad spelling is on purpose
             'meshing': {
                 'facet_angle': 30,
                 'facet_size': 0.8,

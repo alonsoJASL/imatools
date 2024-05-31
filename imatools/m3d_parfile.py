@@ -10,7 +10,7 @@ def fill_with_args(args):
     pot['segmentation']['seg_dir'] = args.seg_dir
     pot['segmentation']['seg_name'] = args.seg_name
     pot['segmentation']['mesh_from_segmentation'] = args.mesh_from_segmentation
-    pot['segmentation']['boundary_relabelling'] = args.boundary_relabelling
+    pot['segmentation']['boundary_relabeling'] = args.boundary_relabeling
     pot['meshing']['facet_angle'] = args.facet_angle
     pot['meshing']['facet_size'] = args.facet_size
     pot['meshing']['facet_distance'] = args.facet_distance
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     paramters_group.add_argument('--seg_dir', '-seg_dir', type=str, default='.')
     paramters_group.add_argument('--seg_name', '-seg_name', type=str, default='converted.inr')
     paramters_group.add_argument('--mesh_from_segmentation', '-mesh_from_segmentation', type=bool, metavar='1/0')
-    paramters_group.add_argument('--boundary_relabelling', '-boundary_relabelling', type=bool, metavar='1/0')
+    paramters_group.add_argument('--boundary_relabeling', '-boundary_relabeling', type=bool, metavar='1/0')
     paramters_group.add_argument('--facet_angle', '-facet_angle', type=float, help='Facet angle')
     paramters_group.add_argument('--facet_size', '-facet_size', type=float, help='Facet size')
     paramters_group.add_argument('--facet_distance', '-facet_distance', type=float, help='Facet distance')

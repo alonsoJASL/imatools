@@ -180,6 +180,8 @@ def convert_to_inr(image, out_path):
     print(f'Converting image to {out_path}')
     # Get the image data as a NumPy array
     data = imview(image)
+    # make sure elements less than 1 are 0 
+    data = np.where(data < 1, 0, data)
     data = data.astype(np.uint8)  # Convert to uint8
 
     # Extract relevant image information
