@@ -180,21 +180,27 @@ def convert_to_inr(image, out_path):
     print(f'Converting image to {out_path}')
     # Get the image data as a NumPy array
     data = imview(image)
+    spacing = image.GetSpacing()
     # make sure elements less than 1 are 0 
-    data = np.where(data < 1, 0, data)
-    data = data.astype(np.uint8)  # Convert to uint8
+    dtype = data.dtype
+    if dtype == bool or dtype == np.uint8:
+        btype = 'unsigned fixed'
+        bitlen = 8
+    elif dtype == np.uint16:
+        btype = 'unsigned fixed'
+        bitlen = 16
+    elif dtype == np.float32:
+        btype = 'float'
+        bitlen = 32
+    elif dtype == np.float64:
+        btype = 'float'
+        bitlen = 64
+    else:
+        raise ValueError('Volume format not supported')
 
-    # Extract relevant image information
     xdim, ydim, zdim = data.shape
-    vx, vy, vz = image.GetSpacing()
-
-    # Prepare header information
-    header = r"#INRIMAGE-4#{"
-    header += f"\nXDIM={xdim}\nYDIM={ydim}\nZDIM={zdim}\nVDIM=1\n"
-    header += f"VX={vx:.4f}\nVY={vy:.4f}\nVZ={vz:.4f}\n"
-    header += "TYPE=unsigned fixed\nPIXSIZE=8 bits\nCPU=decm\n"
+    header = f"#INRIMAGE-4#{{\nXDIM={xdim}\nYDIM={ydim}\nZDIM={zdim}\nVDIM=1\nTYPE={btype}\nPIXSIZE={bitlen} bits\nCPU=decm\nVX={spacing[0]:.4f}\nVY={spacing[1]:.4f}\nVZ={spacing[2]:.4f}\n"
     header += "\n" * (252 - len(header))  # Fill remaining space with newlines
-
     header += "##}\n"  # End of header
 
     # Write to binary file
