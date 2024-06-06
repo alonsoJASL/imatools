@@ -177,34 +177,37 @@ def convert_to_inr(image, out_path):
     """
     Converts a SimpleITK image to an INR file.
     """
+
     print(f'Converting image to {out_path}')
     # Get the image data as a NumPy array
     data = imview(image)
     spacing = image.GetSpacing()
     # make sure elements less than 1 are 0 
     dtype = data.dtype
+    bitlen = data.dtype.itemsize*8
     if dtype == bool or dtype == np.uint8:
         btype = 'unsigned fixed'
-        bitlen = 8
     elif dtype == np.uint16:
         btype = 'unsigned fixed'
-        bitlen = 16
+    elif dtype == np.int16:
+        btype = 'signed fixed'    
     elif dtype == np.float32:
         btype = 'float'
-        bitlen = 32
     elif dtype == np.float64:
         btype = 'float'
-        bitlen = 64
     else:
         raise ValueError('Volume format not supported')
 
+    logger.info(f'Data type: {dtype}. TYPE:{btype} PIXSIZE:{bitlen}')
     xdim, ydim, zdim = data.shape
-    header = f"#INRIMAGE-4#{{\nXDIM={xdim}\nYDIM={ydim}\nZDIM={zdim}\nVDIM=1\nTYPE={btype}\nPIXSIZE={bitlen} bits\nCPU=decm\nVX={spacing[0]:.4f}\nVY={spacing[1]:.4f}\nVZ={spacing[2]:.4f}\n"
+    header = f"#INRIMAGE-4#{{\nXDIM={xdim}\nYDIM={ydim}\nZDIM={zdim}\nVDIM=1\nVX={spacing[0]:.4f}\nVY={spacing[1]:.4f}\nVZ={spacing[2]:.4f}\n"
+    header += "SCALE=2**0\n" if btype == 'unsigned fixed' or btype == 'signed fixed' else ""
+    header += f"TYPE={btype}\nPIXSIZE={bitlen} bits\nCPU=decm"
     header += "\n" * (252 - len(header))  # Fill remaining space with newlines
     header += "##}\n"  # End of header
 
     # Write to binary file
-    with open(out_path, "w") as file:
+    with open(out_path, "wb") as file:
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
