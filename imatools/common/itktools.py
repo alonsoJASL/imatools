@@ -196,7 +196,7 @@ def convert_to_inr(image, out_path):
     header += "##}\n"  # End of header
 
     # Write to binary file
-    with open(out_path, "wb") as file:
+    with open(out_path, "w") as file:
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
