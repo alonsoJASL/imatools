@@ -394,6 +394,22 @@ def execute_smooth(args):
 
     itku.save_image(smoothed_image, base_dir, outname)
 
+def execute_largest(args):
+    """
+    Finds the largest label in a label map image. 
+
+    USAGE:
+        python segmentation_tools.py largest -in <input_image>
+    """
+    if(args.help) : 
+        print(execute_largest.__doc__)
+        return
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    largest = itku.extract_largest(input_image)
+    
+    itku.save_image(largest, base_dir, outname)
+
 def main(args): 
     mode = args.mode
     if args.help == False and args.input_image == "":
@@ -457,11 +473,14 @@ def main(args):
 
     elif mode == "smooth" : 
         execute_smooth(args)
+
+    elif mode == "largest":
+        execute_largest(args)
         
 
 
 if __name__ == "__main__":
-    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'op', 'morph', 'compare', 'resample', 'smooth']
+    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'op', 'morph', 'compare', 'resample', 'smooth', 'largest']
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
     input_parser.add_argument("mode", choices=mychoices, help="The mode to run the script in.")

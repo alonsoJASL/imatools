@@ -1029,3 +1029,32 @@ def imarray(im: sitk.Image) -> np.ndarray :
 
 def imview(im: sitk.Image) -> np.ndarray :
     return sitk.GetArrayViewFromImage(im)
+
+def extract_largest(im: sitk.Image) -> sitk.Image :
+    """
+    Extract the largest connected component from a multilabel image.
+    """
+    image_labels = get_labels(im)
+    im_binary = binarise(im)
+    cc = sitk.ConnectedComponent(im_binary)
+    labels = get_labels(cc)
+
+    im_pixel_type = im.GetPixelID()
+    
+    if len(labels) == 1:
+        return im
+    
+    # Get the size of each connected component
+    sizes = []
+    for label in labels:
+        sizes.append(np.sum(imarray(cc) == label))
+
+    # Find the label with the largest size
+    largest_label = labels[np.argmax(sizes)]
+    largest_cc = sitk.BinaryThreshold(cc, lowerThreshold=largest_label, upperThreshold=largest_label)
+
+    # cast the largest connected component to the same pixel type as the input image
+    largest_cc = sitk.Cast(largest_cc, im_pixel_type)
+
+    return sitk.Multiply(im, largest_cc)
+
