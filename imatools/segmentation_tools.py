@@ -407,6 +407,9 @@ def execute_largest(args):
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     largest = itku.extract_largest(input_image)
+
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_largest.nii'
     
     itku.save_image(largest, base_dir, outname)
 
