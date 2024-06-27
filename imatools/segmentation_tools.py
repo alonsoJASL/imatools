@@ -374,6 +374,7 @@ def execute_smooth(args):
     Smooths a label map image. 
 
     Parameters: 
+        --resample-spacing
         --resample-sigma
         --resample-smth-threshold
         --resample-close
@@ -387,7 +388,7 @@ def execute_smooth(args):
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     sigma = args.resample_sigma
-    smoothed_image = itku.smooth_labels(input_image, sigma=args.resample_sigma, threshold=args.resample_smth_threshold, im_close=args.resample_close)
+    smoothed_image = itku.resample_smooth_label(input_image, spacing=args.resample_spacing, sigma=args.resample_sigma, threshold=args.resample_smth_threshold, im_close=args.resample_close)
 
     if output_not_set:
         outname = f'{rm_ext(outname)}_smoothed.nii'
