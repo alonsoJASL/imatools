@@ -843,16 +843,17 @@ def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.
     im_size = im.GetSize()
     new_size = [int(im_size[i] * im.GetSpacing()[i] / spacing[i]) for i in range(3)]
 
-    pixel_type = sitk.sitkUInt8
+    pixel_type = im.GetPixelID()
 
     # Initialize an empty image to hold the final result
-    resampled_im = sitk.Image(new_size, pixel_type )
+    resampled_im = sitk.Image(new_size, pixel_type)
     resampled_im.SetSpacing(spacing)
     resampled_im.SetOrigin(im.GetOrigin())
 
     # Resample each label separately
     for label in unique_labels:
         # Create a binary image for the current label
+        print(f"Resampling label {label}")
 
         binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
         # binary_im = extract_single_label(im, label, binarise=True)

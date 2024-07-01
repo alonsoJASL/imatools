@@ -22,7 +22,10 @@ def get_base_inputs(args):
     output_not_set = (args.output_name == "")
 
     outname = name if output_not_set else args.output_name
-    outname += '.nii' if '.nii' not in outname else '' 
+    is_nrrd = '.nrrd' in outname
+    is_nii = '.nii' in outname
+    if not is_nrrd and not is_nii:
+        outname += '.nii' 
     
     input_image = itku.load_image(im_path)
     return base_dir, name, input_image, outname, output_not_set
