@@ -22,7 +22,10 @@ def get_base_inputs(args):
     output_not_set = (args.output_name == "")
 
     outname = name if output_not_set else args.output_name
-    outname += '.nii' if '.nii' not in outname else '' 
+    is_nrrd = '.nrrd' in outname
+    is_nii = '.nii' in outname
+    if not is_nrrd and not is_nii:
+        outname += '.nii' 
     
     input_image = itku.load_image(im_path)
     return base_dir, name, input_image, outname, output_not_set
@@ -374,6 +377,7 @@ def execute_smooth(args):
     Smooths a label map image. 
 
     Parameters: 
+        --resample-spacing
         --resample-sigma
         --resample-smth-threshold
         --resample-close
@@ -387,12 +391,31 @@ def execute_smooth(args):
 
     base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
     sigma = args.resample_sigma
-    smoothed_image = itku.smooth_labels(input_image, sigma=args.resample_sigma, threshold=args.resample_smth_threshold, im_close=args.resample_close)
+    smoothed_image = itku.resample_smooth_label(input_image, spacing=args.resample_spacing, sigma=args.resample_sigma, threshold=args.resample_smth_threshold, im_close=args.resample_close)
 
     if output_not_set:
         outname = f'{rm_ext(outname)}_smoothed.nii'
 
     itku.save_image(smoothed_image, base_dir, outname)
+
+def execute_largest(args):
+    """
+    Finds the largest label in a label map image. 
+
+    USAGE:
+        python segmentation_tools.py largest -in <input_image>
+    """
+    if(args.help) : 
+        print(execute_largest.__doc__)
+        return
+
+    base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+    largest = itku.extract_largest(input_image)
+
+    if output_not_set:
+        outname = f'{rm_ext(outname)}_largest.nii'
+    
+    itku.save_image(largest, base_dir, outname)
 
 def main(args): 
     mode = args.mode
@@ -457,11 +480,14 @@ def main(args):
 
     elif mode == "smooth" : 
         execute_smooth(args)
+
+    elif mode == "largest":
+        execute_largest(args)
         
 
 
 if __name__ == "__main__":
-    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'op', 'morph', 'compare', 'resample', 'smooth']
+    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'op', 'morph', 'compare', 'resample', 'smooth', 'largest']
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
     input_parser.add_argument("mode", choices=mychoices, help="The mode to run the script in.")

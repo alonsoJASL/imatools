@@ -177,22 +177,33 @@ def convert_to_inr(image, out_path):
     """
     Converts a SimpleITK image to an INR file.
     """
+
     print(f'Converting image to {out_path}')
     # Get the image data as a NumPy array
     data = imview(image)
-    data = data.astype(np.uint8)  # Convert to uint8
+    spacing = image.GetSpacing()
+    # make sure elements less than 1 are 0 
+    dtype = data.dtype
+    bitlen = data.dtype.itemsize*8
+    if dtype == bool or dtype == np.uint8:
+        btype = 'unsigned fixed'
+    elif dtype == np.uint16:
+        btype = 'unsigned fixed'
+    elif dtype == np.int16:
+        btype = 'signed fixed'    
+    elif dtype == np.float32:
+        btype = 'float'
+    elif dtype == np.float64:
+        btype = 'float'
+    else:
+        raise ValueError('Volume format not supported')
 
-    # Extract relevant image information
+    logger.info(f'Data type: {dtype}. TYPE:{btype} PIXSIZE:{bitlen}')
     xdim, ydim, zdim = data.shape
-    vx, vy, vz = image.GetSpacing()
-
-    # Prepare header information
-    header = r"#INRIMAGE-4#{"
-    header += f"\nXDIM={xdim}\nYDIM={ydim}\nZDIM={zdim}\nVDIM=1\n"
-    header += f"VX={vx:.4f}\nVY={vy:.4f}\nVZ={vz:.4f}\n"
-    header += "TYPE=unsigned fixed\nPIXSIZE=8 bits\nCPU=decm\n"
+    header = f"#INRIMAGE-4#{{\nXDIM={xdim}\nYDIM={ydim}\nZDIM={zdim}\nVDIM=1\nVX={spacing[0]:.4f}\nVY={spacing[1]:.4f}\nVZ={spacing[2]:.4f}\n"
+    header += "SCALE=2**0\n" if btype == 'unsigned fixed' or btype == 'signed fixed' else ""
+    header += f"TYPE={btype}\nPIXSIZE={bitlen} bits\nCPU=decm"
     header += "\n" * (252 - len(header))  # Fill remaining space with newlines
-
     header += "##}\n"  # End of header
 
     # Write to binary file
@@ -832,16 +843,17 @@ def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.
     im_size = im.GetSize()
     new_size = [int(im_size[i] * im.GetSpacing()[i] / spacing[i]) for i in range(3)]
 
-    pixel_type = sitk.sitkUInt8
+    pixel_type = im.GetPixelID()
 
     # Initialize an empty image to hold the final result
-    resampled_im = sitk.Image(new_size, pixel_type )
+    resampled_im = sitk.Image(new_size, pixel_type)
     resampled_im.SetSpacing(spacing)
     resampled_im.SetOrigin(im.GetOrigin())
 
     # Resample each label separately
     for label in unique_labels:
         # Create a binary image for the current label
+        print(f"Resampling label {label}")
 
         binary_im = sitk.BinaryThreshold(im, lowerThreshold=label, upperThreshold=label)
         # binary_im = extract_single_label(im, label, binarise=True)
@@ -1018,3 +1030,32 @@ def imarray(im: sitk.Image) -> np.ndarray :
 
 def imview(im: sitk.Image) -> np.ndarray :
     return sitk.GetArrayViewFromImage(im)
+
+def extract_largest(im: sitk.Image) -> sitk.Image :
+    """
+    Extract the largest connected component from a multilabel image.
+    """
+    image_labels = get_labels(im)
+    im_binary = binarise(im)
+    cc = sitk.ConnectedComponent(im_binary)
+    labels = get_labels(cc)
+
+    im_pixel_type = im.GetPixelID()
+    
+    if len(labels) == 1:
+        return im
+    
+    # Get the size of each connected component
+    sizes = []
+    for label in labels:
+        sizes.append(np.sum(imarray(cc) == label))
+
+    # Find the label with the largest size
+    largest_label = labels[np.argmax(sizes)]
+    largest_cc = sitk.BinaryThreshold(cc, lowerThreshold=largest_label, upperThreshold=largest_label)
+
+    # cast the largest connected component to the same pixel type as the input image
+    largest_cc = sitk.Cast(largest_cc, im_pixel_type)
+
+    return sitk.Multiply(im, largest_cc)
+
