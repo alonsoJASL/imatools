@@ -1151,6 +1151,7 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
             (col + 1) / cols + margin,         # xmax
             1 - row / rows - margin            # ymax
         ]
+        print(f'({row},{col}) - File: {vtk_file} ')
         renderer.SetViewport(viewport)
 
         # Add the renderer to the render window
