@@ -264,8 +264,8 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
 
 
 def get_boxplot_values(data, whisker=1.5):
-    low_quartile = np.nanpercentile(data, 25, interpolation='nearest')
-    high_quartile = np.nanpercentile(data, 75, interpolation='nearest')
+    low_quartile = np.nanpercentile(data, 25, method='nearest')
+    high_quartile = np.nanpercentile(data, 75, method='nearest')
     iqr = high_quartile - low_quartile
     low_whis = low_quartile - whisker*iqr 
     high_whis = high_quartile + whisker*iqr 
