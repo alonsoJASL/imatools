@@ -1094,7 +1094,6 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
     render_window.SetSize(window_size[0] * cols, window_size[1] * rows)
 
     for i, vtk_file in enumerate(vtk_files):
-        print(f"Processing file {i+1}/{num_files}...")
         # Read the VTK file
         if input_type == 'ugrid':
             reader = vtk.vtkUnstructuredGridReader()
@@ -1151,7 +1150,7 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
             (col + 1) / cols + margin,         # xmax
             1 - row / rows - margin            # ymax
         ]
-        print(f'({row},{col}) - File: {vtk_file} ')
+        print(f'Processing file {i+1}/{num_files}... [{row},{col}] - File: {vtk_file} ')
         renderer.SetViewport(viewport)
 
         # Add the renderer to the render window
