@@ -1098,7 +1098,7 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
         if input_type == 'ugrid':
             reader = vtk.vtkUnstructuredGridReader()
         else : 
-            # input_type == 'polydata'
+            # "input_type == 'polydata'"
             reader = vtk.vtkPolyDataReader()
         
         reader.SetFileName(vtk_file)
@@ -1108,29 +1108,35 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
         # Check if scalar_name exists in the cell data
         cell_data = ugrid.GetCellData()
         scalar_range = None
+        set_scalar_range = True
         if cell_data.HasArray(scalar_name):
             elem_tag = cell_data.GetArray(scalar_name)
             scalar_range = elem_tag.GetRange()
         else:
-            available_fields = [cell_data.GetArrayName(i) for i in range(cell_data.GetNumberOfArrays())]
-            raise ValueError(f"File {vtk_file} does not have a '{scalar_name}' scalar field. Available fields: {available_fields}")
-
-        # Create a lookup table to map scalar values to colors
-        lut = vtk.vtkLookupTable()
-        lut.SetTableRange(scalar_range)
-        lut.Build()
+            # available_fields = [cell_data.GetArrayName(i) for i in range(cell_data.GetNumberOfArrays())]
+            # print(f"File {vtk_file} does not have a '{scalar_name}' scalar field. Available fields: {available_fields}")
+            # print('Continuing without coloring the mesh.')
+            set_scalar_range = False
 
         # Create a mapper
         if input_type == 'ugrid':
             mapper = vtk.vtkDataSetMapper()
         else :
             mapper = vtk.vtkPolyDataMapper()
+
         mapper.SetInputData(ugrid)
-        mapper.SetLookupTable(lut)
-        mapper.SetScalarRange(scalar_range)
-        mapper.SetScalarModeToUseCellData()
-        mapper.SelectColorArray(scalar_name)
-        
+
+        if set_scalar_range :
+            # Create a lookup table to map scalar values to colors
+            lut = vtk.vtkLookupTable()
+            lut.SetTableRange(scalar_range)
+            lut.Build()
+
+            mapper.SetLookupTable(lut)
+            mapper.SetScalarRange(scalar_range)
+            mapper.SetScalarModeToUseCellData()
+            mapper.SelectColorArray(scalar_name)
+            
         # Create an actor
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
