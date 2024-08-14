@@ -50,6 +50,19 @@ def find_file(directory: str, fname: str, extension='') -> str:
 
     return ''
 
+def slot_in_path_hrchy(filepath: str, fname='',  num_levels_above=1) -> str:
+    """
+    Returns path of file in a directory
+    """
+    filepath = os.path.normpath(filepath)
+    num_levels_above = np.abs(num_levels_above)
+
+    res = '/'.join(filepath.split('/')[0:-num_levels_above])
+    if fname != '' :
+        res = os.path.join(res, fname)
+    
+    return res
+
 def fullfile(*paths):
     """
     Returns path separated by '/'
@@ -114,26 +127,56 @@ def getFileContentWithTotal(fname):
 
     return numNodes, restOfFile
 
+def check_file(file):
+    if not os.path.isfile(file):
+        raise Exception(f"With the options selected, you need to have {file}")
+
+def read_pts(filename):
+    print(f'Reading: {filename}')
+    return np.loadtxt(filename, dtype=float, skiprows=1)
+
+ELEM_TYPES = ['Tt', 'Tr', 'Ln']
+def read_elem(filename, el_type='Tt', tags=True):
+    if el_type not in ELEM_TYPES:
+        raise Exception('element type not recognised. Accepted: Tt, Tr, Ln')
+        
+    cols_notags_dic = {'Tt':(1,2,3,4),'Tr':(1,2,3),'Ln':(1,2)}
+    cols = cols_notags_dic[el_type]
+    if tags:
+        # add tags column (largest + 1)
+        cols += (cols[-1]+1,)
+        
+    return np.loadtxt(filename, dtype=int, skiprows=1, usecols=cols)
+
+def read_lon(filename):
+    print(f'Reading: {filename}')
+    return np.loadtxt(filename, dtype=float, skiprows=1)
+
 def readParsePts(ptsFname):
     """
     Read parse CARP point files
     """
     numNodes=getTotal(ptsFname)
-    nodes=np.loadtxt(ptsFname, skiprows=1)
+    nodes=read_pts(ptsFname)
 
     if (numNodes != len(nodes)):
         print("Error in file")
-        exit(-2)
+        raise Exception("Error in file")
 
     return nodes, numNodes
 
+    
 def readParseElem(elFname):
     """
     Read and parse CARP element file
     """
-    nElem, elemStr = getFileContentWithTotal(elFname)
-    el = [(line.strip()).split() for line in elemStr]
+    nElem = getTotal(elFname)
+    el = read_elem(elFname)
 
+    if (nElem != len(el)):
+        print("Error in file")
+        raise Exception("Error in file")
+    
     return el, nElem
 
 def readFileToList(fname, delim=','):

@@ -7,8 +7,17 @@ import math
 import pyvista as pv
 import vtk
 
-def rotation_matrix(u,theta):
+def rotation_matrix(u: np.ndarray, theta: float) -> np.ndarray:
+	'''
+	Calculate the rotation matrix for a given axis and angle.
 
+	Parameters:
+	- u (array-like): 3-element array representing the rotation axis.
+	- theta (float): Angle of rotation in radians.
+
+	Returns:
+	- array: 3x3 rotation matrix.
+	'''
 	R = np.zeros((3,3),dtype=float)
 	R[0,0] = u[0]**2 +math.cos(theta) * (1 - u[0]**2)
 	R[0,1] = (1 -math.cos(theta)) * u[0] * u[1] - u[2] *math.sin(theta)
@@ -23,36 +32,6 @@ def rotation_matrix(u,theta):
 	R[2,2] = u[2]**2 +math.cos(theta) * (1 - u[2]**2)
 
 	return R
-
-def read_pts(filename):
-	print('Reading '+filename+'...')
-	return np.loadtxt(filename, dtype=float, skiprows=1)
-
-def read_elem(filename,el_type='Tt',tags=True):
-	print('Reading '+filename+'...')
-
-	if el_type=='Tt':
-		if tags:
-			return np.loadtxt(filename, dtype=int, skiprows=1, usecols=(1,2,3,4,5))
-		else:
-			return np.loadtxt(filename, dtype=int, skiprows=1, usecols=(1,2,3,4))
-	elif el_type=='Tr':
-		if tags:
-			return np.loadtxt(filename, dtype=int, skiprows=1, usecols=(1,2,3,4))
-		else:
-			return np.loadtxt(filename, dtype=int, skiprows=1, usecols=(1,2,3))
-	elif el_type=='Ln':
-		if tags:
-			return np.loadtxt(filename, dtype=int, skiprows=1, usecols=(1,2,3))
-		else:
-			return np.loadtxt(filename, dtype=int, skiprows=1, usecols=(1,2))
-	else:
-		raise Exception('element type not recognised. Accepted: Tt, Tr, Ln')
-
-def read_lon(filename):
-	print('Reading '+filename+'...')
-
-	return np.loadtxt(filename, dtype=float, skiprows=1)
 
 def rotate_mesh(plt_msh,
 				lv_tag=1,
@@ -148,11 +127,6 @@ def rotate_mesh(plt_msh,
 		return plt_msh,fibres_transformed
 	else:
 		return plt_msh
-
-def check_file(file):
-    if not os.path.isfile(file):
-
-        raise Exception(f"With the options selected, you need to have {file}")
 
 def pts_elem_to_pyvista(pts,elem,add_tags=False,el_type='Tt'):
 
