@@ -81,7 +81,7 @@ def visualise_fibres_all_views(plt_msh,
                          num_fibres=num_fibres,
                          dpi=dpi)
 
-def visualise_pericardium_all_views(meshname,
+def visualise_pericardium_all_views(sims_folder,
                                     plt_msh,
                                     pdf,
                                     fig_w,
@@ -92,7 +92,7 @@ def visualise_pericardium_all_views(meshname,
                                     title_fontsize,
                                     title_position):
     
-    pericardium_scale_path = f"{'/'.join(meshname.split('/')[0:-1])}/pericardium_scale.dat"
+    pericardium_scale_path = f"{sims_folder}/pericardium_scale.dat"
 
     options = [
         # title, azimuth, elevation
@@ -117,7 +117,7 @@ def visualise_pericardium_all_views(meshname,
                              dpi=dpi,
                              zoom=zoom)
 
-def visualise_epicardium_all_views(meshname, 
+def visualise_epicardium_all_views(sims_folder, 
                                    plt_msh,
                                    fig_w, 
                                    fig_h, 
@@ -127,10 +127,9 @@ def visualise_epicardium_all_views(meshname,
                                    title_fontsize, 
                                    title_position):
         
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/epicardium_for_sim.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/epicardium_for_sim.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
-
 
         pu.visualise_mesh(plt_msh=plt_msh_surf,
                 fig_w=fig_w,
@@ -155,7 +154,7 @@ def visualise_epicardium_all_views(meshname,
                 title_position=title_position,
                 dpi=dpi)
 
-def visualise_endocardia_all_views(meshname, 
+def visualise_endocardia_all_views(sims_folder, 
                                    plt_msh, 
                                    fig_w, 
                                    fig_h, 
@@ -167,7 +166,7 @@ def visualise_endocardia_all_views(meshname,
         
         
         
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/LV_endo.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/LV_endo.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
 
@@ -208,7 +207,7 @@ def visualise_endocardia_all_views(meshname,
                 dpi=dpi)
         
                 
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/RV_endo.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/RV_endo.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
 
@@ -249,7 +248,7 @@ def visualise_endocardia_all_views(meshname,
                 title_position=title_position,
                 dpi=dpi)
         
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/LA_endo.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/LA_endo.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
 
@@ -288,7 +287,7 @@ def visualise_endocardia_all_views(meshname,
                 title_position=title_position,
                 dpi=dpi)
         
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/RA_endo.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/RA_endo.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
 
@@ -332,7 +331,7 @@ def visualise_endocardia_all_views(meshname,
                 camera_elevation_increment=-89
                 )
 
-def visualise_veins_all_views(meshname, 
+def visualise_veins_all_views(sims_folder, 
                               plt_msh, 
                               fig_w, 
                               fig_h, 
@@ -344,7 +343,7 @@ def visualise_veins_all_views(meshname,
         
         
         
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/RPVs.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/RPVs.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
 
@@ -368,7 +367,7 @@ def visualise_veins_all_views(meshname,
                        fig_w=fig_w,
                        fig_h=fig_h,
                        color="lightgrey",
-                       zoom=zoom + 3,
+                       zoom=zoom,
                        pdf_object = pdf,
                        title='Right pulmonary veins (septal view)',
                        title_fontsize=title_fontsize,
@@ -380,7 +379,7 @@ def visualise_veins_all_views(meshname,
                       fig_w=fig_w,
                       fig_h=fig_h,
                       color="lightgrey",
-                      zoom=zoom+3,
+                      zoom=zoom,
                       pdf_object = pdf,
                       title='Right pulmonary veins (basal view)',
                       title_fontsize=title_fontsize,
@@ -389,7 +388,7 @@ def visualise_veins_all_views(meshname,
                       camera_elevation_increment=-90)
         
 
-        elem_surf = iou.read_elem(f"{'/'.join(meshname.split('/')[0:-1])}/SVC.surf",el_type='Tr',tags=False)
+        elem_surf = iou.read_elem(f"{sims_folder}/SVC.surf",el_type='Tr',tags=False)
 
         plt_msh_surf = pts_elem_to_pyvista(pts=plt_msh.points, elem=elem_surf, add_tags=False, el_type='Tr')
 
@@ -435,7 +434,7 @@ def visualise_veins_all_views(meshname,
                       dpi=dpi,
                       camera_elevation_increment=-89)
 
-def visualise_EAS_all_views(meshname, 
+def visualise_EAS_all_views(sims_folder, 
                             plt_msh, 
                             fig_w, 
                             fig_h, 
@@ -447,7 +446,7 @@ def visualise_EAS_all_views(meshname,
         
         
         
-        vtx = np.genfromtxt(f"{'/'.join(meshname.split('/')[0:-1])}/SAN.vtx",skip_header=2, dtype=int)
+        vtx = np.genfromtxt(f"{sims_folder}/SAN.vtx",skip_header=2, dtype=int)
 
 
         pu.visualise_vtx(plt_msh = plt_msh,
@@ -465,7 +464,7 @@ def visualise_EAS_all_views(meshname,
                       camera_elevation_increment=89,
                       opacity=0.3)
 
-        vtx = np.genfromtxt(f"{'/'.join(meshname.split('/')[0:-1])}/fascicles_lv.vtx",skip_header=2, dtype=int)
+        vtx = np.genfromtxt(f"{sims_folder}/fascicles_lv.vtx",skip_header=2, dtype=int)
 
 
         pu.visualise_vtx(plt_msh = plt_msh,
@@ -482,7 +481,7 @@ def visualise_EAS_all_views(meshname,
                       dpi=dpi,
                       opacity=0.3)
         
-        vtx = np.genfromtxt(f"{'/'.join(meshname.split('/')[0:-1])}/fascicles_rv.vtx",skip_header=2, dtype=int)
+        vtx = np.genfromtxt(f"{sims_folder}/fascicles_rv.vtx",skip_header=2, dtype=int)
 
 
         pu.visualise_vtx(plt_msh = plt_msh,
@@ -537,8 +536,9 @@ def main(args):
         raise Exception("You need to choose what to print.")
     
     report_name_full = os.path.abspath(os.path.normpath(report_name))
+    report_name_path = os.path.dirname(report_name_full)
     
-    os.makedirs('/'.join(report_name_full.split('/')[0:-1]), exist_ok=True)
+    os.makedirs(report_name_path, exist_ok=True)
 
     meshname = f"{sims_folder}/myocardium_AV_FEC_BB_lvrv"
 
@@ -610,7 +610,7 @@ def main(args):
 
         if print_pericardium:
 
-            visualise_pericardium_all_views(meshname=meshname,
+            visualise_pericardium_all_views(sims_folder=sims_folder,
                                             plt_msh=plt_msh,
                                             pdf=pdf,
                                             fig_w=fig_w,
@@ -626,7 +626,7 @@ def main(args):
     ######### EPICARDIUM ###########
 
         if print_epicardium:
-            visualise_epicardium_all_views(meshname=meshname,
+            visualise_epicardium_all_views(sims_folder=sims_folder,
                                            plt_msh=plt_msh,
                                            pdf=pdf,
                                            fig_w=fig_w,
@@ -638,7 +638,7 @@ def main(args):
     
     ######### ENDOCARDIA ######### 
         if print_endocardia:
-            visualise_endocardia_all_views(meshname=meshname,
+            visualise_endocardia_all_views(sims_folder=sims_folder,
                                            plt_msh=plt_msh,
                                            pdf=pdf,
                                            fig_w=fig_w,
@@ -650,7 +650,7 @@ def main(args):
 
     ######### VEINS ##########
         if print_veins:
-            visualise_veins_all_views(meshname=meshname,
+            visualise_veins_all_views(sims_folder=sims_folder,
                                       plt_msh=plt_msh,
                                       pdf=pdf,
                                       fig_w=fig_w,
@@ -661,7 +661,7 @@ def main(args):
                                       title_position=title_position)
             
         if print_EAS:
-            visualise_EAS_all_views(meshname=meshname,
+            visualise_EAS_all_views(sims_folder=sims_folder,
                                     plt_msh=plt_msh,
                                     pdf=pdf,
                                     fig_w=fig_w,
@@ -682,7 +682,8 @@ if __name__ == '__main__':
     parser.add_argument(
 	   '--sims_folder',
 	   type=str,
-	   help='Path to the folder containing simulation-ready files.'
+	   help='Path to the folder containing simulation-ready files.', 
+       required=True
     )
     parser.add_argument(
 	   '--report_name',
