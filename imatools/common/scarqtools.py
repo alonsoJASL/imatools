@@ -91,7 +91,8 @@ class ScarQuantificationTools :
         cmd = f'{cmd_name} '
         cmd += ' '.join(arguments)
         stst = 0
-
+        
+        logger.info(cmd)
         if debug:
             logger.info(cmd)
         else:
