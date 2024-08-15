@@ -7,6 +7,7 @@ import vtk
 import vtk.util.numpy_support as vtknp
 
 import re
+from PIL import Image
 
 def parse_dotmesh_file(file_path, myencoding='utf-8'):
     """
@@ -1010,3 +1011,171 @@ def export_as(input_mesh, output_file: str, export_as='ply') -> None:
     writer.SetFileName(output_file)
     writer.SetInputData(input_mesh)
     writer.Write()
+
+
+    import vtk
+
+def render_vtk_to_png(vtk_files, output_dir, window_size=(800, 600)):
+    """
+    Renders VTK mesh files to PNG images and saves them in the specified output directory.
+
+    Parameters:
+        vtk_files (list of str): List of paths to VTK files.
+        output_dir (str): Directory where PNG images will be saved.
+
+    Returns:
+        None
+    """
+    # Create a renderer, render window, and interactor
+    renderer = vtk.vtkRenderer()
+    render_window = vtk.vtkRenderWindow()
+    render_window.AddRenderer(renderer)
+    render_window.SetSize(window_size)  # Set window size as needed
+
+    for vtk_file in vtk_files:
+        # Read the VTK file
+        reader = vtk.vtkPolyDataReader()
+        reader.SetFileName(vtk_file)
+        reader.Update()
+        polydata = reader.GetOutput()
+
+        # Create a mapper
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(polydata)
+
+        # Create an actor
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+
+        # Add the actor to the renderer
+        renderer.AddActor(actor)
+        renderer.SetBackground(1, 1, 1)  # Set background color to white
+
+        # Render and create an image filter
+        render_window.Render()
+        window_to_image_filter = vtk.vtkWindowToImageFilter()
+        window_to_image_filter.SetInput(render_window)
+        window_to_image_filter.Update()
+
+        # Write the image to a PNG file
+        writer = vtk.vtkPNGWriter()
+        output_filename = f"{output_dir}/{vtk_file.split('/')[-1].replace('.vtk', '.png')}"
+        writer.SetFileName(output_filename)
+        writer.SetInputConnection(window_to_image_filter.GetOutputPort())
+        writer.Write()
+
+        # Clear the renderer for the next iteration
+        renderer.RemoveAllViewProps()
+
+def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), window_size=(800, 600), scalar_name='elemTag', input_type='ugrid', overlapping_margin=0.0):
+    """
+    Renders VTK mesh files to a single PNG image arranged in a grid layout.
+
+    Parameters:
+        vtk_files (list of str): List of paths to VTK files.
+        output_filename (str): Path where the combined PNG image will be saved.
+        grid_size (tuple of int): Number of rows and columns in the grid (rows, columns).
+        window_size (tuple of int): Size of each individual render window (width, height).
+
+    Returns:
+        None
+    """
+    num_files = len(vtk_files)
+    rows, cols = grid_size
+
+    # Ensure the grid is large enough to fit all files
+    print(f'Grid size: {rows}x{cols} / Number of files: {num_files}')
+    if rows * cols < num_files:
+        raise ValueError("Grid size is too small to fit all VTK files.")
+
+    # Create a renderer, render window, and interactor
+    renderers = []
+    render_window = vtk.vtkRenderWindow()
+    render_window.SetSize(window_size[0] * cols, window_size[1] * rows)
+
+    for i, vtk_file in enumerate(vtk_files):
+        # Read the VTK file
+        if input_type == 'ugrid':
+            reader = vtk.vtkUnstructuredGridReader()
+        else : 
+            # "input_type == 'polydata'"
+            reader = vtk.vtkPolyDataReader()
+        
+        reader.SetFileName(vtk_file)
+        reader.Update()
+        ugrid = reader.GetOutput()
+
+        # Check if scalar_name exists in the cell data
+        cell_data = ugrid.GetCellData()
+        scalar_range = None
+        set_scalar_range = True
+        if cell_data.HasArray(scalar_name):
+            elem_tag = cell_data.GetArray(scalar_name)
+            scalar_range = elem_tag.GetRange()
+        else:
+            # available_fields = [cell_data.GetArrayName(i) for i in range(cell_data.GetNumberOfArrays())]
+            # print(f"File {vtk_file} does not have a '{scalar_name}' scalar field. Available fields: {available_fields}")
+            # print('Continuing without coloring the mesh.')
+            set_scalar_range = False
+
+        # Create a mapper
+        if input_type == 'ugrid':
+            mapper = vtk.vtkDataSetMapper()
+        else :
+            mapper = vtk.vtkPolyDataMapper()
+
+        mapper.SetInputData(ugrid)
+
+        if set_scalar_range :
+            # Create a lookup table to map scalar values to colors
+            lut = vtk.vtkLookupTable()
+            lut.SetTableRange(scalar_range)
+            lut.Build()
+
+            mapper.SetLookupTable(lut)
+            mapper.SetScalarRange(scalar_range)
+            mapper.SetScalarModeToUseCellData()
+            mapper.SelectColorArray(scalar_name)
+            
+        # Create an actor
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+
+        # Create a renderer for this actor
+        renderer = vtk.vtkRenderer()
+        renderer.AddActor(actor)
+        renderer.SetBackground(1, 1, 1)  # Set background color to white
+
+        # Calculate viewport for this renderer
+        margin = -overlapping_margin  # Adjust this value to control the overlap
+        row = i // cols
+        col = i % cols
+        viewport = [
+            col / cols - margin,               # xmin
+            1 - (row + 1) / rows + margin,     # ymin
+            (col + 1) / cols + margin,         # xmax
+            1 - row / rows - margin            # ymax
+        ]
+        print(f'Processing file {i+1}/{num_files}... [{row},{col}] - File: {vtk_file} ')
+        renderer.SetViewport(viewport)
+
+        # Add the renderer to the render window
+        render_window.AddRenderer(renderer)
+        renderers.append(renderer)
+
+    # Render and create an image filter
+    render_window.Render()
+    window_to_image_filter = vtk.vtkWindowToImageFilter()
+    window_to_image_filter.SetInput(render_window)
+    window_to_image_filter.Update()
+
+    vtk_image = window_to_image_filter.GetOutput()
+    width, height, _ = vtk_image.GetDimensions()
+
+    vtk_array = vtk_image.GetPointData().GetScalars()
+    image_array = vtk.util.numpy_support.vtk_to_numpy(vtk_array).reshape(height, width, -1)
+    image_array = np.flipud(image_array)  # Flip the image vertically
+
+    # Create a PIL image and save it
+    image = Image.fromarray(image_array)
+    image.save(output_filename)
