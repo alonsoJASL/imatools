@@ -1067,7 +1067,7 @@ def render_vtk_to_png(vtk_files, output_dir, window_size=(800, 600)):
         # Clear the renderer for the next iteration
         renderer.RemoveAllViewProps()
 
-def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), window_size=(800, 600), scalar_name='elemTag', input_type='ugrid', overlapping_margin=0.0):
+def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), window_size=(800, 600), scalar_name='elemTag', input_type='ugrid', overlapping_margin=0.0, names=None):
     """
     Renders VTK mesh files to a single PNG image arranged in a grid layout.
 
@@ -1145,6 +1145,15 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
         renderer = vtk.vtkRenderer()
         renderer.AddActor(actor)
         renderer.SetBackground(1, 1, 1)  # Set background color to white
+
+        # Add text to the renderer
+        if names and i < len(names):
+            text_actor = vtk.vtkTextActor()
+            text_actor.SetInput(names[i])
+            text_actor.GetTextProperty().SetFontSize(24)
+            text_actor.GetTextProperty().SetColor(0, 0, 0)  # Set text color to black
+            text_actor.SetPosition(10, 10)  # Set text position
+            renderer.AddActor2D(text_actor)
 
         # Calculate viewport for this renderer
         margin = -overlapping_margin  # Adjust this value to control the overlap
