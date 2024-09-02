@@ -1107,11 +1107,17 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
 
         # Check if scalar_name exists in the cell data
         cell_data = ugrid.GetCellData()
+        point_data = ugrid.GetPointData()
         scalar_range = None
         set_scalar_range = True
+        using_point_data = False
         if cell_data.HasArray(scalar_name):
             elem_tag = cell_data.GetArray(scalar_name)
             scalar_range = elem_tag.GetRange()
+        elif point_data.HasArray(scalar_name):
+            elem_tag = point_data.GetArray(scalar_name)
+            scalar_range = elem_tag.GetRange()
+            using_point_data = True
         else:
             # available_fields = [cell_data.GetArrayName(i) for i in range(cell_data.GetNumberOfArrays())]
             # print(f"File {vtk_file} does not have a '{scalar_name}' scalar field. Available fields: {available_fields}")
@@ -1134,7 +1140,10 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
 
             mapper.SetLookupTable(lut)
             mapper.SetScalarRange(scalar_range)
-            mapper.SetScalarModeToUseCellData()
+            if using_point_data:
+                mapper.SetScalarModeToUsePointData()
+            else:
+                mapper.SetScalarModeToUseCellData()
             mapper.SelectColorArray(scalar_name)
             
         # Create an actor
