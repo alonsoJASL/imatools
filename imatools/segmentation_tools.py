@@ -417,6 +417,21 @@ def execute_largest(args):
     
     itku.save_image(largest, base_dir, outname)
 
+def execute_inr2itk(args): 
+    if (args.help) : 
+        print("python segmentation_tools.py inr2itk -in <input_image> -out <output_name>")
+        return
+    
+    input_path = args.input_image
+    itk_image = itku.convert_from_inr(input_path)
+
+    base_dir = os.path.dirname(input_path)
+    outname = args.output_name if args.output_name.endswith('.nii') else f'{args.output_name}.nii'
+
+    itku.save_image(itk_image, base_dir, outname)
+    
+    
+
 def main(args): 
     mode = args.mode
     if args.help == False and args.input_image == "":
@@ -487,7 +502,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'op', 'morph', 'compare', 'resample', 'smooth', 'largest']
+    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'inr2itk', 'op', 'morph', 'compare', 'resample', 'smooth', 'largest']
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
     input_parser.add_argument("mode", choices=mychoices, help="The mode to run the script in.")

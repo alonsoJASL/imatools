@@ -211,6 +211,58 @@ def convert_to_inr(image, out_path):
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
+def convert_from_inr(inr_path):
+    """
+    Converts an INR file to a SimpleITK image.
+    """
+    with open(inr_path, "rb") as file:
+        header = ""
+        while True:
+            line = file.readline().decode('utf-8')
+            header += line
+            if line.strip() == "##}":
+                break
+        
+        # Parse header
+        header_dict = {}
+        for line in header.split('\n'):
+            if '=' in line:
+                key, value = line.split('=')
+                header_dict[key.strip()] = value.strip()
+        
+        xdim = int(header_dict['XDIM'])
+        ydim = int(header_dict['YDIM'])
+        zdim = int(header_dict['ZDIM'])
+        spacing = [float(header_dict['VX']), float(header_dict['VY']), float(header_dict['VZ'])]
+        pixsize = int(header_dict['PIXSIZE'].split()[0])
+        dtype = header_dict['TYPE']
+        
+        if dtype == 'unsigned fixed':
+            if pixsize == 8:
+                np_dtype = np.uint8
+            elif pixsize == 16:
+                np_dtype = np.uint16
+        elif dtype == 'signed fixed':
+            if pixsize == 16:
+                np_dtype = np.int16
+        elif dtype == 'float':
+            if pixsize == 32:
+                np_dtype = np.float32
+            elif pixsize == 64:
+                np_dtype = np.float64
+        else:
+            raise ValueError('Volume format not supported')
+        
+        # Read image data
+        data = np.frombuffer(file.read(), dtype=np_dtype)
+        data = data.reshape((xdim, ydim, zdim), order='F')  # Fortran order to match INR format
+        
+        # Convert to SimpleITK image
+        image = sitk.GetImageFromArray(data)
+        image.SetSpacing(spacing)
+        
+        return image
+
 def get_labels(image : sitk.Image ) -> list:
     """
     Returns a list of labels in an image.
