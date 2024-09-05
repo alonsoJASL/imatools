@@ -17,6 +17,18 @@ def get_vtk_files(base_dir):
                 vtk_files.append(os.path.join(root, file))
     return vtk_files
 
+def get_unique_parts(file_paths):
+    # Strip directory paths and file extensions
+    base_names = [os.path.splitext(os.path.basename(path))[0] for path in file_paths]
+    
+    # Find the common prefix
+    common_prefix = os.path.commonprefix(base_names)
+    
+    # Remove the common prefix from each base name
+    unique_parts = [name[len(common_prefix):] for name in base_names]
+    
+    return unique_parts
+
 def main(args) : 
     logger.info('Starting vtk2png')
     base_dir = args.base_dir
@@ -31,7 +43,9 @@ def main(args) :
 
     if args.mode == 'single':
         logger.info('Rendering vtk files to a single png')
-        vtku.render_vtk_to_single_png(vtk_files, output, grid_size, window_size, input_type=input_data_type)
+        if args.names:
+            unique_parts = get_unique_parts(vtk_files)
+        vtku.render_vtk_to_single_png(vtk_files, output, grid_size, window_size, input_type=input_data_type, names=unique_parts)
     elif args.mode == 'multi':
         logger.info('Rendering vtk files to multiple pngs')
         vtku.render_vtk_to_png(vtk_files, output, window_size)
@@ -48,5 +62,6 @@ if __name__ == '__main__':
     parser.add_argument('--grid-size', nargs=2, type=int, help='Grid size of the output image', default=[1, 1])
     parser.add_argument('--window-size', nargs=2, type=int, help='Window size of the output image', default=[1000, 1000])
     parser.add_argument('--polydata', action='store_true', help='Use polydata instead of structured')
+    parser.add_argument('--names', action='store_true', help='Use names of the vtk files')
     args = parser.parse_args()
     main(args)
