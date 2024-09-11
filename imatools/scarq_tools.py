@@ -71,8 +71,6 @@ def set_scarq_state(state_file:str, cemrg_dir: str, mirtk_dir: str, scar_cmd: st
         cemrg_dir = CEMRG[chooseplatform()]
     if mirtk_dir == "" :
         mirtk_dir = MIRTK[chooseplatform()]
-    scar_cmd += "_release.bat" if chooseplatform() == "win32" else ""
-    clip_cmd += "_release.bat" if chooseplatform() == "win32" else ""
     
     scarq = ScarQuantificationTools(cemrg_folder=cemrg_dir, mirtk_folder=mirtk_dir, scar_cmd_name=scar_cmd, clip_cmd_name=clip_cmd)
     scarq.save_state(".","scarq_state.json")
@@ -447,7 +445,6 @@ if __name__ == "__main__":
     scar_group.add_argument("--scar-seg", type=str, help="Segmentation file name", default="PVeinsCroppedImage.nii")
     scar_group.add_argument("--scar-opts", type=str, help="Options path")
     scar_group.add_argument("--scar-opts-svp", action="store_true", help="Single voxel projection option")
-    scar_group.add_argument_group("scar_opts", "Arguments for scar_opts mode")
 
     scar_opts_group = input_parser.add_argument_group("scar_opts", "Arguments for scar_opts mode")
     scar_opts_group.add_argument("--scar-opts-legacy", action="store_true", help="Use legacy scar options")
