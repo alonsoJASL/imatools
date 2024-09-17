@@ -8,6 +8,9 @@ import vtk.util.numpy_support as vtknp
 
 import re
 from PIL import Image
+from imatools.common.config import configure_logging 
+
+logger = configure_logging(__name__)
 
 def parse_dotmesh_file(file_path, myencoding='utf-8'):
     """
@@ -114,9 +117,6 @@ def parse_dotmesh_file(file_path, myencoding='utf-8'):
     return general_attributes, vertices_section, triangles_section
 
 
-from imatools.common.config import configure_logging 
-
-logger = configure_logging(__name__)
 
 def l2_norm(a): return np.linalg.norm(a, axis=1)
 def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
