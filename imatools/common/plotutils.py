@@ -8,6 +8,8 @@ import pyvista as pv
 import numpy as np
 import random
 
+import SimpleITK as sitk
+
 def plot_dict(mydic, plotname, out_dir, oname, ylims=[]):
     """
     Plot dictionary.
@@ -452,3 +454,55 @@ def visualise_pericardium(plt_msh,
     ax.axis('off')
     pdf_object.savefig(fig, bbox_inches='tight')
     plt.close(fig)
+
+def visualise_3d_segmentation(seg: sitk.Image, save_as: str, name: str, show_fig=True) : 
+    to_save = save_as != ''
+    print('Loading segmentation')
+    segmentation_np = sitk.GetArrayViewFromImage(seg)
+    
+    spacing = seg.GetSpacing()
+    # dims = segmentation_np.shape
+    # x = np.arange(dims[2]) * spacing[0]
+    # y = np.arange(dims[1]) * spacing[1]
+    # z = np.arange(dims[0]) * spacing[2]
+    # x, y, z = np.meshgrid(x, y, z, indexing="ij")
+
+    # # Create the pyvista structured grid with spacing accounted for
+    # structured_grid = pv.StructuredGrid(x, y, z)
+
+    # # Step 5: Add the segmentation values as cell scalars
+    # structured_grid.cell_data['values'] = segmentation_np.flatten(order='F')
+
+    unique_labels = np.unique(segmentation_np)
+    # remove background
+    unique_labels = unique_labels[1:]
+
+    cmap = plt.cm.get_cmap('tab20', len(unique_labels)) # or 'coolwarm' or 'viridis'
+
+    # print('Creating grid')
+    # grid = pv.wrap(segmentation_np)
+    # plotter.add_volume(grid, cmap='coolwarm', opacity='linear')
+
+    print('Plotting...')
+    plotter = pv.Plotter(title=name)
+    for ix, label in enumerate(unique_labels) :
+        if label == 0 :
+            continue
+
+        label_mask = segmentation_np == label
+        label_grid = pv.wrap(label_mask.astype(np.uint8))
+        label_grid = label_grid.scale(spacing)
+        
+        surface = label_grid.threshold(0.5).extract_surface()
+
+        colour = cmap(ix)[:3]
+        plotter.add_mesh(surface, color=colour, opacity=1.0)
+
+    plotter.view_xz()
+    if show_fig :
+        plotter.show()
+
+    if to_save :
+        if name == '' :
+            name = 'segmentation'
+        plotter.screenshot(save_as)
