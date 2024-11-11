@@ -512,11 +512,27 @@ def main(args):
 
     elif mode == "plot":
         execute_plot(args)
+
+    elif mode == "fix_labels" or mode == "fix":
+        if(args.help) : 
+            print('Fixes Slicer labels into 4ch pipeline labels')
+            print("python segmentation_tools.py fix_labels -in <input_image> --json-old <json_old> --json-new <json_new> -out <output_name>")
+            return
+        base_dir, _, input_image, outname, output_not_set = get_base_inputs(args)
+        if output_not_set:
+            outname = f'{rm_ext(outname)}_fixed.nrrd'
+
+        old_labels = args.json_old
+        new_labels = args.json_new
+
+        fixed = itku.exchange_labels_form_json(input_image, old_labels, new_labels)
+        itku.save_image(fixed, base_dir, outname)
         
 
 
 if __name__ == "__main__":
-    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 'inr2itk', 'op', 'morph', 'compare', 'resample', 'smooth', 'largest', 'plot']
+    mychoices = ['extract', 'relabel', 'remove', 'mask', 'merge', 'split', 'show', 'gaps', 'add', 'fill', 'inr', 
+                 'inr2itk', 'op', 'morph', 'compare', 'resample', 'smooth', 'largest', 'plot', 'fix_labels', 'fix']
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
     input_parser.add_argument("mode", choices=mychoices, help="The mode to run the script in.")
@@ -538,6 +554,9 @@ if __name__ == "__main__":
     resample_group.add_argument("--resample-sigma", type=float, default=3.0, help="[MODE=resample] The sigma for the gaussian kernel.")
     resample_group.add_argument("--resample-smth-threshold", type=float, default=0.5, help="[MODE=resample] The threshold for smoothing.")
     resample_group.add_argument("--resample-close", action="store_true", help="[MODE=resample] Close the image after resampling.")
+    fix_labels_group = input_parser.add_argument_group("Fix labels mode")
+    fix_labels_group.add_argument('--json-old', '-json1', type=str, default="", help="[MODE=fix_labels] The old json file.")
+    fix_labels_group.add_argument('--json-new', '-json2', type=str, default="", help="[MODE=fix_labels] The new json file.")
     
     args = input_parser.parse_args()
     main(args)

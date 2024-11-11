@@ -657,6 +657,46 @@ def exchange_labels(input_image, old_label, new_label) :
 
     return new_image
 
+def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
+    input_array = imarray(input_image)
+    labels_to_reprocess = []
+    for old_l, new_l in zip(old_labels, new_labels) :
+        if old_l == new_l :
+            print(f'Old label {old_l} is the same as new label {new_l}. Skip...')
+            continue
+
+        # if new label exists in old labels, then set it to a new one, larger thatn all the old labels
+        if new_l in old_labels :
+            new_l_aux = max(old_labels) + 1
+            print(f'New label {new_l} already exists in old labels. Setting it to a new label {new_l_aux}...')
+            input_array[np.equal(input_array, new_l)] = new_l_aux
+            input_array[np.equal(input_array, old_l)] = new_l
+
+            labels_to_reprocess.append((new_l_aux, new_l))
+        else :
+            print(f'Exchanging label {old_l} with {new_l}...')
+            input_array[np.equal(input_array, old_l)] = new_l
+
+    for old_l, new_l in labels_to_reprocess :
+        print(f'Exchanging label {old_l} with {new_l}...')
+        input_array[np.equal(input_array, old_l)] = new_l
+
+    new_image = sitk.GetImageFromArray(input_array)
+    new_image.CopyInformation(input_image)
+
+    return new_image
+
+def exchange_labels_form_json(input_image, json_old: str, json_new: str) :
+    with open(json_old, 'r') as f:
+        old_labels_json = json.load(f)
+    with open(json_new, 'r') as f:
+        new_labels_json = json.load(f)
+
+    old_labels = list(old_labels_json.values())
+    new_labels = list(new_labels_json.values())
+
+    return exchange_many_labels(input_image, old_labels, new_labels)
+        
 def add_images(im1, im2) :
     add_im = sitk.Add(im1, im2)
     add_im.CopyInformation(im1)
