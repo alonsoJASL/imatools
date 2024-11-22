@@ -25,6 +25,16 @@ def execute_show(args) :
         tags = el_np[:, -1]
         print(np.unique(tags))
 
+def execute_carto(args) :
+    msh_path = args.input 
+    msh_dir = os.path.dirname(msh_path)
+    msh = os.path.basename(msh_path)
+
+    output_msh = os.path.join(msh_dir, 'carto_' + msh)
+
+    vtku.convertToCarto(msh_path, args.scalar_field, output_msh)
+
+
 def main(args): 
     mode = args.mode
     if args.help == False and args.input == "":
@@ -33,10 +43,14 @@ def main(args):
 
     if mode == "show":
         execute_show(args)
+    elif mode == "carto":
+        execute_carto(args)
+        
 
 if __name__ == "__main__":
     mychoices = [
-            'show' # Show the labels in the mesh
+            'show',  # Show the labels in the mesh
+            'carto'
             ]
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
@@ -44,6 +58,7 @@ if __name__ == "__main__":
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("-in", "--input", type=str, default="", help="The input mesh to be processed.")
     input_parser.add_argument("-ifmt", "--input-format", type=str, choices=['vtk', 'carp'], help="The extension of the input mesh.", default="vtk")
+    input_parser.add_argument("-scalars", "--scalar-field", type=str, default="scalars", help="The scalar field to be shown.")
 
     show_group = input_parser.add_argument_group("show")
     

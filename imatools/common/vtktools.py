@@ -1227,10 +1227,13 @@ def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> 
 
         # Cells 
         cartoFile.write(f"POLYGONS {working_msh.GetNumberOfCells()}\t{working_msh.GetNumberOfCells()*4}") 
-        cells = working_msh.GetPolys()
-        for jx in range(working_msh.GetNumberOfCells()):
-            cells.GetCell(4)
-            cartoFile.write(f"3 {cells.GetId(0)} {cells.GetId(1)} {cells.GetId(2)}")
+        for ix in range(working_msh.GetNumberOfCells()):
+            cell = working_msh.GetCell(ix)
+            cell_type = cell.GetCellType()
+            num_points = cell.GetNumberOfPoints()
+            cartoFile.write(f"{num_points}")
+            for jx in range(num_points):
+                cartoFile.write(f"{cell.GetPointId(jx)}")
         
         cartoFile.write("")
 
