@@ -1198,6 +1198,19 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
     image = Image.fromarray(image_array)
     image.save(output_filename)
 
+def normalise_vtk_values(imsh, fieldname='scalars') :
+    """
+    Normalise the values of a vtkPolyData object
+    """
+    array = convertPointDataToNpArray(imsh, fieldname)
+    array = (array - np.min(array)) / (np.max(array) - np.min(array))
+    scalars = np_to_vtk_array(array, fieldname)
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(imsh)
+    omsh.GetPointData().SetScalars(scalars)
+    # .GetPointData().SetScalars(scalars)
+    return omsh
+
 def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> None:
     """
     Convert a vtkPolyData object to a Carto object
@@ -1205,42 +1218,58 @@ def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> 
     try: 
         vtkpoly = readVtk(vtkpoly_path)
         working_msh = set_cell_to_point_data(vtkpoly, cell_scalar_field)
+        norm_working_msh = normalise_vtk_values(working_msh, cell_scalar_field) 
+        # save 
+        odir = os.path.dirname(output_file)
+       
+        writeVtk(norm_working_msh, odir, f'normalised_{cell_scalar_field}.vtk')
+
+        ## change lookup table for norm_working_msh
+        
+
+        lut = vtk.vtkColorTransferFunction()
+        lut.SetColorSpaceToRGB()
+        lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
+        lut.AddRGBPoint(0.5, 0.94, 0.47, 0.12)
+        lut.AddRGBPoint(1.0, 0.90, 0.11, 0.14)
+        lut.SetScaleToLinear()
+
+
     except Exception as e:
         print(f'Error: {e}')
         return
     
     with open(output_file, 'w') as cartoFile:
         # Header
-        cartoFile.write("# vtk DataFile Version 3.0")
-        cartoFile.write("PatientData Anon Anon 00000000")
-        cartoFile.write("ASCII")
-        cartoFile.write("DATASET POLYDATA")
+        cartoFile.write("# vtk DataFile Version 3.0\n")
+        cartoFile.write("PatientData Anon Anon 00000000\n")
+        cartoFile.write("ASCII\n")
+        cartoFile.write("DATASET POLYDATA\n")
 
         # Points
-        cartoFile.write(f"POINTS\t{working_msh.GetNumberOfPoints()} float")
+        cartoFile.write(f"POINTS\t{working_msh.GetNumberOfPoints()} float\n")
         points = working_msh.GetPoints()
         for ix in range(working_msh.GetNumberOfPoints()):
             pt = points.GetPoint(ix)
-            cartoFile.write(f"{pt[0]} {pt[1]} {pt[2]}")
+            cartoFile.write(f"{pt[0]} {pt[1]} {pt[2]}\n")
         
-        cartoFile.write("")
+        cartoFile.write("\n")
 
         # Cells 
-        cartoFile.write(f"POLYGONS {working_msh.GetNumberOfCells()}\t{working_msh.GetNumberOfCells()*4}") 
+        cartoFile.write(f"POLYGONS\t{working_msh.GetNumberOfCells()}\t{working_msh.GetNumberOfCells()*4}\n")
         for ix in range(working_msh.GetNumberOfCells()):
             cell = working_msh.GetCell(ix)
             cell_type = cell.GetCellType()
             num_points = cell.GetNumberOfPoints()
-            cartoFile.write(f"{num_points}")
+            cartoFile.write(f"{num_points}\n")
             for jx in range(num_points):
-                cartoFile.write(f"{cell.GetPointId(jx)}")
+                cartoFile.write(f"{cell.GetPointId(jx)}\n")
         
-        cartoFile.write("")
+        cartoFile.write("\n")
 
         # Scalars
-        cartoFile.write("POINT_DATA") 
-        cartoFile.write(f"SCALARS {cell_scalar_field} float 1")
-        cartoFile.write("LOOKUP_TABLE lookup_table") 
+        cartoFile.write(f"POINT_DATA\tSCALARS {cell_scalar_field} float\n")
+        cartoFile.write("LOOKUP_TABLE lookup_table\n")
         
         scalars = working_msh.GetPointData().GetScalars()
         max_scalar = np.max(scalars)
@@ -1250,11 +1279,13 @@ def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> 
             value = scalars.GetTuple1(kx)
             normalized_value = (value - min_scalar) / (max_scalar - min_scalar)
             # set precision to 2 decimal places
-            cartoFile.write(f"{normalized_value:.2f}")
+            cartoFile.write(f"{normalized_value:.2f}\n")
+
+        cartoFile.write("\n")
 
         # LUT
         numCols = 256
-        cartoFile.write(f"LOOKUP_TABLE lookup_table {numCols}")
+        cartoFile.write(f"LOOKUP_TABLE lookup_table {numCols}\n")
         lut = vtk.vtkColorTransferFunction()
         lut.SetColorSpaceToRGB()
         lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
@@ -1263,4 +1294,4 @@ def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> 
         lut.SetScaleToLinear()
         for i in range(numCols):
             color = lut.GetColor(i)
-            cartoFile.write(f"{color[0]} {color[1]} {color[2]} 1.0") 
+            cartoFile.write(f"{color[0]} {color[1]} {color[2]} 1.0\n")
