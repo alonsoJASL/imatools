@@ -1197,3 +1197,67 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
     # Create a PIL image and save it
     image = Image.fromarray(image_array)
     image.save(output_filename)
+
+def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> None:
+    """
+    Convert a vtkPolyData object to a Carto object
+    """    
+    try: 
+        vtkpoly = readVtk(vtkpoly_path)
+        working_msh = set_cell_to_point_data(vtkpoly, cell_scalar_field)
+    except Exception as e:
+        print(f'Error: {e}')
+        return
+    
+    with open(output_file, 'w') as cartoFile:
+        # Header
+        cartoFile.write("# vtk DataFile Version 3.0")
+        cartoFile.write("PatientData Anon Anon 00000000")
+        cartoFile.write("ASCII")
+        cartoFile.write("DATASET POLYDATA")
+
+        # Points
+        cartoFile.write(f"POINTS\t{working_msh.GetNumberOfPoints()} float")
+        points = working_msh.GetPoints()
+        for ix in range(working_msh.GetNumberOfPoints()):
+            pt = points.GetPoint(ix)
+            cartoFile.write(f"{pt[0]} {pt[1]} {pt[2]}")
+        
+        cartoFile.write("")
+
+        # Cells 
+        cartoFile.write(f"POLYGONS {working_msh.GetNumberOfCells()}\t{working_msh.GetNumberOfCells()*4}") 
+        cells = working_msh.GetPolys()
+        for jx in range(working_msh.GetNumberOfCells()):
+            cells.GetCell(4)
+            cartoFile.write(f"3 {cells.GetId(0)} {cells.GetId(1)} {cells.GetId(2)}")
+        
+        cartoFile.write("")
+
+        # Scalars
+        cartoFile.write("POINT_DATA") 
+        cartoFile.write(f"SCALARS {cell_scalar_field} float 1")
+        cartoFile.write("LOOKUP_TABLE lookup_table") 
+        
+        scalars = working_msh.GetPointData().GetScalars()
+        max_scalar = np.max(scalars)
+        min_scalar = np.min(scalars)
+
+        for kx in range(working_msh.GetNumberOfPoints()):
+            value = scalars.GetTuple1(kx)
+            normalized_value = (value - min_scalar) / (max_scalar - min_scalar)
+            # set precision to 2 decimal places
+            cartoFile.write(f"{normalized_value:.2f}")
+
+        # LUT
+        numCols = 256
+        cartoFile.write(f"LOOKUP_TABLE lookup_table {numCols}")
+        lut = vtk.vtkColorTransferFunction()
+        lut.SetColorSpaceToRGB()
+        lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
+        lut.AddRGBPoint((numCols - 1.0) / 2.0, 0.94, 0.47, 0.12)
+        lut.AddRGBPoint((numCols - 1.0), 0.90, 0.11, 0.14)
+        lut.SetScaleToLinear()
+        for i in range(numCols):
+            color = lut.GetColor(i)
+            cartoFile.write(f"{color[0]} {color[1]} {color[2]} 1.0") 
