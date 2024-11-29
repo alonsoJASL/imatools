@@ -23,7 +23,14 @@ def execute_show(args) :
         el = iou.read_elem(msh_path, el_type='Tt', tags=True) 
         el_np = np.array(el)
         tags = el_np[:, -1]
-        print(np.unique(tags))
+        unique_tags = np.unique(tags)
+        output_str = '['
+        for tag in unique_tags:
+            output_str += f'{tag} '
+        output_str += ']'
+        print(output_str)
+            
+            
 
 def execute_carto(args) :
     msh_path = args.input 
