@@ -648,6 +648,15 @@ def relabel_image(input_image, new_label) :
 
     return new_image
 
+def cp_image(input_image) :
+    """Copy an image"""
+    input_array = imarray(input_image)
+
+    new_image = sitk.GetImageFromArray(input_array)
+    new_image.CopyInformation(input_image)
+
+    return new_image
+
 def exchange_labels(input_image, old_label, new_label) :
     input_array = imarray(input_image)
     input_array[np.equal(input_array, old_label)] = new_label
@@ -1151,3 +1160,11 @@ def extract_largest(im: sitk.Image) -> sitk.Image :
 
     return sitk.Multiply(im, largest_cc)
 
+def array2im(im_array: np.ndarray, im: sitk.Image) -> sitk.Image :
+    """
+    Convert a NumPy array to a SimpleITK image.
+    """
+    im_out = sitk.GetImageFromArray(im_array)
+    im_out.CopyInformation(im)
+
+    return im_out
