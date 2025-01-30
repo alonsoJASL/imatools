@@ -30,7 +30,9 @@ def extract_single_label(image, label, binarise=False) -> sitk.Image:
     Extracts a single label from a label map image.
     """
     image_array = imview(image)
-    label_array = np.zeros(image_array.shape, dtype=np.uint8)
+    label = np.array(label, dtype=image_array.dtype).item()
+
+    label_array = np.zeros(image_array.shape, dtype=image_array.dtype)
     label_array[np.equal(image_array, label)] = 1 if binarise else label
     label_image = sitk.GetImageFromArray(label_array)
     label_image.CopyInformation(image)
@@ -141,6 +143,8 @@ def morph_operations(image, operation:str, radius=3, kernel_type='ball') :
         "box": sitk.sitkBox,
         "cross": sitk.sitkCross
     }
+
+    logger.info(f'Performing {operation} operation with radius {radius} and kernel type {kernel_type}')
 
     which_operation = switcher_operation.get(operation, lambda: "Invalid operation")
     which_kernel = switcher_kernel.get(kernel_type, lambda: "Invalid kernel type")
