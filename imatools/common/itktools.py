@@ -154,6 +154,36 @@ def morph_operations(image, operation:str, radius=3, kernel_type='ball') :
 
     return which_operation(image, kernelRadius=(radius, radius, radius), kernelType = which_kernel)
 
+def get_spacing(image: sitk.Image) -> tuple:
+    """
+    Returns the spacing of the image in mm.
+    """
+    return image.GetSpacing()
+def get_num_nonzero_voxels(image: sitk.Image) -> int:
+    """
+    Calculates the volume of a binary object in an image.
+    """
+    image_array = imarray(image)
+    
+    # Calculate the volume in mm^3
+    return np.count_nonzero(image_array)
+
+def regionprops(image: sitk.Image, label=None) : 
+    """
+    Returns region properties of a label in the image
+    """
+    if label is not None :
+        image = extract_single_label(image, label, binarise=True)
+
+    cc_image = sitk.ConnectedComponent(image)
+    label_image = sitk.RelabelComponent(cc_image, sortByObjectSize=True)
+
+    stats = sitk.LabelShapeStatisticsImageFilter()
+    stats.Execute(label_image)
+
+    return stats
+    
+
 def swap_labels(im, old_label: int, new_label=1):
     """
     Swaps all instances of old_label with new_label in a label image.
@@ -717,8 +747,9 @@ def add_images(im1, im2) :
     return add_im
 
 def simple_mask(im, mask, mask_value=0) -> sitk.Image :
+    logger.info(f'Masking image with mask value {mask_value}')
     masked_im_array = imarray(im)
-    mask_array = imarray(mask)
+    mask_array = imview(mask)
     
     masked_im_array[ mask_array > 0 ] = mask_value
     

@@ -15,7 +15,8 @@ def label_morph(args) :
 
     res_im = itku.simple_mask(im, morph_im, mask_value=args.label)
     
-    itku.save_image(res_im, args.output)
+    output_path = os.path.join(os.path.dirname(args.input), args.output)
+    itku.save_image(res_im, output_path)
 
 def main(args) : 
     if args.mode == 'label_morph':
