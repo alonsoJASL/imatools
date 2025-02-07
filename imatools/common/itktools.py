@@ -86,6 +86,18 @@ def explore_labels_to_split(image):
 
     return labels_to_split
 
+def remove_label(image, label:int):
+    """
+    Removes a label from a label image.
+    """
+    image_array = imarray(image)
+    image_array[np.equal(image_array, label)] = 0
+
+    new_image = sitk.GetImageFromArray(image_array)
+    new_image.CopyInformation(image)
+
+    return new_image
+
 def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
     """
     Returns new image where label that can be split are split into two distinct 
@@ -1172,3 +1184,29 @@ def array2im(im_array: np.ndarray, im: sitk.Image) -> sitk.Image :
     im_out.CopyInformation(im)
 
     return im_out
+
+def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0) -> sitk.Image : 
+    """
+    Find pointy bits of the segmentation based on distance to smooth version of itself
+    """
+
+    segmentation = extract_single_label(mlseg, label, binarise=True) 
+    
+    gaussian_filter = sitk.SmoothingRecursiveGaussianImageFilter()
+    gaussian_filter.SetSigma(gauss_sigma)  # Adjust sigma based on segmentation resolution
+    smoothed_segmentation = gaussian_filter.Execute(segmentation)
+
+    # cast smoothed_segmentation to the same pixel type as segmentation
+    smoothed_segmentation = sitk.Cast(smoothed_segmentation, segmentation.GetPixelID())
+
+    distance_map = sitk.Abs(segmentation - smoothed_segmentation)
+    save_image(distance_map, 'distance_map.nrrd')
+    sharp_regions = sitk.BinaryThreshold(distance_map, lowerThreshold=10, upperThreshold=1000)
+
+    segmentation_array = imarray(segmentation)
+    sharp_array = imview(sharp_regions)
+
+    highlighted_segmentation = np.where(sharp_array == 1, 2, segmentation_array)  # Label sharp regions as '2'
+
+    return array2im(highlighted_segmentation, mlseg)
+
