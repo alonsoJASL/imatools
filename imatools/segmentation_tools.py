@@ -526,7 +526,7 @@ def main(args):
         new_labels = args.json_new
 
         fixed = itku.exchange_labels_form_json(input_image, old_labels, new_labels)
-        itku.save_image(fixed, base_dir, outname)
+        itku.save_image(fixed, base_dir, outname, manual_ow=True)
         
 
 

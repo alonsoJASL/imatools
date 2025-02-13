@@ -325,13 +325,17 @@ def zeros_like(image):
     """
     return sitk.Image(image.GetSize(), sitk.sitkUInt8)
 
-def save_image(image, dir_or_path, name=None):
+def save_image(image, dir_or_path, name=None, manual_ow=False):
     """
     Saves a SimpleITK image to disk.
     """
     output_path = dir_or_path if name is None else os.path.join(dir_or_path, name)
     logger.info(f"Saving image to [{output_path}]")
+    if manual_ow and os.path.exists(output_path):
+        os.remove(output_path)
+
     sitk.WriteImage(image, output_path)
+    assert os.path.exists(output_path), f"Saving failed! File not found: {output_path}"
 
 def points_to_image(image, points, label=1, girth=2, points_are_indices=False) : 
     """
@@ -715,6 +719,7 @@ def exchange_labels(input_image, old_label, new_label) :
 def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
     input_array = imarray(input_image)
     labels_to_reprocess = []
+    additional_label_count = 1
     for old_l, new_l in zip(old_labels, new_labels) :
         if old_l == new_l :
             print(f'Old label {old_l} is the same as new label {new_l}. Skip...')
@@ -722,12 +727,13 @@ def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
 
         # if new label exists in old labels, then set it to a new one, larger thatn all the old labels
         if new_l in old_labels :
-            new_l_aux = max(old_labels) + 1
+            new_l_aux = max(old_labels) + additional_label_count
             print(f'New label {new_l} already exists in old labels. Setting it to a new label {new_l_aux}...')
             input_array[np.equal(input_array, new_l)] = new_l_aux
             input_array[np.equal(input_array, old_l)] = new_l
 
             labels_to_reprocess.append((new_l_aux, new_l))
+            additional_label_count += 1
         else :
             print(f'Exchanging label {old_l} with {new_l}...')
             input_array[np.equal(input_array, old_l)] = new_l
