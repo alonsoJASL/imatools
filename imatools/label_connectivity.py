@@ -60,13 +60,10 @@ def main(args) :
             if args.min_voxel_size is not None :
                 distinct_labels_image = ignore_labels_with_voxel_size_less_than(distinct_labels_image, labels_found, args.min_voxel_size)
                 labels_found = itku.get_labels(distinct_labels_image)
-
-            if label*10 > MAX_INT_VALUE :
-                labels_in_image = itku.get_labels(im)
-                max_label_in_image = max(labels_in_image)
-                new_labels = [max_label_in_image + (ix + 1) for ix in range(len(labels_found))]
-            else : 
-                new_labels = [(label*10 + ix) for ix in range(len(labels_found))]
+            
+            labels_in_image = itku.get_labels(im)
+            max_label_in_image = max(labels_in_image)
+            new_labels = [max_label_in_image + (ix + 1) for ix in range(len(labels_found))]
             
             labels_array = itku.imview(distinct_labels_image)
 
@@ -88,8 +85,8 @@ def main(args) :
     
     elif mode == 'swap' :
         logger.info('Swapping the labels')
-        old_labels = args.old_labels
-        new_labels = args.new_labels
+        old_labels = args.old_labels if args.old_labels is not None else []
+        new_labels = args.new_labels if args.new_labels is not None else []
 
         if args.old_label_range != '':
             old_labels_end_points = args.old_label_range.split(':')

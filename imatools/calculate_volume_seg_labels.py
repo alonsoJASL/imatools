@@ -9,6 +9,8 @@ import os
 import argparse
 import numpy as np
 
+from common import itktools as itku
+
 logger = configure_logging(__name__)
 
 def volume_message(label_indx, volume_dict: dict, units='mL') : 
@@ -42,6 +44,9 @@ def main(args) :
 	iou.cout("Loading segmentation...", print2console=verbose, logger=logger)
 	im=sitk.ReadImage(ipth)
 
+	if args.label is not None :
+		im = itku.extract_single_label(im, args.label, binarise=True)
+
 	iou.cout("Calculating volumes...", print2console=verbose, logger=logger)
 	vols=itktools.get_labels_volumes(im)
 
@@ -67,6 +72,7 @@ def main(args) :
 if __name__ == "__main__":
 	inputParser = argparse.ArgumentParser(description="Get volumes of all the labels of a segmentation", usage=main.__doc__)
 	inputParser.add_argument("--input", "-in", metavar="ipth", type=str, help="Full path to segmentation")
+	inputParser.add_argument('--label', '-l', type=int, default=None, help='Label to calculate the volume of')
 	inputParser.add_argument("--output", '-out', metavar="out_name", type=str, default='', help="Output file name")
 	inputParser.add_argument("--units", "-units", choices=['mm', 'mL'], default='mL', help='Units of the output volumes (default: mL)')
 	inputParser.add_argument("--verbose", "-v", action='store_true', help="Verbose output")
