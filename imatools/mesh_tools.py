@@ -81,6 +81,28 @@ def execute_bridges(args) :
     # Save the polydata with the bridge flags:
     vtku.writeVtk(polydata, dirname, output_msh)
 
+def execute_sizes(args) :
+    msh_path = args.input 
+    msh_dir = os.path.dirname(msh_path)
+    base_msh_name = os.path.basename(msh_path)
+    base_msh_name = base_msh_name.split('.')[0]
+
+    # find names of the type f'{base_msh_name}.part{n}.vtk' 
+    parts = []
+    for file in os.listdir(msh_dir):
+        if file.endswith(".vtk") and file.startswith(base_msh_name):
+            parts.append(os.path.join(msh_dir, file))
+    
+    # read the parts and compute the size of each one
+    answers = []
+    for fi in parts : 
+        poly = vtku.read_vtk(fi, 'ugrid')
+        num_cells, total_area = vtku.compute_mesh_size(poly)
+        answers.append(f'{os.path.basename(fi)} has {num_cells} cells and total area {total_area}')
+    
+    for ans in answers:
+        print(ans)
+
 
 def main(args): 
     mode = args.mode
@@ -94,13 +116,16 @@ def main(args):
         execute_carto(args)
     elif mode == "bridges":
         execute_bridges(args)
+    elif mode == "sizes":
+        execute_sizes(args)
         
 
 if __name__ == "__main__":
     mychoices = [
             'show',  # Show the labels in the mesh
             'carto', 
-            'bridges'
+            'bridges', 
+            'sizes'
             ]
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
