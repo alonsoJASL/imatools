@@ -123,10 +123,17 @@ def parse_dotmesh_file(file_path, myencoding='utf-8'):
 def l2_norm(a): return np.linalg.norm(a, axis=1)
 def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
 
-DATA_TYPES = ['polydata', 'ugrid']
+DATA_TYPES = ['polydata', 'ugrid', 'stl']
 def readVtk(fname, input_type='polydata'):
     logger.warning("This function is deprecated. Please use read_vtk instead.")
     return read_vtk(fname, input_type)
+
+def clean_stl_file(input_path, output_path):
+    with open(input_path, "r") as f_in, open(output_path, "w") as f_out:
+        for line in f_in:
+            f_out.write(line)
+            if line.strip().startswith("endsolid"):  # Stop writing after endsolid
+                break
 
 def read_vtk(fname, input_type='polydata'):
     """
@@ -136,17 +143,26 @@ def read_vtk(fname, input_type='polydata'):
         logger.error(f"Invalid input type: {input_type}")
         raise ValueError(f"Invalid input type: {input_type}")
     
-    if input_type == 'ugrid':
-        reader = vtk.vtkUnstructuredGridReader()
-    else : 
-        # "input_type == 'polydata'"
-        reader = vtk.vtkPolyDataReader()
+    try:
+        if input_type == 'ugrid':
+            reader = vtk.vtkUnstructuredGridReader()
+        elif input_type == 'polydata' : 
+            reader = vtk.vtkPolyDataReader() 
+        else: # stl
+            reader = vtk.vtkSTLReader()
+            
+        logger.info(f"Reading VTK [{input_type}] file: {fname}")
+        reader.SetFileName(fname)
+        reader.Update()
+        output = reader.GetOutput()
         
-    logger.info(f"Reading VTK [{input_type}] file: {fname}")
-    reader.SetFileName(fname)
-    reader.Update()
-
-    return reader.GetOutput()
+        if reader.GetErrorCode() != vtk.vtkErrorCode.NoError:
+            raise ValueError(f"Error reading VTK file: {fname}")
+        
+        return output
+    except Exception as e:
+        logger.error(f"Failed to read VTK file: {fname}. Error: {e}")
+        raise
 
 def writeVtk(mesh, directory, outname="output", output_type='polydata'):
     logger.warning("This function is deprecated. Please use write_vtk instead.")
@@ -1021,10 +1037,15 @@ def vtk_from_points_file(file_path:str, mydelim=',') :
 
     return polydata
 
+EXPORT_DATA_TYPES = ['vtp', 'vtk', 'ply', 'stl', 'obj', 'ugrid']
 def export_as(input_mesh, output_file: str, export_as='ply') -> None:
     """
     Export a vtkPolyData object to a file
     """
+
+    if export_as not in EXPORT_DATA_TYPES:
+        raise ValueError(f"Invalid export type {export_as}. Choose from: {EXPORT_DATA_TYPES}")
+
     if export_as == 'ply':
         writer = vtk.vtkPLYWriter()
     elif export_as == 'stl':
@@ -1033,15 +1054,14 @@ def export_as(input_mesh, output_file: str, export_as='ply') -> None:
         writer = vtk.vtkOBJWriter()
     elif export_as == 'vtp':
         writer = vtk.vtkXMLPolyDataWriter()
-    else:
-        raise ValueError('Export format not supported')
+    elif export_as == 'vtk' or export_as == 'ugrid':
+        export_as = 'polydata' if export_as == 'vtk' else 'ugrid'
+        write_vtk(input_mesh, os.path.dirname(output_file), os.path.basename(output_file), output_type=export_as)
+        return
 
     writer.SetFileName(output_file)
     writer.SetInputData(input_mesh)
     writer.Write()
-
-
-    import vtk
 
 def render_vtk_to_png(vtk_files, output_dir, window_size=(800, 600)):
     """

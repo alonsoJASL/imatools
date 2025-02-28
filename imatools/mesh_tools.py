@@ -30,8 +30,6 @@ def execute_show(args) :
         output_str += ']'
         print(output_str)
             
-            
-
 def execute_carto(args) :
     msh_path = args.input 
     msh_dir = os.path.dirname(msh_path)
@@ -82,6 +80,22 @@ def execute_bridges(args) :
     vtku.writeVtk(polydata, dirname, output_msh)
 
 
+def execute_convert(args) :
+    msh_path = args.input
+
+    if args.input_format == 'stl' : 
+        msh_clean_path = os.path.join(os.path.dirname(msh_path), 'clean_' + os.path.basename(msh_path))
+        vtku.clean_stl_file(msh_path, msh_clean_path)
+        msh_path = msh_clean_path
+
+    msh_dir = os.path.dirname(msh_path)
+    msh = os.path.basename(msh_path).split('.')[0]
+
+    output_msh = os.path.join(msh_dir, f'{msh}.{args.output_format}')
+
+    loaded_mesh = vtku.read_vtk(msh_path, input_type=args.input_format)
+    vtku.export_as(loaded_mesh, output_msh, export_as=args.output_format)
+
 def main(args): 
     mode = args.mode
     if args.help == False and args.input == "":
@@ -94,20 +108,25 @@ def main(args):
         execute_carto(args)
     elif mode == "bridges":
         execute_bridges(args)
+    elif mode == "convert":
+        execute_convert(args)
         
 
 if __name__ == "__main__":
     mychoices = [
             'show',  # Show the labels in the mesh
             'carto', 
-            'bridges'
+            'bridges', 
+            'convert', 
+            'vtk42'
             ]
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
     input_parser.add_argument("mode", choices=mychoices, help="The mode to run the script in.")
     input_parser.add_argument("help", nargs='?', type=bool, default=False, help="Help page specific to each mode")
     input_parser.add_argument("-in", "--input", type=str, default="", help="The input mesh to be processed.")
-    input_parser.add_argument("-ifmt", "--input-format", type=str, choices=['vtk', 'carp'], help="The extension of the input mesh.", default="vtk")
+    input_parser.add_argument("-ifmt", "--input-format", type=str, choices=['vtk', 'carp','stl'], help="The extension of the input mesh.", default="vtk")
+    input_parser.add_argument("-ofmt", "--output-format", type=str, choices=vtku.EXPORT_DATA_TYPES, help="The output mesh to be saved.")
     input_parser.add_argument("-scalars", "--scalar-field", type=str, default="scalars", help="The scalar field to be shown.")
 
     bridges_group = input_parser.add_argument_group("bridges")
