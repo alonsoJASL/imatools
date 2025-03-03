@@ -36,6 +36,7 @@ def extract_single_label(image, label, binarise=False) -> sitk.Image:
     label_array[np.equal(image_array, label)] = 1 if binarise else label
     label_image = sitk.GetImageFromArray(label_array)
     label_image.CopyInformation(image)
+    label_image = sitk.Cast(label_image, sitk.sitkUInt8)
     return label_image
 
 def merge_label_images(images):

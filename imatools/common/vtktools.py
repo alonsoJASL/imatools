@@ -1697,3 +1697,13 @@ def clean_mesh(msh: vtk.vtkPolyData) :
 #             combinedFlag.SetTuple1(i, 0)
     
 #     return combinedFlag
+def compute_mesh_size(msh) -> tuple:
+    """
+    Compute the size of a mesh by calculating the sum of the areas of all cells.
+    """
+    total_area = 0.0
+    for i in range(msh.GetNumberOfCells()):
+        cell = msh.GetCell(i)
+        total_area += cell.ComputeArea()
+    
+    return msh.GetNumberOfCells(), total_area
