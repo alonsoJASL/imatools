@@ -5,11 +5,13 @@ import numpy as np
 import pandas as pd
 import vtk
 import vtk.util.numpy_support as vtknp
+import SimpleITK as sitk
 import networkx as nx  # For the graph‐based connectivity method
 
 
 import re
 from PIL import Image
+from imatools.common.itktools import array2im 
 from imatools.common.config import configure_logging 
 
 logger = configure_logging(__name__)
@@ -1707,3 +1709,141 @@ def compute_mesh_size(msh) -> tuple:
         total_area += cell.ComputeArea()
     
     return msh.GetNumberOfCells(), total_area
+
+def mesh_to_image(mesh, reference_image, inside_value=1, outside_value=0, reverse_stencil=False):
+    """
+    Converts a vtkPolyData surface mesh to a binary segmentation image (SimpleITK) 
+    that matches the geometry of the reference image.
+
+    Parameters:
+      mesh             : vtkPolyData representing the surface.
+      reference_image  : A SimpleITK image used as a reference for size, spacing, origin, and direction.
+      inside_value     : The value assigned to voxels inside the mesh (default 1).
+      outside_value    : The value for voxels outside the mesh (default 0).
+
+    Returns:
+      A SimpleITK image with the segmentation mask.
+    """
+    # Get geometry from the reference image
+    spacing = reference_image.GetSpacing()       # e.g., (dx, dy, dz)
+    origin = reference_image.GetOrigin()           # e.g., (ox, oy, oz)
+    size = reference_image.GetSize()               # e.g., (nx, ny, nz)
+    # VTK image extents are specified as (xmin, xmax, ymin, ymax, zmin, zmax)
+    extent = (0, size[0]-1, 0, size[1]-1, 0, size[2]-1)
+
+    bounds = mesh.GetBounds()
+    logger.info(f"Mesh bounds: {bounds}")
+    logger.info(f"Reference image size: {size}, spacing: {spacing}, origin: {origin}")
+
+    # Create an empty vtkImageData with the same geometry as the reference image.
+    white_image = vtk.vtkImageData()
+    white_image.SetOrigin(origin)
+    white_image.SetSpacing(spacing)
+    white_image.SetExtent(extent)
+    white_image.AllocateScalars(vtk.VTK_UNSIGNED_CHAR, 1)
+
+    # Fill the image with the outside value.
+    dims = white_image.GetDimensions()
+    num_points = dims[0] * dims[1] * dims[2]
+    for i in range(num_points):
+        white_image.GetPointData().GetScalars().SetTuple1(i, inside_value)
+
+    # Convert the mesh to an image stencil.
+    poly2stenc = vtk.vtkPolyDataToImageStencil()
+    poly2stenc.SetTolerance(0.5)
+    poly2stenc.SetInputData(mesh)
+    poly2stenc.SetOutputOrigin(origin)
+    poly2stenc.SetOutputSpacing(spacing)
+    poly2stenc.SetOutputWholeExtent(white_image.GetExtent())
+    poly2stenc.Update()
+
+    # Use the stencil to “paint” the inside of the mesh.
+    imgstenc = vtk.vtkImageStencil()
+    imgstenc.SetInputData(white_image)
+    imgstenc.SetStencilConnection(poly2stenc.GetOutputPort())
+    if reverse_stencil:
+        imgstenc.ReverseStencilOn()
+    else:
+        imgstenc.ReverseStencilOff()  # voxels inside the mesh will be changed
+    imgstenc.SetBackgroundValue(outside_value)
+    imgstenc.Update()
+
+    vtk_mask = imgstenc.GetOutput()
+     # The result is a vtkImageData. Convert it to a numpy array.
+    dims = vtk_mask.GetDimensions()  # dims are (nx, ny, nz)
+    vtk_array = vtk_mask.GetPointData().GetScalars()
+    np_mask = vtknp.vtk_to_numpy(vtk_array)
+    
+    # vtk images are stored in x-fastest order so reshape as (nz, ny, nx)
+    np_mask = np_mask.reshape(dims[2], dims[1], dims[0])
+    # Now, ensure that the inside region gets the inside_value.
+    # (Depending on the stencil, you may need to threshold the result)
+    np_mask[np_mask != outside_value] = inside_value
+    
+    # Convert the result to SimpleITK
+    sitk_mask = sitk.GetImageFromArray(np_mask)
+    sitk_mask.CopyInformation(reference_image)
+    # sitk_mask.SetSpacing(spacing)
+    # sitk_mask.SetOrigin(origin)
+
+    logger.info(f"Converted mesh to image with size: {sitk_mask.GetSize()}, spacing: {sitk_mask.GetSpacing()}, origin: {sitk_mask.GetOrigin()}")
+
+    return sitk_mask
+
+def get_combined_bounds(meshes):
+    """
+    Given a list of vtkPolyData meshes, computes and returns the combined bounds.
+    
+    Parameters:
+        meshes (list of vtk.vtkPolyData): List of meshes.
+    
+    Returns:
+        tuple: (xmin, xmax, ymin, ymax, zmin, zmax) representing the overall bounds.
+    """
+    if not meshes:
+        raise ValueError("The list of meshes is empty!")
+    
+    # Initialize combined bounds with the bounds of the first mesh.
+    combined = list(meshes[0].GetBounds())  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    
+    # Iterate over the remaining meshes and update the combined bounds.
+    for mesh in meshes[1:]:
+        b = mesh.GetBounds()
+        combined[0] = min(combined[0], b[0])  # xmin
+        combined[1] = max(combined[1], b[1])  # xmax
+        combined[2] = min(combined[2], b[2])  # ymin
+        combined[3] = max(combined[3], b[3])  # ymax
+        combined[4] = min(combined[4], b[4])  # zmin
+        combined[5] = max(combined[5], b[5])  # zmax
+    
+    return tuple(combined)
+
+def create_image_with_combined_origin(reference_image, combined_bounds, pixel_value=0):
+    """
+    Creates a SimpleITK image with the same size and spacing as the reference image,
+    but sets its origin to the lower bounds (xmin, ymin, zmin) of the combined_bounds.
+    
+    Parameters:
+        reference_image (sitk.Image): The image whose size and spacing will be copied.
+        combined_bounds (tuple): A tuple (xmin, xmax, ymin, ymax, zmin, zmax) from the meshes.
+        pixel_value (int, optional): Fill value for the image (default is 0).
+    
+    Returns:
+        sitk.Image: A new SimpleITK image with the updated origin.
+    """
+    # Get size and spacing from the reference image.
+    size = reference_image.GetSize()       # (nx, ny, nz)
+    spacing = reference_image.GetSpacing()   # (dx, dy, dz)
+    
+    # Set new origin from the lower bounds (xmin, ymin, zmin).
+    new_origin = (combined_bounds[0], combined_bounds[2], combined_bounds[4])
+    
+    # Create a new image with the same size, spacing, and pixel type as the reference.
+    new_img = sitk.Image(size, reference_image.GetPixelID())
+    new_img.SetSpacing(spacing)
+    new_img.SetOrigin(new_origin)
+    
+    # Optionally fill the image with a pixel value.
+    new_img = sitk.Add(new_img, pixel_value)
+    
+    return new_img

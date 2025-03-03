@@ -118,6 +118,41 @@ def execute_convert(args) :
     loaded_mesh = vtku.read_vtk(msh_path, input_type=args.input_format)
     vtku.export_as(loaded_mesh, output_msh, export_as=args.output_format)
 
+def execute_shell_to_image(args) :
+    msh_path = args.input
+    msh_dir = os.path.dirname(msh_path)
+    msh = os.path.basename(msh_path)
+    output_img = msh.replace('.vtk', '.nrrd')
+
+    output_img = os.path.join(msh_dir, f'{output_img}')
+
+    ref_img = args.reference_image 
+    if ref_img is None:
+        logger.error("Error: No reference image provided. Set it with the -ref flag.")
+        return 1
+    
+    loaded_mesh = vtku.read_vtk(msh_path)
+    ref_img = itku.load_image(ref_img)
+
+    if args.mesh_list_folder is not None:
+        mesh_list = []
+        mesh_files_list_folder = os.listdir(args.mesh_list_folder)
+        for mesh_file in mesh_files_list_folder:
+            if mesh_file.endswith('.vtk'):
+                msh_name = os.path.join(args.mesh_list_folder, mesh_file)
+                mesh_list.append(vtku.read_vtk(msh_name)) 
+            
+        combined_bounds = vtku.get_combined_bounds(mesh_list)
+        ref_img = vtku.create_image_with_combined_origin(ref_img, combined_bounds)            
+    
+    shell_img = vtku.mesh_to_image(loaded_mesh, ref_img, inside_value=1, outside_value=0, reverse_stencil=args.reverse_stencil)
+    cc_image, labels, num_labels = itku.bwlabeln(shell_img)
+
+    logger.info(f"Number of labels: {num_labels}")
+
+    itku.save_image(cc_image, output_img)
+
+
 def main(args): 
     mode = args.mode
     if args.help == False and args.input == "":
@@ -134,6 +169,8 @@ def main(args):
         execute_convert(args)
     elif mode == "sizes":
         execute_sizes(args)
+    elif mode == "shell_to_image":
+        execute_shell_to_image(args)
         
 
 if __name__ == "__main__":
@@ -142,8 +179,9 @@ if __name__ == "__main__":
             'carto', 
             'bridges', 
             'convert', 
-            'vtk42'
-            'sizes'
+            'vtk42',
+            'sizes',
+            'shell_to_image'
             ]
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")
@@ -159,7 +197,11 @@ if __name__ == "__main__":
     bridges_group.add_argument('-max-distance', '--max-distance', type=float, default=5.0, help='The maximum distance to search for bridges')
     bridges_group.add_argument('-threshold', '--threshold', type=float, default=1.5, help='The thickness threshold to detect bridges')
 
-    show_group = input_parser.add_argument_group("show")
+    sh2im_group = input_parser.add_argument_group("Shell to image")
+    sh2im_group.add_argument('-ref', '--reference-image', type=str, default=None, help='The reference image to map the shell to')
+    sh2im_group.add_argument('-rs', '--reverse-stencil', action='store_true', help='Reverse the stencil')
+    sh2im_group.add_argument('-mesh-list-folder', '--mesh-list-folder', type=str, default=None, help='List of meshes to process')
+
     
     args = input_parser.parse_args()
     main(args)

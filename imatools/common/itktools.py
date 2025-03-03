@@ -1223,6 +1223,14 @@ def array2im(im_array: np.ndarray, im: sitk.Image) -> sitk.Image :
 
     return im_out
 
+# def np_mask_to_sitk(np_mask: np.ndarray, im: sitk.Image) -> sitk.Image :
+
+#     sitk_mask = sitk.GetImageFromArray(np_mask)
+#     sitk_mask.SetSpacing(spacing)
+#     sitk_mask.SetOrigin(origin)
+#     # Transfer the direction cosines if needed:
+#     sitk_mask.SetDirection(reference_image.GetDirection())
+
 def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0) -> sitk.Image : 
     """
     Find pointy bits of the segmentation based on distance to smooth version of itself
@@ -1248,3 +1256,42 @@ def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0
 
     return array2im(highlighted_segmentation, mlseg)
 
+def combine_segmentations(seg_images, labels=None):
+    """
+    Combines multiple segmentation images into a single label image.
+    
+    Each segmentation image is assumed to be binary (0 for background and non-zero for foreground)
+    and to share the same physical geometry. For each segmentation, a distinct label value is assigned.
+    
+    Parameters:
+      seg_images (list of sitk.Image): List of segmentation images.
+      labels (list of int, optional): List of label values. If None, labels will be assigned as 1,2,3,...
+      
+    Returns:
+      sitk.Image: A label image with the same geometry as the input images.
+    """
+    if not seg_images:
+        raise ValueError("No segmentation images provided.")
+    
+    # If labels are not provided, assign 1,2,3,...
+    if labels is None:
+        labels = list(range(1, len(seg_images) + 1))
+    elif len(labels) != len(seg_images):
+        raise ValueError("Length of labels must match number of segmentation images.")
+    
+    # Initialize the combined image with zeros.
+    combined = sitk.Image(seg_images[0].GetSize(), sitk.sitkUInt8)
+    combined.CopyInformation(seg_images[0])
+    
+    for seg, label in zip(seg_images, labels):
+        # Ensure that the segmentation is binary.
+        # Here we assume that any voxel > 0 belongs to the segmentation.
+        binary_mask = sitk.BinaryThreshold(seg, lowerThreshold=1, upperThreshold=1e9, 
+                                           insideValue=1, outsideValue=0)
+        # Multiply the binary mask by the label.
+        label_img = sitk.Cast(binary_mask, sitk.sitkUInt8) * label
+        
+        # Combine using maximum. In case of overlaps, the highest label is taken.
+        combined = sitk.Maximum(combined, label_img)
+        
+    return combined

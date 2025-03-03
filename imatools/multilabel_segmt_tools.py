@@ -25,16 +25,33 @@ def sharp_regions(args) :
     out_path = os.path.join(os.path.dirname(args.input), f'sharp_regions_{args.label}.nrrd')
     itku.save_image(sharp_region, out_path)
 
+def combine_segmentations(args) :
+    folder = args.input
+    img_list_names = [] 
+    for file in os.listdir(folder):
+        if file.endswith('.nrrd'):
+            logger.info(f'Found image: {file}')
+            img_list_names.append(file)
+    
+    img_list = [itku.load_image(os.path.join(folder, img_name)) for img_name in img_list_names]
+    combined = itku.combine_segmentations(img_list)
+    out_path = os.path.join(folder, args.output)
+    itku.save_image(combined, out_path)
+        
+    
+
 def main(args) : 
     if args.mode == 'label_morph':
         label_morph(args)    
     elif args.mode == 'sharp_regions':
         sharp_regions(args)
+    elif args.mode == 'combine':
+        combine_segmentations(args)
     else:
         logger.error('Unknown mode: {}'.format(args.mode))
 
 if __name__ == "__main__":
-    mychoices = ['label_morph', 'sharp_regions']
+    mychoices = ['label_morph', 'sharp_regions', 'combine']
 
     parser = argparse.ArgumentParser(description='Multilabel segmentation tools')
     parser.add_argument('mode', choices=mychoices, help='mode')
