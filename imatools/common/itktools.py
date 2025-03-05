@@ -140,32 +140,83 @@ def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
 
     return new_image 
 
-def morph_operations(image, operation:str, radius=3, kernel_type='ball') :
+MORPH_SWITCHER = {
+    "dilate": sitk.BinaryDilate,
+    "erode": sitk.BinaryErode,
+    "open": sitk.BinaryMorphologicalOpening,
+    "close": sitk.BinaryMorphologicalClosing,
+    "fill": sitk.BinaryFillhole,
+    "smooth": sitk.DiscreteGaussian  # For smoothing, we'll use DiscreteGaussian.
+}
+
+KERNEL_SWITCHER = {
+    "ball": sitk.sitkBall,
+    "box": sitk.sitkBox,
+    "cross": sitk.sitkCross
+}
+def morph_operations(image, operation:str, radius=3, kernel_type='ball'):
     """
-    Performs a morphological operation on a binary image with a binary ball of a given radius 
+    Performs a morphological operation on a binary image with a binary ball of a given radius.
+    Additionally, supports Gaussian smoothing using the 'smooth' operation.
     """
-    switcher_operation = {
-        "dilate": sitk.BinaryDilate,
-        "erode": sitk.BinaryErode,
-        "open": sitk.BinaryMorphologicalOpening,
-        "close": sitk.BinaryMorphologicalClosing,
-        "fill": sitk.BinaryFillhole
-    }
-    switcher_kernel = {
-        "ball": sitk.sitkBall,
-        "box": sitk.sitkBox,
-        "cross": sitk.sitkCross
-    }
+    import SimpleITK as sitk  # Ensure SimpleITK is imported
+    # Define operations for binary morphology and smoothing.
+    switcher_operation = MORPH_SWITCHER.copy()
+    switcher_kernel = KERNEL_SWITCHER.copy()
 
     logger.info(f'Performing {operation} operation with radius {radius} and kernel type {kernel_type}')
 
-    which_operation = switcher_operation.get(operation, lambda: "Invalid operation")
-    which_kernel = switcher_kernel.get(kernel_type, lambda: "Invalid kernel type")
-
+    which_operation = switcher_operation.get(operation, None)
+    if which_operation is None:
+        raise ValueError(f"Invalid operation: {operation}")
+    
+    # For fill, the filter only takes the image.
     if operation == 'fill':
         return which_operation(image)
+    
+    # If smoothing is requested, apply Gaussian smoothing.
+    if operation == 'smooth':
+        # DiscreteGaussian expects a parameter 'variance'. You can convert your "radius" to variance
+        # Here, we use radius directly as variance, but you might adjust this conversion.
+        return smooth_label_with_distance(image, sigma=1.0, threshold=0.0)
 
-    return which_operation(image, kernelRadius=(radius, radius, radius), kernelType = which_kernel)
+    # For the binary morphological operations, obtain the kernel type.
+    which_kernel = switcher_kernel.get(kernel_type, None)
+    if which_kernel is None:
+        raise ValueError(f"Invalid kernel type: {kernel_type}")
+
+    # Perform the morphological operation with the specified kernel and radius.
+    return which_operation(image, kernelRadius=(radius, radius, radius), kernelType=which_kernel)
+
+def smooth_label_with_distance(image, sigma=1.0, threshold=0.0):
+    """
+    Smooths a binary label image by converting it to a signed distance map,
+    applying Gaussian smoothing, and then re-thresholding.
+    
+    Parameters:
+      image    : Input binary label image (SimpleITK Image).
+      sigma    : Standard deviation for Gaussian smoothing.
+      threshold: Threshold value to re-binarize the smoothed distance map.
+                 Typically 0.0 works if inside is positive.
+    
+    Returns:
+      A smoothed binary label image.
+    """
+    # Convert the label to a signed distance map.
+    distance_map = sitk.DanielssonDistanceMap(image, inputIsBinary=True, squaredDistance=False, useImageSpacing=True)
+    # distance_map = sitk.SignedMaurerDistanceMap(image, insideIsPositive=True, useImageSpacing=True)
+    # save_image(distance_map, 'distance_map.nrrd')
+    
+    # Smooth the distance map.
+    smoothed_distance = sitk.DiscreteGaussian(distance_map, variance=sigma**2)
+    # save_image(smoothed_distance, 'smoothed_distance.nrrd')
+    
+    # Threshold the smoothed distance map to recover a binary image.
+    smoothed_label = sitk.BinaryThreshold(
+        smoothed_distance, lowerThreshold=-1e9, upperThreshold=threshold,
+        insideValue=1, outsideValue=0)
+    
+    return smoothed_label    
 
 def get_spacing(image: sitk.Image) -> tuple:
     """

@@ -39,6 +39,13 @@ def combine_segmentations(args) :
     itku.save_image(combined, out_path)
         
     
+def simple_mask(args) :
+    original_im = itku.load_image(args.input)
+    mask_im = itku.load_image(args.mask)
+    label = args.label
+    res_im = itku.simple_mask(original_im, mask_im, mask_value=label)
+    out_path = os.path.join(os.path.dirname(args.input), args.output)
+    itku.save_image(res_im, out_path)
 
 def main(args) : 
     if args.mode == 'label_morph':
@@ -47,11 +54,13 @@ def main(args) :
         sharp_regions(args)
     elif args.mode == 'combine':
         combine_segmentations(args)
+    elif args.mode == 'simple_mask':
+        simple_mask(args)
     else:
         logger.error('Unknown mode: {}'.format(args.mode))
 
 if __name__ == "__main__":
-    mychoices = ['label_morph', 'sharp_regions', 'combine']
+    mychoices = ['label_morph', 'sharp_regions', 'combine', 'simple_mask']
 
     parser = argparse.ArgumentParser(description='Multilabel segmentation tools')
     parser.add_argument('mode', choices=mychoices, help='mode')
@@ -66,6 +75,9 @@ if __name__ == "__main__":
 
     sharp_group = parser.add_argument_group('sharp_regions')
     sharp_group.add_argument('--gauss-sigma', '-gauss-sigma', type=float, help='Gaussian sigma', default=2.0)
+
+    mask_group = parser.add_argument_group('simple_mask')
+    mask_group.add_argument('--mask', '-mask', help='mask image')
 
     args = parser.parse_args()
     main(args)

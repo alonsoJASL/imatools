@@ -61,15 +61,16 @@ def main(args) :
         label_morphological_op(args.input, args.label, args.mode, args.radius, args.kernel, args.output)
 
 if __name__ == "__main__":
-    mychoices = ['label_morph', 'sharp_regions']
+    switcher_dict = itku.MORPH_SWITCHER
+    mode_choices = list(switcher_dict.keys()) + ['chain']
 
     parser = argparse.ArgumentParser(description='Multilabel segmentation tools')
-    parser.add_argument('mode', choices=['dilate', 'erode', 'open', 'close', 'fill', 'chain'], help='operation')
+    parser.add_argument('mode', choices=mode_choices, help='operation')
     parser.add_argument('-in', '--input', required=True, help='input image')
     parser.add_argument('-l', '--label', required=True, help='label image')
     parser.add_argument('-out', '--output', help='output image', default='output.nrrd')
     parser.add_argument('--radius', type=int, help='radius', default=3)
-    parser.add_argument('--kernel', choices=['ball', 'box', 'cross'], help='kernel', default='ball')
+    parser.add_argument('--kernel', choices=list(itku.KERNEL_SWITCHER.keys()), help='kernel', default='ball')
     
     group_morph = parser.add_argument_group('Chain option for morphological operations')
     group_morph.add_argument('--operations', nargs='+', type=str, help='operations to be chained', default=[])
