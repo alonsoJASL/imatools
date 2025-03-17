@@ -768,9 +768,9 @@ def exchange_labels(input_image, old_label, new_label) :
 
     return new_image
 
-def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
-    input_array = imarray(input_image)
+def get_labels_to_exchange(old_labels:list, new_labels:list) -> tuple : 
     labels_to_reprocess = []
+    list_of_swap_labels = []
     additional_label_count = 1
     for old_l, new_l in zip(old_labels, new_labels) :
         if old_l == new_l :
@@ -781,21 +781,20 @@ def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
         if new_l in old_labels :
             new_l_aux = max(old_labels) + additional_label_count
             print(f'New label {new_l} already exists in old labels. Setting it to a new label {new_l_aux}...')
-            input_array[np.equal(input_array, new_l)] = new_l_aux
-            input_array[np.equal(input_array, old_l)] = new_l
-
+            list_of_swap_labels.append((new_l, new_l_aux))
             labels_to_reprocess.append((new_l_aux, new_l))
             additional_label_count += 1
         else :
-            print(f'Exchanging label {old_l} with {new_l}...')
-            input_array[np.equal(input_array, old_l)] = new_l
+            list_of_swap_labels.append((old_l, new_l))
+            
+    list_of_swap_labels += labels_to_reprocess
+    return list_of_swap_labels
 
-    for old_l, new_l in labels_to_reprocess :
-        print(f'Exchanging label {old_l} with {new_l}...')
-        input_array[np.equal(input_array, old_l)] = new_l
-
-    new_image = sitk.GetImageFromArray(input_array)
-    new_image.CopyInformation(input_image)
+def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
+    swap_labels = get_labels_to_exchange(old_labels, new_labels)
+    new_image = cp_image(input_image)
+    for old_label, new_label in swap_labels :
+        new_image = exchange_labels(new_image, old_label, new_label)
 
     return new_image
 

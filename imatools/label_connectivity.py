@@ -101,7 +101,8 @@ def main(args) :
             return
         
         new_image = itku.cp_image(im)
-        for old_label, new_label in zip(old_labels, new_labels) : 
+        swap_labels = itku.get_labels_to_exchange(old_labels, new_labels)
+        for old_label, new_label in swap_labels :
             logger.info(f'Swapping label {old_label} with {new_label}')
             new_image = itku.exchange_labels(new_image, old_label, new_label)
         
