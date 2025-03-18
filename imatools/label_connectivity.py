@@ -100,11 +100,12 @@ def main(args) :
             logger.error('Number of old labels and new labels should be the same')
             return
         
-        new_image = itku.cp_image(im)
-        swap_labels = itku.get_labels_to_exchange(old_labels, new_labels)
-        for old_label, new_label in swap_labels :
-            logger.info(f'Swapping label {old_label} with {new_label}')
-            new_image = itku.exchange_labels(new_image, old_label, new_label)
+        new_image = itku.exchange_many_labels(im, old_labels, new_labels)
+        # new_image = itku.cp_image(im)
+        # swap_labels = itku.get_labels_to_exchange(old_labels, new_labels)
+        # for old_label, new_label in swap_labels :
+        #     logger.info(f'Swapping label {old_label} with {new_label}')
+        #     new_image = itku.exchange_labels(new_image, old_label, new_label)
         
         output_path = os.path.join(os.path.dirname(input_image_path), args.output_name)
         itku.save_image(new_image, output_path)

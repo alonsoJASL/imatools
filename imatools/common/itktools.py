@@ -742,7 +742,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
 
 def relabel_image(input_image, new_label) :
     """Assumes input_image is a binary image, every value>0 is set to new_label"""
-    input_array = imarray(input_image)
+    input_array = sitk.GetArrayFromImage(input_image)
     input_array[np.greater(input_array, 0)] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
@@ -759,16 +759,25 @@ def cp_image(input_image) :
 
     return new_image
 
-def exchange_labels(input_image, old_label, new_label) :
+def exchange_labels(input_image, old_label, new_label):
     input_array = imarray(input_image)
-    input_array[np.equal(input_array, old_label)] = new_label
+    
+    # Ensure it's an int type with enough bits for your labels
+    if not np.issubdtype(input_array.dtype, np.integer):
+        input_array = input_array.astype(np.int32)
+    
+    old_label = int(old_label)
+    new_label = int(new_label)
+
+    mask = np.equal(input_array, old_label)
+    input_array[mask] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
     new_image.CopyInformation(input_image)
 
     return new_image
 
-def get_labels_to_exchange(old_labels:list, new_labels:list) -> tuple : 
+def get_labels_to_exchange(old_labels:list, new_labels:list, max_label_value) -> tuple : 
     labels_to_reprocess = []
     list_of_swap_labels = []
     additional_label_count = 1
@@ -779,7 +788,7 @@ def get_labels_to_exchange(old_labels:list, new_labels:list) -> tuple :
 
         # if new label exists in old labels, then set it to a new one, larger thatn all the old labels
         if new_l in old_labels :
-            new_l_aux = max(old_labels) + additional_label_count
+            new_l_aux = max_label_value + additional_label_count
             print(f'New label {new_l} already exists in old labels. Setting it to a new label {new_l_aux}...')
             list_of_swap_labels.append((new_l, new_l_aux))
             labels_to_reprocess.append((new_l_aux, new_l))
@@ -791,9 +800,12 @@ def get_labels_to_exchange(old_labels:list, new_labels:list) -> tuple :
     return list_of_swap_labels
 
 def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
-    swap_labels = get_labels_to_exchange(old_labels, new_labels)
+    labels_in_image = get_labels(input_image)
+    max_label_value = max(labels_in_image)
+    swap_labels = get_labels_to_exchange(old_labels, new_labels, max_label_value)
     new_image = cp_image(input_image)
     for old_label, new_label in swap_labels :
+        logger.info(f'Exchanging label {old_label} with {new_label}')
         new_image = exchange_labels(new_image, old_label, new_label)
 
     return new_image
