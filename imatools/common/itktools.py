@@ -366,10 +366,10 @@ def get_labels(image : sitk.Image ) -> list:
     Returns a list of labels in an image.
     """
     image_array_view = imview(image)
-    labels = set(image_array_view.flatten())
-    labels.discard(0) # background
+    unique_labels = np.unique(image_array_view)
+    unique_labels = unique_labels[unique_labels != 0]
     
-    return sorted(map(int, labels))
+    return unique_labels.astype(int).tolist()
 
 def zeros_like(image):
     """
@@ -742,7 +742,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
 
 def relabel_image(input_image, new_label) :
     """Assumes input_image is a binary image, every value>0 is set to new_label"""
-    input_array = imarray(input_image)
+    input_array = sitk.GetArrayFromImage(input_image)
     input_array[np.greater(input_array, 0)] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
@@ -759,41 +759,86 @@ def cp_image(input_image) :
 
     return new_image
 
-def exchange_labels(input_image, old_label, new_label) :
+def exchange_labels(input_image, old_label, new_label):
     input_array = imarray(input_image)
-    input_array[np.equal(input_array, old_label)] = new_label
+    
+    # Ensure it's an int type with enough bits for your labels
+    if not np.issubdtype(input_array.dtype, np.integer):
+        input_array = input_array.astype(np.int32)
+    
+    old_label = int(old_label)
+    new_label = int(new_label)
+
+    # Use np.where to replace old_label with new_label
+    input_array = np.where(input_array == old_label, new_label, input_array)
 
     new_image = sitk.GetImageFromArray(input_array)
     new_image.CopyInformation(input_image)
 
     return new_image
 
-def get_labels_to_exchange(old_labels:list, new_labels:list) -> tuple : 
-    labels_to_reprocess = []
-    list_of_swap_labels = []
+def get_labels_to_exchange(old_labels: list[int], new_labels: list[int], labels_in_image: list[int]) -> list[tuple[int, int]]:
+    """
+    Build an ordered list of swap operations (tuples of (source, target))
+    so that if a destination label is also a source in another mapping,
+    it is first remapped to a temporary label.
+    
+    For example, for swapping 4->5 and 5->6, we produce:
+      [(5, temp), (4,5), (temp,6)]
+    so that the conflicting label 5 is freed before assigning it.
+    
+    Parameters:
+      old_labels: list of labels to replace.
+      new_labels: list of target labels.
+      labels_in_image: the list of all labels present in the image.
+    
+    Returns:
+      A list of (source, target) swap operations in the order they should be applied.
+    """
+    swap_ops = []
+    temp_map = {}  # Map a label that is used as a destination and is also in old_labels to a temporary value.
     additional_label_count = 1
-    for old_l, new_l in zip(old_labels, new_labels) :
-        if old_l == new_l :
-            print(f'Old label {old_l} is the same as new label {new_l}. Skip...')
+    max_label_value = max(labels_in_image)
+    
+    # Phase 1: Identify conflicts and assign temporary labels.
+    # We consider it a conflict if a destination label (new) appears in the list of old labels.
+    for old, new in zip(old_labels, new_labels):
+        if old == new:
+            print(f'Old label {old} is the same as new label {new}. Skipping...')
             continue
+        if new in old_labels:
+            if new not in temp_map:
+                temp_label = max_label_value + additional_label_count
+                additional_label_count += 1
+                temp_map[new] = temp_label
+                print(f'Conflict detected: new label {new} appears as a source. Using temporary label {temp_label}.')
+    
+    # Phase 2: Build the swap sequence.
+    # First, remove the conflicting label by mapping it to its temporary value.
+    for conflict_label, temp_label in temp_map.items():
+        swap_ops.append((conflict_label, temp_label))
+    
+    # Then, for each intended mapping:
+    # If the source was remapped (i.e. is in temp_map), use the temporary label for the swap.
+    for old, new in zip(old_labels, new_labels):
+        if old == new:
+            continue
+        if old in temp_map:
+            # Use the temporary label instead of the original source.
+            swap_ops.append((temp_map[old], new))
+        else:
+            swap_ops.append((old, new))
+    
+    return swap_ops
 
-        # if new label exists in old labels, then set it to a new one, larger thatn all the old labels
-        if new_l in old_labels :
-            new_l_aux = max(old_labels) + additional_label_count
-            print(f'New label {new_l} already exists in old labels. Setting it to a new label {new_l_aux}...')
-            list_of_swap_labels.append((new_l, new_l_aux))
-            labels_to_reprocess.append((new_l_aux, new_l))
-            additional_label_count += 1
-        else :
-            list_of_swap_labels.append((old_l, new_l))
-            
-    list_of_swap_labels += labels_to_reprocess
-    return list_of_swap_labels
 
 def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
-    swap_labels = get_labels_to_exchange(old_labels, new_labels)
+    labels_in_image = get_labels(input_image)
+
+    swap_labels = get_labels_to_exchange(old_labels, new_labels, labels_in_image)
     new_image = cp_image(input_image)
     for old_label, new_label in swap_labels :
+        logger.info(f'Exchanging label {old_label} with {new_label}')
         new_image = exchange_labels(new_image, old_label, new_label)
 
     return new_image
