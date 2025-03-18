@@ -20,6 +20,9 @@ def ignore_labels_with_voxel_size_less_than(im, labels, min_voxel_size) :
     
     return itku.exchange_many_labels(im, labels_to_ignore, [0]*len(labels_to_ignore))
 
+def print_im_type(im) :
+    logger.info(f'{im.GetPixelIDTypeAsString()=}')
+
 
 def main(args) : 
     mode = args.mode
@@ -27,6 +30,7 @@ def main(args) :
     label = args.label
 
     im = itku.load_image(input_image_path)
+    print_im_type(im)
     if label is not None :
         label_mask = itku.extract_single_label(im, label, binarise=True)
         distinct_labels_image, labels_found, num_labels = itku.bwlabeln(label_mask)
@@ -101,6 +105,7 @@ def main(args) :
             return
         
         new_image = itku.cp_image(im)
+
         swap_labels = itku.get_labels_to_exchange(old_labels, new_labels)
         for old_label, new_label in swap_labels :
             logger.info(f'Swapping label {old_label} with {new_label}')
