@@ -5,7 +5,7 @@ import vtk
 import numpy as np
 import json
 
-import imatools.common.vtktools as vtku 
+
 from imatools.common.config import configure_logging
 logger = configure_logging(log_name=__name__) 
 
@@ -1173,6 +1173,7 @@ def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
     return output_im
 
 def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False) -> vtk.vtkPolyData :
+    import imatools.common.vtktools as vtku 
     cog = vtku.get_cog_per_element(surface)    
     scalars = surface.GetCellData().GetScalars()
     visited_indices = set()
