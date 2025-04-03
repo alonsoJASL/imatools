@@ -95,10 +95,13 @@ def main(args) :
         if args.old_label_range != '':
             old_labels_end_points = args.old_label_range.split(':')
             old_labels_range = list(range(int(old_labels_end_points[0]), int(old_labels_end_points[1])+1))
-            new_labels_range_replace = [args.range_replace]*len(old_labels_range)
+            if args.range_replace is not None :
+                new_labels_range_replace = [args.range_replace]*len(old_labels_range)
+                new_labels.extend(new_labels_range_replace)
 
             old_labels.extend(old_labels_range)
-            new_labels.extend(new_labels_range_replace)
+
+            print(f'{old_labels=}, \n{new_labels=}')
 
         if len(old_labels) != len(new_labels) : 
             logger.error('Number of old labels and new labels should be the same')
@@ -144,7 +147,7 @@ if __name__ == '__main__' :
     swap_labels_group.add_argument('-old-labels', '--old-labels', type=int, nargs='+', default=None)
     swap_labels_group.add_argument('-new-labels', '--new-labels', type=int, nargs='+', default=None)
     swap_labels_group.add_argument('-old-label-range', '--old-label-range', type=str, default='')
-    swap_labels_group.add_argument('-range-replace', '--range-replace', type=int, default=0)
+    swap_labels_group.add_argument('-range-replace', '--range-replace', type=int, default=None)
 
     extract_split_labels_group = parser.add_argument_group('Extract/Split Labels')
     extract_split_labels_group.add_argument('-min-voxel-size', '--min-voxel-size', type=int, default=None)
