@@ -45,6 +45,8 @@ def main(args) :
         logger.info('Rendering vtk files to a single png')
         if args.names:
             unique_parts = get_unique_parts(vtk_files)
+        else:
+            unique_parts = None
         vtku.render_vtk_to_single_png(vtk_files, output, grid_size, window_size, input_type=input_data_type, names=unique_parts)
     elif args.mode == 'multi':
         logger.info('Rendering vtk files to multiple pngs')
