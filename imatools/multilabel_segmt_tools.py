@@ -56,11 +56,17 @@ def main(args) :
         combine_segmentations(args)
     elif args.mode == 'simple_mask':
         simple_mask(args)
+    elif args.mode == 'show_voxels':
+        im = itku.load_image(args.input)
+        vox, world, bboxes = itku.get_indices_from_label(im, args.label, get_voxel_bbox=True)
+        logger.info('Voxels at label {}: {}'.format(args.label, vox))
+        logger.info('World coordinates: {}'.format(world))
+        logger.info('Bounding boxes: {}'.format(bboxes))
     else:
         logger.error('Unknown mode: {}'.format(args.mode))
 
 if __name__ == "__main__":
-    mychoices = ['label_morph', 'sharp_regions', 'combine', 'simple_mask']
+    mychoices = ['label_morph', 'sharp_regions', 'combine', 'simple_mask', 'show_voxels']
 
     parser = argparse.ArgumentParser(description='Multilabel segmentation tools')
     parser.add_argument('mode', choices=mychoices, help='mode')

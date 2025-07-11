@@ -152,6 +152,99 @@ def execute_shell_to_image(args) :
 
     itku.save_image(cc_image, output_img)
 
+def execute_scar3d(args) :
+    msh_path = args.input
+    msh_dir = os.path.dirname(msh_path)
+    msh_name = os.path.basename(msh_path)
+    output_msh_name = os.path.join(msh_dir, f'scar3d_{msh_name}')
+
+    img = itku.load_image(args.reference_image)
+    label = args.label
+
+    vox_indices, _, bboxes = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    logger.info(f'Found {len(vox_indices)} voxels for label {label}, and {len(bboxes)} bounding boxes.')
+
+    msh = vtku.read_vtk(msh_path, input_type='ugrid')
+
+    outmsh = vtku.tag_elements_by_voxel_boxes(msh, bboxes, label_name='scar')
+    vtku.write_vtk(outmsh, msh_dir, output_msh_name, output_type='ugrid')
+
+def execute_scar_w_cog(args) : 
+    msh_path = args.input 
+    msh_dir = os.path.dirname(msh_path)
+    msh_name = os.path.basename(msh_path) 
+    cog_path = os.path.join(msh_dir, msh_name.replace('.vtk', '.pts'))
+    output_msh_name = f'scar3d_{msh_name}'
+
+    cogs = np.loadtxt(cog_path)
+
+    img = itku.load_image(args.reference_image)
+    label = args.label 
+
+    vox_indices, _, bboxes = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    logger.info(f'Found {len(vox_indices)} voxels with label {args.label}')
+
+    msh = vtku.read_vtk(msh_path, input_type='ugrid') 
+
+    outmsh = vtku.tag_mesh_elements_by_voxel_boxes(msh, cogs, bboxes)
+    vtku.write_vtk(outmsh, msh_dir, output_msh_name, output_type='ugrid') 
+
+
+def execute_bbox_compare(args) :
+    msh_path = args.input
+    msh_dir = os.path.dirname(msh_path)
+    msh_name = os.path.basename(msh_path)
+
+    img = itku.load_image(args.reference_image)
+    label = args.label
+    if label < 1 or label is None: # binarise the whole image and use label=1
+        img = itku.binarise(img)
+        label = 1
+
+    vox_indices, world_coords = itku.get_indices_from_label(img, label, get_voxel_bbox=False)
+    logger.info(f'Found {len(vox_indices)} voxels for label {label}.')
+
+    # get total bounding box from world coordinates
+    min_coords = np.min(world_coords, axis=0)
+    max_coords = np.max(world_coords, axis=0)
+
+    bbox_img = np.array([min_coords, max_coords])
+
+    msh = vtku.read_vtk(msh_path, input_type='ugrid')
+    bbox_msh = vtku.get_bounding_box(msh)
+    
+    logger.info(f'Bounding box from mesh: {bbox_msh}')
+    logger.info(f'Bounding box from image: {bbox_img}')
+
+def execute_cog(args) : 
+    msh_path = args.input 
+    msh_dir = os.path.dirname(msh_path)
+    msh_name = os.path.basename(msh_path) 
+
+    output_name = msh_name.replace('.vtk', '.pts')
+    msh = vtku.read_vtk(msh_path, input_type='ugrid') 
+    cogs = vtku.cogs_from_ugrid(msh) 
+
+    logger.info('Saving file...')
+    np.savetxt(os.path.join(msh_dir, output_name), cogs, delimiter=' ') 
+
+
+def execute_bbox(args) : 
+    input_path = args.input 
+    if input_path.endswith('.vtk') : 
+        msh = vtku.read_vtk(input_path, input_type='ugrid')
+        bbox = vtku.get_bounding_box(msh) 
+    else : 
+        img = itku.load_image(input_path) 
+        img = itku.binarise(img) 
+        _, world_coords = itku.get_indices_from_label(img, 1, get_voxel_bbox=False) 
+
+        min_coords = np.min(world_coords, axis=0)
+        max_coords = np.max(world_coords, axis=0)
+        bbox = np.array([min_coords, max_coords])
+
+    logger.info(f'{bbox=}')
+
 
 def main(args): 
     mode = args.mode
@@ -171,7 +264,19 @@ def main(args):
         execute_sizes(args)
     elif mode == "shell_to_image":
         execute_shell_to_image(args)
-        
+    elif mode == "cog":
+        execute_cog(args)
+    elif mode == "scar3d":
+        execute_scar3d(args)
+    elif mode =='cogscar3d' : 
+        execute_scar_w_cog(args)
+    elif mode == 'bbox_compare':
+        execute_bbox_compare(args)
+    elif mode == 'bbox' : 
+        execute_bbox(args)
+    else:
+        logger.error(f"Unknown mode: {mode}. Please choose from {', '.join(mychoices)}")
+        return 1
 
 if __name__ == "__main__":
     mychoices = [
@@ -181,7 +286,12 @@ if __name__ == "__main__":
             'convert', 
             'vtk42',
             'sizes',
-            'shell_to_image'
+            'shell_to_image', 
+            'cog', 
+            'scar3d', 
+            'cogscar3d',
+            'bbox_compare', 
+            'bbox'
             ]
     #
     input_parser = argparse.ArgumentParser(description="Extracts a single label from a label map image.")

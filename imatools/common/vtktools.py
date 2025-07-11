@@ -219,6 +219,91 @@ def get_cog_per_element(msh) -> np.ndarray:
     
     return cog
 
+def get_bounding_box(msh):
+    """
+    Get the bounding box of a mesh.
+    Returns a tuple of (min_x, min_y, min_z, max_x, max_y, max_z).
+    """
+    bounds = msh.GetBounds()
+    return (bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5])
+
+def point_in_aabb(point, box_corners):
+    """
+    Check if a point lies within the axis-aligned bounding box defined by the 8 voxel corners.
+    """
+    mins = np.min(box_corners, axis=0)
+    maxs = np.max(box_corners, axis=0)
+    return np.all(point >= mins) and np.all(point <= maxs)
+
+def tag_elements_by_voxel_boxes(mesh: vtk.vtkUnstructuredGrid, voxel_bounding_boxes, label_name='scar'):
+    """
+    Tags mesh elements whose centroid falls inside any of the voxel bounding boxes.
+    Adds a cell array to the mesh with 1 (inside) or 0 (outside).
+    """
+    num_cells = mesh.GetNumberOfCells()
+    num_bboxes = len(voxel_bounding_boxes)
+
+    scar_array = vtk.vtkIntArray()
+    scar_array.SetName(label_name)
+    scar_array.SetNumberOfComponents(1)
+    scar_array.SetNumberOfTuples(num_cells)
+
+    intersections = np.ndarray((num_bboxes,2))
+    for cell_id in range(num_cells):
+        cell = mesh.GetCell(cell_id)
+        num_pts = cell.GetNumberOfPoints()
+
+        # Compute centroid
+        centroid = np.zeros(3)
+        for i in range(num_pts):
+            pt = np.array(mesh.GetPoint(cell.GetPointId(i)))
+            centroid += pt
+        centroid /= num_pts
+
+        # Check if inside any voxel AABB
+        tag = 0
+        for jx, box in enumerate(voxel_bounding_boxes):
+            if point_in_aabb(centroid, box):
+                tag = 1
+                break
+            
+        scar_array.SetValue(cell_id, tag)
+
+    mesh.GetCellData().AddArray(scar_array)
+    return mesh
+
+def tag_mesh_elements_by_voxel_boxes(msh, centroids: np.ndarray, voxel_bounding_boxes: list) -> np.ndarray:
+    """
+    Tag mesh elements as '1' if their centroid falls within any voxel bounding box.
+    
+    Args:
+        centroids (np.ndarray): Nx3 array of mesh element centroids (real-world coords).
+        voxel_bounding_boxes (list of np.ndarray): List of 8-corner arrays (8x3) for each voxel.
+
+    Returns:
+        np.ndarray: Array of 0/1 tags of shape (N,) for each centroid.
+    """
+    tags = np.zeros(len(centroids), dtype=np.uint8)
+
+    for box in voxel_bounding_boxes:
+        min_corner = np.min(box, axis=0)
+        max_corner = np.max(box, axis=0)
+
+        for i, cog in enumerate(centroids):
+            if tags[i]:
+                continue  # already tagged
+            if np.all(cog >= min_corner) and np.all(cog <= max_corner):
+                tags[i] = 1
+
+    vtk_array = vtknp.numpy_to_vtk(tags, deep=True, array_type=vtk.VTK_INT)
+    vtk_array.SetName('scar')
+
+    msh.GetCellData().AddArray(vtk_array) 
+
+    return msh
+
+
+
 def getHausdorffDistance(input_mesh0, input_mesh1, label=0):
     """
     Get Hausdorf Distance between 2 surface meshes
@@ -321,6 +406,23 @@ def ugrid2polydata(ugrid):
     gf.Update()
 
     return gf.GetOutput()
+
+def cogs_from_ugrid(msh: vtk.vtkUnstructuredGrid) : 
+    num_elems = msh.GetNumberOfCells()
+    cogs = np.empty((num_elems, 3))
+
+    for cid in range(num_elems) :
+        cell = msh.GetCell(cid)
+        num_pts = cell.GetNumberOfPoints() 
+
+        centroid = np.zeros(3) 
+        for ix in range(num_pts):
+            pt = np.array(msh.GetPoint(cell.GetPointId(ix)))
+            centroid += pt 
+        centroid /= num_pts 
+        cogs[cid, :] = centroid 
+
+    return cogs 
 
 def getSurfaceArea(msh):
     mp = vtk.vtkMassProperties();
