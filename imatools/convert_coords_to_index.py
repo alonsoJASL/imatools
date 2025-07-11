@@ -45,6 +45,9 @@ def main(args) :
         coordinates = parse_xml(coords_path) 
     elif ".txt" in coords_path :
         coordinates = np.loadtxt(coords_path, delimiter=",")
+    elif ".pts" in coords_path: 
+        from imatools.common.vtktools import read_pts
+        coordinates = read_pts(coords_path)
     elif "," in coords_path :
         coordinates = np.array(args.coords.split(","), dtype=np.float32)
     else :
@@ -82,7 +85,7 @@ def main(args) :
 if __name__ == "__main__" : 
     parser = argparse.ArgumentParser(description="Convert coordinates to index in the image.")
     parser.add_argument("-im", "--input", type=str, help="Input image path")
-    parser.add_argument("-xyz", "--coords", type=str, help="Coordinates to convert to index. File (txt, mps) or separated by comma.") 
+    parser.add_argument("-xyz", "--coords", type=str, help="Coordinates to convert to index. File (txt, mps, pts) or separated by comma.") 
     parser.add_argument("-o", "--output", type=str, help="Output filename (default = print to console)", default="")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose mode")
     args = parser.parse_args()

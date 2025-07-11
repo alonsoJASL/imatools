@@ -435,6 +435,40 @@ def points_to_image(image, points, label=1, girth=2, points_are_indices=False) :
 
     return modified_image
 
+def get_indices_from_label(img: sitk.Image, label: int, get_voxel_bbox=False): 
+    arr = sitk.GetArrayFromImage(img)
+    print(f'{np.unique(arr)=}')
+    label = np.array(label, dtype=arr.dtype).item()
+
+    mask = arr == label
+    print(f"Num matching voxels: {mask.sum()}")
+    vox_indices = np.argwhere(mask)
+
+    world_coords = []
+    for idx in vox_indices:
+        world_coord = img.TransformIndexToPhysicalPoint(tuple(int(x) for x in reversed(idx)))
+        world_coords.append(world_coord)
+
+    if get_voxel_bbox:
+        bounding_boxes = [] 
+        for idx in vox_indices:
+            corners = []
+            for dz in [0, 1]:
+                for dy in [0, 1]:
+                    for dx in [0, 1]:
+                        offset = np.array([dz, dy, dx])
+                        shifted_idx = idx + offset
+                        corner = img.TransformIndexToPhysicalPoint(
+                            tuple(int(x) for x in reversed(shifted_idx))
+                        )
+                        corners.append(corner)
+            bounding_boxes.append(np.array(corners))
+        return vox_indices, world_coords, bounding_boxes
+
+    return vox_indices, world_coords
+
+
+
 
 def pointfile_to_image(path_to_image, path_to_points, label=1, girth=2, points_are_indices=False):
     """
@@ -1189,6 +1223,25 @@ def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtk
         segmentation.SetPixel(index, value)
 
     return segmentation
+
+def project_segmentation_onto_mesh(segmentation: sitk.Image, mesh, check_visited=False) -> vtk.vtkPolyData :
+    import imatools.common.vtktools as vtku 
+    cog = vtku.get_cog_per_element(mesh)    
+    scalars = mesh.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(mesh.GetNumberOfCells()) :
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix) 
+        index = segmentation.TransformPhysicalPointToIndex((x,y,z))
+
+        if visited_indices.__contains__(index) and check_visited :
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
+
 
 def swap_axes(im: sitk.Image, axes: list) -> sitk.Image :
     """
