@@ -161,7 +161,8 @@ def execute_scar3d(args) :
     img = itku.load_image(args.reference_image)
     label = args.label
 
-    vox_indices, _, bboxes = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    vox_indices, _, bboxes_dict = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    bboxes = bboxes_dict['corners']
     logger.info(f'Found {len(vox_indices)} voxels for label {label}, and {len(bboxes)} bounding boxes.')
 
     msh = vtku.read_vtk(msh_path, input_type='ugrid')
@@ -181,13 +182,35 @@ def execute_scar_w_cog(args) :
     img = itku.load_image(args.reference_image)
     label = args.label 
 
-    vox_indices, _, bboxes = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    vox_indices, _, bboxes_dict = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    bboxes = bboxes_dict['corners']
     logger.info(f'Found {len(vox_indices)} voxels with label {args.label}')
 
     msh = vtku.read_vtk(msh_path, input_type='ugrid') 
 
     outmsh = vtku.tag_mesh_elements_by_voxel_boxes(msh, cogs, bboxes)
     vtku.write_vtk(outmsh, msh_dir, output_msh_name, output_type='ugrid') 
+
+def execute_smart_scar(args) :
+    msh_path = args.input 
+    msh_dir = os.path.dirname(msh_path)
+    msh_name = os.path.basename(msh_path) 
+    cog_path = os.path.join(msh_dir, msh_name.replace('.vtk', '.pts'))
+    output_msh_name = f'scar3d_{msh_name}'
+
+    cogs = np.loadtxt(cog_path)
+
+    img = itku.load_image(args.reference_image)
+    label = args.label 
+
+    vox_indices, _, bboxes_dict = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
+    label = args.label
+
+    msh= vtku.read_vtk(msh_path, input_type='ugrid')
+
+    outmsh = vtku.tag_mesh_elements_by_growing_from_seed(msh, bboxes_dict['centres'], bboxes_dict['corners'], cogs=cogs, label_name='scar')
+    vtku.write_vtk(outmsh, msh_dir, output_msh_name, output_type='ugrid')
+
 
 
 def execute_bbox_compare(args) :
@@ -270,6 +293,8 @@ def main(args):
         execute_scar3d(args)
     elif mode =='cogscar3d' : 
         execute_scar_w_cog(args)
+    elif mode == 'smart_scar' :
+        execute_smart_scar(args)
     elif mode == 'bbox_compare':
         execute_bbox_compare(args)
     elif mode == 'bbox' : 
@@ -290,6 +315,7 @@ if __name__ == "__main__":
             'cog', 
             'scar3d', 
             'cogscar3d',
+            'smart_scar',
             'bbox_compare', 
             'bbox'
             ]

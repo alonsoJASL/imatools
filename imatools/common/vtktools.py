@@ -7,6 +7,7 @@ import vtk
 import vtk.util.numpy_support as vtknp
 import SimpleITK as sitk
 import networkx as nx  # For the graph‐based connectivity method
+from collections import deque
 
 
 import re
@@ -271,6 +272,90 @@ def tag_elements_by_voxel_boxes(mesh: vtk.vtkUnstructuredGrid, voxel_bounding_bo
 
     mesh.GetCellData().AddArray(scar_array)
     return mesh
+
+def get_element_cogs(vtk_mesh):
+    cogs = []
+    for i in range(vtk_mesh.GetNumberOfCells()):
+        cell = vtk_mesh.GetCell(i)
+        pts = cell.GetPoints()
+        pts_np = np.array([pts.GetPoint(j) for j in range(pts.GetNumberOfPoints())])
+        cogs.append(np.mean(pts_np, axis=0))
+    return np.array(cogs)
+
+
+def build_adjacency_list(vtk_mesh):
+    adjacency = [[] for _ in range(vtk_mesh.GetNumberOfCells())]
+    vtk_mesh.BuildLinks()
+
+    for cell_id in range(vtk_mesh.GetNumberOfCells()):
+        cell_point_ids = vtk_mesh.GetCell(cell_id).GetPointIds()
+        num_points = cell_point_ids.GetNumberOfIds()
+
+        for i in range(num_points):
+            pt_id = cell_point_ids.GetId(i)
+            cell_ids = vtk.vtkIdList()
+            vtk_mesh.GetPointCells(pt_id, cell_ids)
+
+            for j in range(cell_ids.GetNumberOfIds()):
+                neighbor_cell_id = cell_ids.GetId(j)
+                if neighbor_cell_id != cell_id:
+                    adjacency[cell_id].append(neighbor_cell_id)
+    return adjacency
+
+def tag_mesh_elements_by_growing_from_seed(msh, seed_points:np.ndarray, voxel_bounding_boxes:list, cogs = None, label_name='scar') -> np.ndarray : 
+    """
+    seed_points: Nx3 array of seed points in real-world coordinates. (Centroids of voxel bounding boxes)
+    """
+    num_cells = msh.GetNumberOfCells()
+    if cogs is None :
+        cogs = get_element_cogs(msh)
+
+    logger.info(f'Building adjacency list for {num_cells} cells.')
+    adjacency = build_adjacency_list(msh)
+
+    tag_array = np.zeros(num_cells, dtype=np.int32)
+    visited = np.zeros(num_cells, dtype=bool)
+
+    logger.info(f'Building cell locator...')
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(msh)
+    cell_locator.BuildLocator()
+
+    logger.info(f'Processing {len(seed_points)} seed points...')
+    for seed in seed_points:
+        closest_point = [0.0, 0.0, 0.0]
+        cell_id = vtk.reference(0)
+        sub_id = vtk.reference(0)
+        dist2 = vtk.reference(0.0)
+
+        cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
+        seed_idx = cell_id  # already an integer
+
+        if visited[seed_idx]:
+            continue
+
+        queue = deque([seed_idx])
+        visited[seed_idx] = True
+
+        while queue:
+            current_cell_id = queue.popleft()
+            cog = cogs[current_cell_id]
+            tag_array[current_cell_id] = 1
+
+            if any(point_in_aabb(cog, box) for box in voxel_bounding_boxes):
+                tag_array[current_cell_id] = 1
+                for neighbor in adjacency[current_cell_id]:
+                    if not visited[neighbor]:
+                        visited[neighbor] = True
+                        queue.append(neighbor)
+
+    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+    tag_vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(tag_vtk_array)
+
+    return msh
+
+
 
 def tag_mesh_elements_by_voxel_boxes(msh, centroids: np.ndarray, voxel_bounding_boxes: list) -> np.ndarray:
     """

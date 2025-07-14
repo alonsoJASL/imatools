@@ -1,13 +1,56 @@
 import os
 
 import SimpleITK as sitk
+import nrrd 
 import vtk 
 import numpy as np
 import json
 
-
 from imatools.common.config import configure_logging
 logger = configure_logging(log_name=__name__) 
+
+## Tools for header correction orientation 
+def fix_header_to_axis_aligned(hdr: nrrd.NRRDHeader ) : 
+    """Modify NRRD header to make space directions axis-aligned."""
+    hdr = hdr.copy()
+    dirs = np.asarray(hdr["space directions"], dtype=float)
+
+    # Compute voxel sizes (norms of direction vectors)
+    spacings = np.linalg.norm(dirs, axis=1)
+    if np.any(spacings <= 0):
+        raise ValueError(f"Invalid spacing values: {spacings}")
+
+    # Replace space directions with a diagonal matrix
+    aligned_dirs = np.diag(spacings)
+    hdr["space directions"] = aligned_dirs
+
+    # Update srow_* fields for ITK/NIfTI compatibility
+    origin = hdr["space origin"]
+    hdr["srow_x"] = f"{aligned_dirs[0,0]:.6f} 0.000000 0.000000 {origin[0]:.6f}"
+    hdr["srow_y"] = f"0.000000 {aligned_dirs[1,1]:.6f} 0.000000 {origin[1]:.6f}"
+    hdr["srow_z"] = f"0.000000 0.000000 {aligned_dirs[2,2]:.6f} {origin[2]:.6f}"
+
+    return hdr
+
+def fix_header_and_save(path_to_file, out_path) :
+    """
+    Reads a NRRD file, modifies its header to make space directions axis-aligned,
+    and saves the modified header back to a new NRRD file.
+    """
+    logger.info(f"Fixing header for {path_to_file} and saving to {out_path}")
+    data, hdr = nrrd.read(path_to_file)
+    
+    # Fix the header
+    fixed_header = fix_header_to_axis_aligned(hdr)
+    
+    # Save the modified data and header
+    nrrd.write(out_path, data, fixed_header)
+    logger.info(f"Saved fixed NRRD file to {out_path}")
+
+def set_direction_as(im: sitk.Image, ref: sitk.Image) : 
+    im.SetDirection(ref.GetDirection())
+    return im
+
 
 def load_image_as_np(path_to_file) :
     """ Reads image into numpy array """
@@ -19,11 +62,46 @@ def load_image_as_np(path_to_file) :
 
     return t1, origin, im_size 
 
-def load_image(path_to_file) :
+def load_image(path_to_file, ext='nii') :
     """ Reads image into SimpleITK object """
     logger.info(f'Loading image from {path_to_file}')
     sitk_t1 = sitk.ReadImage(path_to_file)
     return sitk_t1
+
+def load_nrrd_base(path_to_file):
+    """
+    Loads a NRRD file and returns the image and header.
+    """
+    logger.info(f'Loading NRRD file from {path_to_file}')
+    data, header = nrrd.read(path_to_file)
+
+    return data, header
+
+def get_nrrd_header(path_to_file):
+    """
+    Reads the NRRD header from a file.
+    """
+    logger.info(f'Reading NRRD header from {path_to_file}')
+    _, header = nrrd.read(path_to_file)
+    
+    return header
+
+def load_nrrd_image(path_to_file):
+    """
+    Loads a NRRD file and returns the image as a SimpleITK object.
+    """
+    logger.info(f'Loading NRRD image from {path_to_file}')
+    data, header = load_nrrd_base(path_to_file)
+    
+    # Convert the numpy array to a SimpleITK image
+    sitk_image = sitk.GetImageFromArray(data)
+    
+    # Set the image properties from the header
+    sitk_image.SetOrigin(header.get('space origin', (0, 0, 0)))
+    sitk_image.SetSpacing(header.get('space directions', (1, 1, 1)))
+    
+    return sitk_image
+
 
 def extract_single_label(image, label, binarise=False) -> sitk.Image:
     """
@@ -451,6 +529,7 @@ def get_indices_from_label(img: sitk.Image, label: int, get_voxel_bbox=False):
 
     if get_voxel_bbox:
         bounding_boxes = [] 
+        bounding_boxes_centres = []
         for idx in vox_indices:
             corners = []
             for dz in [0, 1]:
@@ -462,8 +541,11 @@ def get_indices_from_label(img: sitk.Image, label: int, get_voxel_bbox=False):
                             tuple(int(x) for x in reversed(shifted_idx))
                         )
                         corners.append(corner)
-            bounding_boxes.append(np.array(corners))
-        return vox_indices, world_coords, bounding_boxes
+            corner_array = np.array(corners)
+            bounding_boxes.append(corner_array)
+            bounding_boxes_centres.append(np.mean(corner_array, axis=0))
+        
+        return vox_indices, world_coords, { "centres": bounding_boxes_centres, "corners": bounding_boxes}
 
     return vox_indices, world_coords
 
