@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from typing import List, Set, Tuple, Optional
 import vtk
 import vtk.util.numpy_support as vtknp
 import SimpleITK as sitk
@@ -355,7 +356,244 @@ def tag_mesh_elements_by_growing_from_seed(msh, seed_points:np.ndarray, voxel_bo
 
     return msh
 
+def point_in_aabb_vectorized(points: np.ndarray, boxes: List) -> np.ndarray:
+    """
+    Vectorized version to check if points are in any bounding box.
+    
+    Args:
+        points: Nx3 array of points
+        boxes: List of bounding boxes
+    
+    Returns:
+        Boolean array indicating which points are in any box
+    """
+    if len(boxes) == 0:
+        return np.zeros(len(points), dtype=bool)
+    
+    # Convert boxes to numpy array for vectorized operations
+    # Assuming boxes are in format [(min_x, min_y, min_z, max_x, max_y, max_z), ...]
+    boxes_array = np.array(boxes)
+    points_in_any_box = np.zeros(len(points), dtype=bool)
+    
+    for box in boxes_array:
+        min_coords = box[:3]
+        max_coords = box[3:]
+        
+        # Vectorized check for all points in this box
+        in_box = np.all((points >= min_coords) & (points <= max_coords), axis=1)
+        points_in_any_box |= in_box
+    
+    return points_in_any_box
 
+def precompute_valid_cells(cogs: np.ndarray, voxel_bounding_boxes: List) -> Set[int]:
+    """
+    Pre-identify which cells are within bounding boxes.
+    
+    Args:
+        cogs: Nx3 array of cell centers of gravity
+        voxel_bounding_boxes: List of bounding boxes
+    
+    Returns:
+        Set of valid cell indices
+    """
+    valid_mask = point_in_aabb_vectorized(cogs, voxel_bounding_boxes)
+    return set(np.where(valid_mask)[0])
+
+def build_adjacency_list_optimized(msh) -> List[List[int]]:
+    """
+    Optimized adjacency list building with better memory usage.
+    """
+    num_cells = msh.GetNumberOfCells()
+    adjacency = [[] for _ in range(num_cells)]
+    
+    # Use VTK's built-in neighborhood finding
+    for cell_id in range(num_cells):
+        cell = msh.GetCell(cell_id)
+        point_ids = []
+        
+        # Get all point IDs for this cell
+        for i in range(cell.GetNumberOfPoints()):
+            point_ids.append(cell.GetPointId(i))
+        
+        # Find neighboring cells through shared points
+        neighbor_set = set()
+        for point_id in point_ids:
+            point_cells = vtk.vtkIdList()
+            msh.GetPointCells(point_id, point_cells)
+            
+            for j in range(point_cells.GetNumberOfIds()):
+                neighbor_id = point_cells.GetId(j)
+                if neighbor_id != cell_id:
+                    neighbor_set.add(neighbor_id)
+        
+        adjacency[cell_id] = list(neighbor_set)
+    
+    return adjacency
+
+def tag_mesh_elements_by_growing_from_seed_optimized(msh, seed_points: np.ndarray, voxel_bounding_boxes: List, cogs: Optional[np.ndarray] = None, label_name: str = 'scar'
+) -> np.ndarray:
+    """
+    Optimized version with pre-filtering and improved BFS.
+    
+    Key optimizations:
+    1. Pre-identify valid cells within bounding boxes
+    2. Stop growing when reaching boundary of valid region
+    3. Use sets for faster membership testing
+    4. Vectorized bounding box checks
+    """
+    num_cells = msh.GetNumberOfCells()
+    
+    if cogs is None:
+        cogs = get_element_cogs(msh)
+    
+    # Pre-compute which cells are within any bounding box
+    logger.info('Pre-computing valid cells within bounding boxes...')
+    valid_cells = precompute_valid_cells(cogs, voxel_bounding_boxes)
+    logger.info(f'Found {len(valid_cells)} valid cells out of {num_cells}')
+    
+    if len(valid_cells) == 0:
+        logger.warning('No cells found within bounding boxes!')
+        # Return mesh with all zeros
+        tag_array = np.zeros(num_cells, dtype=np.int32)
+        tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+        tag_vtk_array.SetName(label_name)
+        msh.GetCellData().AddArray(tag_vtk_array)
+        return msh
+    
+    logger.info(f'Building adjacency list for {num_cells} cells.')
+    adjacency = build_adjacency_list_optimized(msh)
+    
+    tag_array = np.zeros(num_cells, dtype=np.int32)
+    visited = np.zeros(num_cells, dtype=bool)
+    
+    logger.info('Building cell locator...')
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(msh)
+    cell_locator.BuildLocator()
+    
+    logger.info(f'Processing {len(seed_points)} seed points...')
+    
+    for i, seed in enumerate(seed_points):
+        if i % 10 == 0:  # Progress logging
+            logger.info(f'Processing seed {i+1}/{len(seed_points)}')
+        
+        closest_point = [0.0, 0.0, 0.0]
+        cell_id = vtk.reference(0)
+        sub_id = vtk.reference(0)
+        dist2 = vtk.reference(0.0)
+        
+        cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
+        seed_idx = cell_id.get()
+        
+        if visited[seed_idx] or seed_idx not in valid_cells:
+            continue
+        
+        # Modified BFS that only grows within valid region
+        queue = deque([seed_idx])
+        visited[seed_idx] = True
+        
+        while queue:
+            current_cell_id = queue.popleft()
+            
+            # Only tag if cell is in valid region
+            if current_cell_id in valid_cells:
+                tag_array[current_cell_id] = 1
+                
+                # Only expand to neighbors if current cell is valid
+                for neighbor in adjacency[current_cell_id]:
+                    if not visited[neighbor]:
+                        visited[neighbor] = True
+                        # Add to queue regardless - we'll check validity when processing
+                        queue.append(neighbor)
+    
+    # Create VTK array and add to mesh
+    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+    tag_vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(tag_vtk_array)
+    
+    logger.info(f'Tagged {np.sum(tag_array)} cells out of {num_cells}')
+    return msh
+
+def tag_mesh_elements_parallel_regions(
+    msh, 
+    seed_points: np.ndarray, 
+    voxel_bounding_boxes: List, 
+    cogs: Optional[np.ndarray] = None, 
+    label_name: str = 'scar'
+) -> np.ndarray:
+    """
+    Alternative approach: Process each bounding box region separately.
+    This can be more efficient when bounding boxes are well-separated.
+    """
+    num_cells = msh.GetNumberOfCells()
+    
+    if cogs is None:
+        cogs = get_element_cogs(msh)
+    
+    logger.info('Building adjacency list...')
+    adjacency = build_adjacency_list_optimized(msh)
+    
+    tag_array = np.zeros(num_cells, dtype=np.int32)
+    visited = np.zeros(num_cells, dtype=bool)
+    
+    logger.info('Building cell locator...')
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(msh)
+    cell_locator.BuildLocator()
+    
+    # Process each bounding box region separately
+    for box_idx, box in enumerate(voxel_bounding_boxes):
+        logger.info(f'Processing bounding box {box_idx + 1}/{len(voxel_bounding_boxes)}')
+        
+        # Find cells in this bounding box
+        box_cells = set()
+        for cell_id in range(num_cells):
+            if point_in_aabb(cogs[cell_id], [box]):
+                box_cells.add(cell_id)
+        
+        if not box_cells:
+            continue
+        
+        # Find seeds relevant to this bounding box
+        relevant_seeds = []
+        for seed in seed_points:
+            closest_point = [0.0, 0.0, 0.0]
+            cell_id = vtk.reference(0)
+            sub_id = vtk.reference(0)
+            dist2 = vtk.reference(0.0)
+            
+            cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
+            seed_idx = cell_id.get()
+            
+            if seed_idx in box_cells:
+                relevant_seeds.append(seed_idx)
+        
+        # Grow from seeds within this bounding box
+        for seed_idx in relevant_seeds:
+            if visited[seed_idx]:
+                continue
+                
+            queue = deque([seed_idx])
+            visited[seed_idx] = True
+            
+            while queue:
+                current_cell_id = queue.popleft()
+                
+                if current_cell_id in box_cells:
+                    tag_array[current_cell_id] = 1
+                    
+                    for neighbor in adjacency[current_cell_id]:
+                        if not visited[neighbor] and neighbor in box_cells:
+                            visited[neighbor] = True
+                            queue.append(neighbor)
+    
+    # Create VTK array and add to mesh
+    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+    tag_vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(tag_vtk_array)
+    
+    logger.info(f'Tagged {np.sum(tag_array)} cells out of {num_cells}')
+    return msh
 
 def tag_mesh_elements_by_voxel_boxes(msh, centroids: np.ndarray, voxel_bounding_boxes: list) -> np.ndarray:
     """

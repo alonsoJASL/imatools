@@ -31,7 +31,7 @@ Anaconda is useful, but it can be slow at managing dependencies. It is recommend
 Download [anaconda](https://www.anaconda.com/products/distribution), then 
 on a terminal type: 
 ```
-conda create -n imatools python=3.9 -y & conda activate imatools
+conda create -n imatools python=3.10 -y & conda activate imatools
 ```
 
 Copy the following to install the python dependencies of this project

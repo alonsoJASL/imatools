@@ -211,8 +211,6 @@ def execute_smart_scar(args) :
     outmsh = vtku.tag_mesh_elements_by_growing_from_seed(msh, bboxes_dict['centres'], bboxes_dict['corners'], cogs=cogs, label_name='scar')
     vtku.write_vtk(outmsh, msh_dir, output_msh_name, output_type='ugrid')
 
-
-
 def execute_bbox_compare(args) :
     msh_path = args.input
     msh_dir = os.path.dirname(msh_path)
