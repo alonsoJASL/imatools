@@ -39,11 +39,13 @@ Copy the following to install the python dependencies of this project
 conda install -c conda-forge vtk=9.2.6 simpleitk numpy scipy=1.9.2 matplotlib pandas seaborn networkx scikit-image nibabel pydicom -n imatools -y
 ```
 
-### Adjust `PYTHONPATH` 
+# Adjust `PYTHONPATH` 
 Sometimes you will need to set the `PYTHONPATH` variable, do this by opening a termina, changing into imatools directory `cd /path/to/imatools` and pasting the following: 
 ```shell
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
+
+alternatively, use the `setup.sh`, which creates a file you can do `source IMATOOLS_ENV_SETUP` on, which sets the `PYTHONPATH` and activates the `imatools` conda environment.
 
 
 ## Example: Calculate volume & area of vtk file

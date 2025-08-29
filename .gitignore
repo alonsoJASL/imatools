@@ -139,3 +139,5 @@ dmypy.json
 .pyre/
 .vscode/imatools.workspace.code-workspace
 .qodo
+
+IMATOOLS_ENV_SETUP
