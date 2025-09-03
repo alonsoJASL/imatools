@@ -186,7 +186,7 @@ def execute_vscar_projection(input_info: dict, cog_path: str, reference_image: s
     # outmsh = vtku.tag_mesh_elements_by_growing_from_seed(msh, bboxes_dict['centres'], bboxes_dict['corners'],  cogs=cogs, label_name='scar')
     outmsh = vtku.tag_mesh_elements_by_growing_from_seed_optimized(msh, bboxes_dict['centres'], bboxes_dict['corners'],  cogs=cogs, label_name='scar')
     
-    output_path = os.path.join(input_info['dirname'], f'{output_msh_name}.vtk')
+    output_path = os.path.join(input_info['dirname'], f'{output_msh_name}')
     vtku.write_vtk(outmsh, input_info['dirname'], output_msh_name, output_type='ugrid')
 
     return output_path
@@ -226,9 +226,6 @@ def main(args):
     
     try:
         if mode == 'pipeline':
-            if args.help: 
-                print(main.__doc__)
-                return
             validate_pipeline_args(args)
             pipeline = VScarPipeline(args)
             final_output = pipeline.run_pipeline()
@@ -248,7 +245,7 @@ def main(args):
             
         elif mode == 'scar':
             execute_vscar_projection(input_info, cog_path=args.input, 
-                                   reference_image=args.path_to_fixed, label=1)
+                                   reference_image=args.reference_image, label=args.label)
             
         else:
             raise ValueError(f"Unknown mode: {mode}")
@@ -257,10 +254,9 @@ def main(args):
         logger.error(f"Error in {mode} mode: {str(e)}")
         raise
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Project Ventricular Scar from CINE", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description="Project Ventricular Scar from CINE", usage=main.__doc__, add_help=False)
     
     parser.add_argument('mode', type=str,  choices=['pipeline', 'scale', 'deform', 'cog', 'scar'],  help='Mode of operation')
-    parser.add_argument('help', action='store_true', help='Show mode help information')
     parser.add_argument('--input', '-in', type=str, required=True, help='Input file path')
 
     # Scale options

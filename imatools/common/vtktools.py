@@ -366,7 +366,7 @@ def point_in_aabb_vectorized(points: np.ndarray, boxes: List) -> np.ndarray:
     
     Returns:
         Boolean array indicating which points are in any box
-    """
+    """    
     if len(boxes) == 0:
         return np.zeros(len(points), dtype=bool)
     
@@ -376,8 +376,15 @@ def point_in_aabb_vectorized(points: np.ndarray, boxes: List) -> np.ndarray:
     points_in_any_box = np.zeros(len(points), dtype=bool)
     
     for box in boxes_array:
-        min_coords = box[:3]
-        max_coords = box[3:]
+        if box.shape == (8, 3):   # 8 corners
+            min_coords = box.min(axis=0)
+            max_coords = box.max(axis=0)
+        elif box.shape == (6,):   # already in min/max form
+            min_coords, max_coords = box[:3], box[3:]
+        elif box.shape == (2, 3): # explicit [min,max]
+            min_coords, max_coords = box[0], box[1]
+        else:
+            raise ValueError(f"Unexpected box shape: {box.shape}")
         
         # Vectorized check for all points in this box
         in_box = np.all((points >= min_coords) & (points <= max_coords), axis=1)
