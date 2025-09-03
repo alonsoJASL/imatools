@@ -205,6 +205,19 @@ def validate_pipeline_args(args) -> None:
     
     if missing:
         raise ValueError(f"Pipeline mode requires: {', '.join(missing)}")
+    
+def update_arguments_for_cwd(args, input_info) -> None:
+    """Update argument paths based on inferred working directory."""
+    if args.infer_working_directory:
+        logger.info("Inferring working directory from input file path")
+        if args.path_to_moving:
+            args.path_to_moving = os.path.join(input_info['dirname'], os.path.basename(args.path_to_moving))
+        if args.path_to_fixed:
+            args.path_to_fixed = os.path.join(input_info['dirname'], os.path.basename(args.path_to_fixed))
+        if args.reference_image:
+            args.reference_image = os.path.join(input_info['dirname'], os.path.basename(args.reference_image))
+    else :
+        logger.info("Using provided paths without inferring working directory")
 
 def main(args):
     """
@@ -220,10 +233,16 @@ def main(args):
       USAGE: 
 
       python scripts/vscar_projection.py pipeline --input <path_to_msh_cine> -mirtk <mirtk_libraries> -moving <path_to_cine> -fixed <path_to_LGE> -ref <path_to_LGE_segmentation> -label <SCAR_LABEL>
+
+      CWD_OPTION USAGE: 
+      To infer working directory from input file path, use --infer-working-directory or -cwd flag.
+
+      python scripts/vscar_projection.py pipeline --input <PATH_to_msh_cine> -mirtk <mirtk_libraries> -moving <cine_filename> -fixed <LGE_filename> -ref <LGE_segmentation_filename> -label <SCAR_LABEL> -cwd
     """
     input_info = parse_input_name(args.input)
     mode = args.mode
-    
+    update_arguments_for_cwd(args, input_info)
+
     try:
         if mode == 'pipeline':
             validate_pipeline_args(args)
@@ -236,6 +255,7 @@ def main(args):
                              convert_format=args.convert_format)
             
         elif mode == 'deform':
+
             execute_deform_mesh(input_info, path_to_mirtk=args.path_to_mirtk, 
                               path_to_moving=args.path_to_moving, 
                               path_to_fixed=args.path_to_fixed)
@@ -258,6 +278,7 @@ if __name__ == "__main__":
     
     parser.add_argument('mode', type=str,  choices=['pipeline', 'scale', 'deform', 'cog', 'scar'],  help='Mode of operation')
     parser.add_argument('--input', '-in', type=str, required=True, help='Input file path')
+    parser.add_argument('--infer-working-directory', '-cwd', action='store_true', help='Infer working directory from input file path')
 
     # Scale options
     scale_group = parser.add_argument_group('Scale Options')
