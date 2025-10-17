@@ -89,6 +89,9 @@ def main(args) :
     
     elif mode == 'swap' :
         logger.info('Swapping the labels')
+        # common 4ch swaps: 
+        # 103 104 105 106 107 201 202 203 204 205 206 207 208 209 210 211 221 222 223 224 225 226 227 
+        #  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37
         old_labels = args.old_labels if args.old_labels is not None else []
         new_labels = args.new_labels if args.new_labels is not None else []
 
