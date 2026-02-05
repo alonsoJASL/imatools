@@ -1,29 +1,92 @@
-[tool.poetry]
-name = "imatools"
-version = "0.1.0"
-license = "BSD-3"
-description = "Various image analysis and mesh handling tools"
-authors = ["Jose Alonso Solis-Lemus <j.solis-lemus@imperial.ac.uk>"]
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.9"
-vtk = "^9.2.6"
-SimpleITK = "^2.2.1"
-numpy = "^1.25.0"
-pandas = "^2.0.3"
-matplotlib = "^3.7.2"
-seaborn = "^0.12.2"
-networkx = "^3.1"
-scikit-image = "^0.21.0"
-nibabel = "^5.1.0"
-pydicom = "^2.4.1"
-scipy = "^1.9.2"
-itk = "^5.3.0"
-pynrrd = "^1.0.0"
-pyvista = "^0.43.5"
-
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imatools"
+version = "0.2.0"
+description = "Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats"
+authors = [
+    {name = "Jose Alonso Solis-Lemus", email = "alonso.jasl+dev@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["medical-imaging", "vtk", "nifti", "dicom", "mesh-processing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+dependencies = [
+    "vtk>=9.2.6",
+    "SimpleITK>=2.2.1",
+    "numpy>=1.25.0",
+    "pandas>=2.0.3",
+    "matplotlib>=3.7.2",
+    "seaborn>=0.12.2",
+    "networkx>=3.1",
+    "scikit-image>=0.21.0",
+    "nibabel>=5.1.0",
+    "pydicom>=2.4.1",
+    "scipy>=1.9.2",
+    "itk>=5.3.0",
+    "pynrrd>=1.0.0",
+    "pyvista>=0.43.5",
+    "beautifulsoup4>=4.0.0",
+    "pyyaml>=6.0.3",
+    "lxml",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/alonsoJASL/imatools"
+Repository = "https://github.com/alonsoJASL/imatools"
+
+[project.scripts]
+imatools-volume = "imatools.cli.volume:main"
+imatools-segmentation = "imatools.cli.segmentation:main"
+imatools-mesh = "imatools.cli.mesh:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+imatools = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false

@@ -1,81 +1,152 @@
-# README
+# imatools
 
-## Quick guide - install  (macOS/linux) 
+Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats.
 
-Download this repository using git
-```
-mkdir -p ~/code & git clone https://github.com/alonsoJASL/imatools ~/code/imatools
-```
+## ⚠️ Migration Notice
 
-## Environments
-### Option 1 (Recommended). Use Conda + Poetry
-[Poetry](https://python-poetry.org/docs/) is a tool for dependency management. 
-We create the environment with Anaconda and manage dependencies with Poetry.
+**Version 0.2.0** introduces breaking changes as we modernize the codebase:
+- New `src/` layout structure
+- Migration from Poetry to standard `pip install -e .`
+- CLI tools now use proper entry points
+- Active refactoring to improve architecture
 
-1. [Install Poetry](https://python-poetry.org/docs/) in your computer
-2. Install Anaconda
-3. Create a new environment with the file provided: `conda env create -f environment.yaml` 
-4. Activate the environment `conda activate imatools` 
-5. Install the dependencies using Poetry `poetry install --only main`.
+If you need the stable version, use v0.1.x from the `main` branch.
 
-Poetry will read from the poetry.lock file and install the exact dependencies used to develop this project.
+## Quick Install (Development)
 
-> If you want to experiment with dependencies versions, delete the lock file and modify the pyproject.toml before `poetry install --only main`  
+### Prerequisites
+- Python 3.9+
+- Git
 
-### Option 2. Only use CONDA
-Anaconda is useful, but it can be slow at managing dependencies. It is recommended to use poetry.
+### Installation
 
-**Setup conda environment**
-> You only need to do this once
+```bash
+# Clone the repository
+git clone https://github.com/alonsoJASL/imatools
+cd imatools
 
-Download [anaconda](https://www.anaconda.com/products/distribution), then 
-on a terminal type: 
-```
-conda create -n imatools python=3.9 -y & conda activate imatools
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
 ```
 
-Copy the following to install the python dependencies of this project
-```
-conda install -c conda-forge vtk=9.2.6 simpleitk numpy scipy=1.9.2 matplotlib pandas seaborn networkx scikit-image nibabel pydicom -n imatools -y
+### Verify Installation
+
+```bash
+# Check CLI tools are available
+imatools-volume --help
+imatools-segmentation --help
+imatools-mesh --help
+
+# Run tests
+pytest
 ```
 
-### Adjust `PYTHONPATH` 
-Sometimes you will need to set the `PYTHONPATH` variable, do this by opening a termina, changing into imatools directory `cd /path/to/imatools` and pasting the following: 
-```shell
-export PYTHONPATH=$PYTHONPATH:$(pwd)
+## Migration Status
+
+### ✅ Completed
+- Modern `pyproject.toml` with setuptools
+- `src/` layout structure
+- CLI entry point framework
+- Test infrastructure skeleton
+
+### 🚧 In Progress
+- Migrating existing scripts to new CLI structure
+- Extracting pure logic from utilities
+- Creating data contracts
+- Building I/O layer
+
+### 📋 Planned
+- Full architecture refactor (see development branch)
+- Comprehensive test coverage
+- API documentation
+
+## Usage (Legacy Scripts)
+
+During migration, legacy scripts in the old structure remain functional:
+
+```bash
+# Example: Calculate volume of a mesh
+python -m imatools.calculate_volume /path/to/mesh.vtk
+
+# Example: Extract label from segmentation
+python -m imatools.segmentation_tools extract -in image.nii -l 1
 ```
 
+## New CLI (Post-Migration)
 
-## Example: Calculate volume & area of vtk file
-Open a Terminal. Navigate to the code folder:
-```
-cd ~/code/imatools
-```
-Activate the anaconda environment
-```
-conda activate imatools
-```
-Run the volume code by typing 
-```
-python calculate_volume.py /path/to/file.vtk
-``` 
-> You can type `python calculate_volume.py` + <kbd>SPACE</kbd> and then drag the file from Finder into the terminal window if you do not know the path.
+The new CLI structure will provide:
 
-![SCR-20220905-khk-2](https://user-images.githubusercontent.com/9891700/188464906-970f6098-064a-48e1-a138-19e4ba43715b.jpeg)
+```bash
+# Volume calculations
+imatools-volume /path/to/mesh.vtk
 
+# Segmentation operations
+imatools-segmentation extract -in image.nii -l 1 -out label1.nii
+imatools-segmentation mask -in image.nii -in2 mask.nii
 
-## Some minimal tutorials: 
-+ [Create surface meshes from your multilabel segmentations](https://hackmd.io/@jsolislemus/HkB3yR8Ka)
-
-## Alternative minimal setup#
-> While this is OK, it is not necessary as we use VTK 9.2.6, which
-> allows to specify the version of Legacy VTK ASCII files.
-To use with VTK 8.1 to save vtk meshes in legacy VTK Writer 4.2.
-
+# Mesh operations
+imatools-mesh convert input.mesh -o output.vtk
+imatools-mesh report mesh.vtk
 ```
-conda create -n vtk81 python=3.6 -y
-conda activate vtk81
-conda install -c conda-forge vtk=8.1 -y
-conda install -c conda-forge numpy -n vtk81 -y  
-conda install -c conda-forge itk
+
+## Development Setup
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Format code
+black src/ tests/
+
+# Lint
+ruff check src/ tests/
+
+# Type check
+mypy src/
 ```
+
+## Dependencies
+
+Core processing libraries:
+- **VTK** (≥9.2.6): Mesh processing
+- **SimpleITK** (≥2.2.1): Medical image I/O and processing
+- **ITK** (≥5.3.0): Advanced image processing
+- **nibabel** (≥5.1.0): NIfTI support
+- **pydicom** (≥2.4.1): DICOM support
+
+Visualization and analysis:
+- **PyVista** (≥0.43.5): 3D visualization
+- **matplotlib**, **seaborn**: Plotting
+- **pandas**, **numpy**, **scipy**: Data processing
+
+## Architecture Principles
+
+This project follows the **Developer's Manifest** principles:
+1. Radical separation of orchestration and logic
+2. Contract-driven interfaces
+3. Stateless engine design
+4. No global state or singletons
+5. Explicit dependency injection
+
+See `developers_manifest.md` for details.
+
+## License
+
+MIT License - see `LICENSE` file for details.
+
+## Contributing
+
+Contributions welcome! This is an active refactoring effort. Please:
+1. Check existing issues and PRs
+2. Follow the architecture principles in the manifest
+3. Add tests for new functionality
+4. Run formatters and linters before committing
+
+## Support
+
+For questions or issues:
+- GitHub Issues: https://github.com/alonsoJASL/imatools/issues
+- Email: j.solis-lemus@imperial.ac.uk
