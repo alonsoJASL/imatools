@@ -3,11 +3,20 @@ import os
 
 import numpy as np
 import pandas as pd
+from typing import List, Set, Tuple, Optional
 import vtk
 import vtk.util.numpy_support as vtknp
+import SimpleITK as sitk
+import networkx as nx  # For the graph‐based connectivity method
+from collections import deque
+
 
 import re
 from PIL import Image
+from imatools.common.itktools import array2im 
+from imatools.common.config import configure_logging 
+
+logger = configure_logging(__name__)
 
 def parse_dotmesh_file(file_path, myencoding='utf-8'):
     """
@@ -114,28 +123,67 @@ def parse_dotmesh_file(file_path, myencoding='utf-8'):
     return general_attributes, vertices_section, triangles_section
 
 
-from imatools.common.config import configure_logging 
-
-logger = configure_logging(__name__)
 
 def l2_norm(a): return np.linalg.norm(a, axis=1)
 def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
 
-def readVtk(fname):
+DATA_TYPES = ['polydata', 'ugrid', 'stl']
+def readVtk(fname, input_type='polydata'):
+    logger.warning("This function is deprecated. Please use read_vtk instead.")
+    return read_vtk(fname, input_type)
+
+def clean_stl_file(input_path, output_path):
+    with open(input_path, "r") as f_in, open(output_path, "w") as f_out:
+        for line in f_in:
+            f_out.write(line)
+            if line.strip().startswith("endsolid"):  # Stop writing after endsolid
+                break
+
+def read_vtk(fname, input_type='polydata'):
     """
     Read VTK file
     """
-    reader = vtk.vtkPolyDataReader()
-    reader.SetFileName(fname)
-    reader.Update()
+    if input_type not in DATA_TYPES:
+        logger.error(f"Invalid input type: {input_type}")
+        raise ValueError(f"Invalid input type: {input_type}")
+    
+    try:
+        if input_type == 'ugrid':
+            reader = vtk.vtkUnstructuredGridReader()
+        elif input_type == 'polydata' : 
+            reader = vtk.vtkPolyDataReader() 
+        else: # stl
+            reader = vtk.vtkSTLReader()
+            
+        logger.info(f"Reading VTK [{input_type}] file: {fname}")
+        reader.SetFileName(fname)
+        reader.Update()
+        output = reader.GetOutput()
+        
+        if reader.GetErrorCode() != vtk.vtkErrorCode.NoError:
+            raise ValueError(f"Error reading VTK file: {fname}")
+        
+        return output
+    except Exception as e:
+        logger.error(f"Failed to read VTK file: {fname}. Error: {e}")
+        raise
 
-    return reader.GetOutput()
+def writeVtk(mesh, directory, outname="output", output_type='polydata'):
+    logger.warning("This function is deprecated. Please use write_vtk instead.")
+    return write_vtk(mesh, directory, outname, output_type)
 
-def writeVtk(mesh, directory, outname="output"):
+def write_vtk(mesh, directory, outname="output", output_type='polydata'):
     filename = os.path.join(directory, outname)
     filename += ".vtk" if not filename.endswith(".vtk") else ""
 
-    writer=vtk.vtkPolyDataWriter()
+    if output_type not in DATA_TYPES:
+        logger.error(f"Invalid output type: {output_type}")
+        raise ValueError(f"Invalid output type: {output_type}")
+    
+    if output_type == 'ugrid':
+        writer = vtk.vtkUnstructuredGridWriter()
+    else :
+        writer=vtk.vtkPolyDataWriter()
     writer.WriteArrayMetaDataOff()
     writer.SetInputData(mesh)
     writer.SetFileName(filename)
@@ -172,6 +220,419 @@ def get_cog_per_element(msh) -> np.ndarray:
     cog = np.mean(element_coordinates, axis=1)
     
     return cog
+
+def get_bounding_box(msh):
+    """
+    Get the bounding box of a mesh.
+    Returns a tuple of (min_x, min_y, min_z, max_x, max_y, max_z).
+    """
+    bounds = msh.GetBounds()
+    return (bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5])
+
+def point_in_aabb(point, box_corners):
+    """
+    Check if a point lies within the axis-aligned bounding box defined by the 8 voxel corners.
+    """
+    mins = np.min(box_corners, axis=0)
+    maxs = np.max(box_corners, axis=0)
+    return np.all(point >= mins) and np.all(point <= maxs)
+
+def tag_elements_by_voxel_boxes(mesh: vtk.vtkUnstructuredGrid, voxel_bounding_boxes, label_name='scar'):
+    """
+    Tags mesh elements whose centroid falls inside any of the voxel bounding boxes.
+    Adds a cell array to the mesh with 1 (inside) or 0 (outside).
+    """
+    num_cells = mesh.GetNumberOfCells()
+    num_bboxes = len(voxel_bounding_boxes)
+
+    scar_array = vtk.vtkIntArray()
+    scar_array.SetName(label_name)
+    scar_array.SetNumberOfComponents(1)
+    scar_array.SetNumberOfTuples(num_cells)
+
+    intersections = np.ndarray((num_bboxes,2))
+    for cell_id in range(num_cells):
+        cell = mesh.GetCell(cell_id)
+        num_pts = cell.GetNumberOfPoints()
+
+        # Compute centroid
+        centroid = np.zeros(3)
+        for i in range(num_pts):
+            pt = np.array(mesh.GetPoint(cell.GetPointId(i)))
+            centroid += pt
+        centroid /= num_pts
+
+        # Check if inside any voxel AABB
+        tag = 0
+        for jx, box in enumerate(voxel_bounding_boxes):
+            if point_in_aabb(centroid, box):
+                tag = 1
+                break
+            
+        scar_array.SetValue(cell_id, tag)
+
+    mesh.GetCellData().AddArray(scar_array)
+    return mesh
+
+def get_element_cogs(vtk_mesh):
+    cogs = []
+    for i in range(vtk_mesh.GetNumberOfCells()):
+        cell = vtk_mesh.GetCell(i)
+        pts = cell.GetPoints()
+        pts_np = np.array([pts.GetPoint(j) for j in range(pts.GetNumberOfPoints())])
+        cogs.append(np.mean(pts_np, axis=0))
+    return np.array(cogs)
+
+
+def build_adjacency_list(vtk_mesh):
+    adjacency = [[] for _ in range(vtk_mesh.GetNumberOfCells())]
+    vtk_mesh.BuildLinks()
+
+    for cell_id in range(vtk_mesh.GetNumberOfCells()):
+        cell_point_ids = vtk_mesh.GetCell(cell_id).GetPointIds()
+        num_points = cell_point_ids.GetNumberOfIds()
+
+        for i in range(num_points):
+            pt_id = cell_point_ids.GetId(i)
+            cell_ids = vtk.vtkIdList()
+            vtk_mesh.GetPointCells(pt_id, cell_ids)
+
+            for j in range(cell_ids.GetNumberOfIds()):
+                neighbor_cell_id = cell_ids.GetId(j)
+                if neighbor_cell_id != cell_id:
+                    adjacency[cell_id].append(neighbor_cell_id)
+    return adjacency
+
+def tag_mesh_elements_by_growing_from_seed(msh, seed_points:np.ndarray, voxel_bounding_boxes:list, cogs = None, label_name='scar') -> np.ndarray : 
+    """
+    seed_points: Nx3 array of seed points in real-world coordinates. (Centroids of voxel bounding boxes)
+    """
+    num_cells = msh.GetNumberOfCells()
+    if cogs is None :
+        cogs = get_element_cogs(msh)
+
+    logger.info(f'Building adjacency list for {num_cells} cells.')
+    adjacency = build_adjacency_list(msh)
+
+    tag_array = np.zeros(num_cells, dtype=np.int32)
+    visited = np.zeros(num_cells, dtype=bool)
+
+    logger.info(f'Building cell locator...')
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(msh)
+    cell_locator.BuildLocator()
+
+    logger.info(f'Processing {len(seed_points)} seed points...')
+    for seed in seed_points:
+        closest_point = [0.0, 0.0, 0.0]
+        cell_id = vtk.reference(0)
+        sub_id = vtk.reference(0)
+        dist2 = vtk.reference(0.0)
+
+        cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
+        seed_idx = cell_id  # already an integer
+
+        if visited[seed_idx]:
+            continue
+
+        queue = deque([seed_idx])
+        visited[seed_idx] = True
+
+        while queue:
+            current_cell_id = queue.popleft()
+            cog = cogs[current_cell_id]
+            tag_array[current_cell_id] = 1
+
+            if any(point_in_aabb(cog, box) for box in voxel_bounding_boxes):
+                tag_array[current_cell_id] = 1
+                for neighbor in adjacency[current_cell_id]:
+                    if not visited[neighbor]:
+                        visited[neighbor] = True
+                        queue.append(neighbor)
+
+    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+    tag_vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(tag_vtk_array)
+
+    return msh
+
+def point_in_aabb_vectorized(points: np.ndarray, boxes: List) -> np.ndarray:
+    """
+    Vectorized version to check if points are in any bounding box.
+    
+    Args:
+        points: Nx3 array of points
+        boxes: List of bounding boxes
+    
+    Returns:
+        Boolean array indicating which points are in any box
+    """    
+    if len(boxes) == 0:
+        return np.zeros(len(points), dtype=bool)
+    
+    # Convert boxes to numpy array for vectorized operations
+    # Assuming boxes are in format [(min_x, min_y, min_z, max_x, max_y, max_z), ...]
+    boxes_array = np.array(boxes)
+    points_in_any_box = np.zeros(len(points), dtype=bool)
+    
+    for box in boxes_array:
+        if box.shape == (8, 3):   # 8 corners
+            min_coords = box.min(axis=0)
+            max_coords = box.max(axis=0)
+        elif box.shape == (6,):   # already in min/max form
+            min_coords, max_coords = box[:3], box[3:]
+        elif box.shape == (2, 3): # explicit [min,max]
+            min_coords, max_coords = box[0], box[1]
+        else:
+            raise ValueError(f"Unexpected box shape: {box.shape}")
+        
+        # Vectorized check for all points in this box
+        in_box = np.all((points >= min_coords) & (points <= max_coords), axis=1)
+        points_in_any_box |= in_box
+    
+    return points_in_any_box
+
+def precompute_valid_cells(cogs: np.ndarray, voxel_bounding_boxes: List) -> Set[int]:
+    """
+    Pre-identify which cells are within bounding boxes.
+    
+    Args:
+        cogs: Nx3 array of cell centers of gravity
+        voxel_bounding_boxes: List of bounding boxes
+    
+    Returns:
+        Set of valid cell indices
+    """
+    valid_mask = point_in_aabb_vectorized(cogs, voxel_bounding_boxes)
+    return set(np.where(valid_mask)[0])
+
+def build_adjacency_list_optimized(msh) -> List[List[int]]:
+    """
+    Optimized adjacency list building with better memory usage.
+    """
+    num_cells = msh.GetNumberOfCells()
+    adjacency = [[] for _ in range(num_cells)]
+    
+    # Use VTK's built-in neighborhood finding
+    for cell_id in range(num_cells):
+        cell = msh.GetCell(cell_id)
+        point_ids = []
+        
+        # Get all point IDs for this cell
+        for i in range(cell.GetNumberOfPoints()):
+            point_ids.append(cell.GetPointId(i))
+        
+        # Find neighboring cells through shared points
+        neighbor_set = set()
+        for point_id in point_ids:
+            point_cells = vtk.vtkIdList()
+            msh.GetPointCells(point_id, point_cells)
+            
+            for j in range(point_cells.GetNumberOfIds()):
+                neighbor_id = point_cells.GetId(j)
+                if neighbor_id != cell_id:
+                    neighbor_set.add(neighbor_id)
+        
+        adjacency[cell_id] = list(neighbor_set)
+    
+    return adjacency
+
+def tag_mesh_elements_by_growing_from_seed_optimized(msh, seed_points: np.ndarray, voxel_bounding_boxes: List, cogs: Optional[np.ndarray] = None, label_name: str = 'scar'
+) -> np.ndarray:
+    """
+    Optimized version with pre-filtering and improved BFS.
+    
+    Key optimizations:
+    1. Pre-identify valid cells within bounding boxes
+    2. Stop growing when reaching boundary of valid region
+    3. Use sets for faster membership testing
+    4. Vectorized bounding box checks
+    """
+    num_cells = msh.GetNumberOfCells()
+    
+    if cogs is None:
+        cogs = get_element_cogs(msh)
+    
+    # Pre-compute which cells are within any bounding box
+    logger.info('Pre-computing valid cells within bounding boxes...')
+    valid_cells = precompute_valid_cells(cogs, voxel_bounding_boxes)
+    logger.info(f'Found {len(valid_cells)} valid cells out of {num_cells}')
+    
+    if len(valid_cells) == 0:
+        logger.warning('No cells found within bounding boxes!')
+        # Return mesh with all zeros
+        tag_array = np.zeros(num_cells, dtype=np.int32)
+        tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+        tag_vtk_array.SetName(label_name)
+        msh.GetCellData().AddArray(tag_vtk_array)
+        return msh
+    
+    logger.info(f'Building adjacency list for {num_cells} cells.')
+    adjacency = build_adjacency_list_optimized(msh)
+    
+    tag_array = np.zeros(num_cells, dtype=np.int32)
+    visited = np.zeros(num_cells, dtype=bool)
+    
+    logger.info('Building cell locator...')
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(msh)
+    cell_locator.BuildLocator()
+    
+    logger.info(f'Processing {len(seed_points)} seed points...')
+    
+    for i, seed in enumerate(seed_points):
+        if i % 10 == 0:  # Progress logging
+            logger.info(f'Processing seed {i+1}/{len(seed_points)}')
+        
+        closest_point = [0.0, 0.0, 0.0]
+        cell_id = vtk.reference(0)
+        sub_id = vtk.reference(0)
+        dist2 = vtk.reference(0.0)
+        
+        cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
+        seed_idx = cell_id.get()
+        
+        if visited[seed_idx] or seed_idx not in valid_cells:
+            continue
+        
+        # Modified BFS that only grows within valid region
+        queue = deque([seed_idx])
+        visited[seed_idx] = True
+        
+        while queue:
+            current_cell_id = queue.popleft()
+            
+            # Only tag if cell is in valid region
+            if current_cell_id in valid_cells:
+                tag_array[current_cell_id] = 1
+                
+                # Only expand to neighbors if current cell is valid
+                for neighbor in adjacency[current_cell_id]:
+                    if not visited[neighbor]:
+                        visited[neighbor] = True
+                        # Add to queue regardless - we'll check validity when processing
+                        queue.append(neighbor)
+    
+    # Create VTK array and add to mesh
+    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+    tag_vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(tag_vtk_array)
+    
+    logger.info(f'Tagged {np.sum(tag_array)} cells out of {num_cells}')
+    return msh
+
+def tag_mesh_elements_parallel_regions(
+    msh, 
+    seed_points: np.ndarray, 
+    voxel_bounding_boxes: List, 
+    cogs: Optional[np.ndarray] = None, 
+    label_name: str = 'scar'
+) -> np.ndarray:
+    """
+    Alternative approach: Process each bounding box region separately.
+    This can be more efficient when bounding boxes are well-separated.
+    """
+    num_cells = msh.GetNumberOfCells()
+    
+    if cogs is None:
+        cogs = get_element_cogs(msh)
+    
+    logger.info('Building adjacency list...')
+    adjacency = build_adjacency_list_optimized(msh)
+    
+    tag_array = np.zeros(num_cells, dtype=np.int32)
+    visited = np.zeros(num_cells, dtype=bool)
+    
+    logger.info('Building cell locator...')
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(msh)
+    cell_locator.BuildLocator()
+    
+    # Process each bounding box region separately
+    for box_idx, box in enumerate(voxel_bounding_boxes):
+        logger.info(f'Processing bounding box {box_idx + 1}/{len(voxel_bounding_boxes)}')
+        
+        # Find cells in this bounding box
+        box_cells = set()
+        for cell_id in range(num_cells):
+            if point_in_aabb(cogs[cell_id], [box]):
+                box_cells.add(cell_id)
+        
+        if not box_cells:
+            continue
+        
+        # Find seeds relevant to this bounding box
+        relevant_seeds = []
+        for seed in seed_points:
+            closest_point = [0.0, 0.0, 0.0]
+            cell_id = vtk.reference(0)
+            sub_id = vtk.reference(0)
+            dist2 = vtk.reference(0.0)
+            
+            cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
+            seed_idx = cell_id.get()
+            
+            if seed_idx in box_cells:
+                relevant_seeds.append(seed_idx)
+        
+        # Grow from seeds within this bounding box
+        for seed_idx in relevant_seeds:
+            if visited[seed_idx]:
+                continue
+                
+            queue = deque([seed_idx])
+            visited[seed_idx] = True
+            
+            while queue:
+                current_cell_id = queue.popleft()
+                
+                if current_cell_id in box_cells:
+                    tag_array[current_cell_id] = 1
+                    
+                    for neighbor in adjacency[current_cell_id]:
+                        if not visited[neighbor] and neighbor in box_cells:
+                            visited[neighbor] = True
+                            queue.append(neighbor)
+    
+    # Create VTK array and add to mesh
+    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
+    tag_vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(tag_vtk_array)
+    
+    logger.info(f'Tagged {np.sum(tag_array)} cells out of {num_cells}')
+    return msh
+
+def tag_mesh_elements_by_voxel_boxes(msh, centroids: np.ndarray, voxel_bounding_boxes: list) -> np.ndarray:
+    """
+    Tag mesh elements as '1' if their centroid falls within any voxel bounding box.
+    
+    Args:
+        centroids (np.ndarray): Nx3 array of mesh element centroids (real-world coords).
+        voxel_bounding_boxes (list of np.ndarray): List of 8-corner arrays (8x3) for each voxel.
+
+    Returns:
+        np.ndarray: Array of 0/1 tags of shape (N,) for each centroid.
+    """
+    tags = np.zeros(len(centroids), dtype=np.uint8)
+
+    for box in voxel_bounding_boxes:
+        min_corner = np.min(box, axis=0)
+        max_corner = np.max(box, axis=0)
+
+        for i, cog in enumerate(centroids):
+            if tags[i]:
+                continue  # already tagged
+            if np.all(cog >= min_corner) and np.all(cog <= max_corner):
+                tags[i] = 1
+
+    vtk_array = vtknp.numpy_to_vtk(tags, deep=True, array_type=vtk.VTK_INT)
+    vtk_array.SetName('scar')
+
+    msh.GetCellData().AddArray(vtk_array) 
+
+    return msh
+
+
 
 def getHausdorffDistance(input_mesh0, input_mesh1, label=0):
     """
@@ -275,6 +736,23 @@ def ugrid2polydata(ugrid):
     gf.Update()
 
     return gf.GetOutput()
+
+def cogs_from_ugrid(msh: vtk.vtkUnstructuredGrid) : 
+    num_elems = msh.GetNumberOfCells()
+    cogs = np.empty((num_elems, 3))
+
+    for cid in range(num_elems) :
+        cell = msh.GetCell(cid)
+        num_pts = cell.GetNumberOfPoints() 
+
+        centroid = np.zeros(3) 
+        for ix in range(num_pts):
+            pt = np.array(msh.GetPoint(cell.GetPointId(ix)))
+            centroid += pt 
+        centroid /= num_pts 
+        cogs[cid, :] = centroid 
+
+    return cogs 
 
 def getSurfaceArea(msh):
     mp = vtk.vtkMassProperties();
@@ -993,10 +1471,15 @@ def vtk_from_points_file(file_path:str, mydelim=',') :
 
     return polydata
 
+EXPORT_DATA_TYPES = ['vtp', 'vtk', 'ply', 'stl', 'obj', 'ugrid']
 def export_as(input_mesh, output_file: str, export_as='ply') -> None:
     """
     Export a vtkPolyData object to a file
     """
+
+    if export_as not in EXPORT_DATA_TYPES:
+        raise ValueError(f"Invalid export type {export_as}. Choose from: {EXPORT_DATA_TYPES}")
+
     if export_as == 'ply':
         writer = vtk.vtkPLYWriter()
     elif export_as == 'stl':
@@ -1005,165 +1488,210 @@ def export_as(input_mesh, output_file: str, export_as='ply') -> None:
         writer = vtk.vtkOBJWriter()
     elif export_as == 'vtp':
         writer = vtk.vtkXMLPolyDataWriter()
-    else:
-        raise ValueError('Export format not supported')
+    elif export_as == 'vtk' or export_as == 'ugrid':
+        export_as = 'polydata' if export_as == 'vtk' else 'ugrid'
+        write_vtk(input_mesh, os.path.dirname(output_file), os.path.basename(output_file), output_type=export_as)
+        return
 
     writer.SetFileName(output_file)
     writer.SetInputData(input_mesh)
     writer.Write()
 
+def create_vtk_reader(input_type, filename, centered=False):
+    """Return the appropriate VTK reader for the given input type and file."""
+    if input_type == 'ugrid':
+        reader = vtk.vtkUnstructuredGridReader()
+    else:  # 'polydata'
+        reader = vtk.vtkPolyDataReader()
+    reader.SetFileName(filename)
+    reader.Update()
 
-    import vtk
+    data = reader.GetOutput()
+    if not data:
+        raise ValueError(f"Failed to read VTK file: {filename}")
+    if not isinstance(data, vtk.vtkDataSet):
+        raise TypeError(f"Expected vtkDataSet, got {type(data)} for file: {filename}")
+    
+    # Center the data if requested
+    if centered:
+        data = center_vtk_data(data)
 
-def render_vtk_to_png(vtk_files, output_dir, window_size=(800, 600)):
-    """
-    Renders VTK mesh files to PNG images and saves them in the specified output directory.
+    return data
 
-    Parameters:
-        vtk_files (list of str): List of paths to VTK files.
-        output_dir (str): Directory where PNG images will be saved.
+def center_vtk_data(data):
+    """Translate the VTK dataset so that its geometric center is at (0,0,0)."""
+    bounds = data.GetBounds()  # (xmin, xmax, ymin, ymax, zmin, zmax)
+    center = [
+        0.5 * (bounds[0] + bounds[1]),
+        0.5 * (bounds[2] + bounds[3]),
+        0.5 * (bounds[4] + bounds[5])
+    ]
 
-    Returns:
-        None
-    """
-    # Create a renderer, render window, and interactor
-    renderer = vtk.vtkRenderer()
-    render_window = vtk.vtkRenderWindow()
-    render_window.AddRenderer(renderer)
-    render_window.SetSize(window_size)  # Set window size as needed
+    transform = vtk.vtkTransform()
+    transform.Translate(-center[0], -center[1], -center[2])
+
+    transform_filter = vtk.vtkTransformFilter()
+    transform_filter.SetTransform(transform)
+    transform_filter.SetInputData(data)
+    transform_filter.Update()
+    
+    return transform_filter.GetOutput()
+
+def create_vtk_mapper(input_type, data, scalar_name=None):
+    """Return a VTK mapper configured for the given data and scalar coloring (if applicable)."""
+    if input_type == 'ugrid':
+        mapper = vtk.vtkDataSetMapper()
+    else:  # 'polydata'
+        mapper = vtk.vtkPolyDataMapper()
+    mapper.SetInputData(data)
+
+    # Optionally handle scalar coloring
+    if scalar_name:
+        cell_data = data.GetCellData()
+        point_data = data.GetPointData()
+        if cell_data.HasArray(scalar_name):
+            scalar_range = cell_data.GetArray(scalar_name).GetRange()
+            mapper.SetScalarModeToUseCellData()
+        elif point_data.HasArray(scalar_name):
+            scalar_range = point_data.GetArray(scalar_name).GetRange()
+            mapper.SetScalarModeToUsePointData()
+        else:
+            scalar_range = None  # Scalar field not found
+
+        if scalar_range:
+            lut = vtk.vtkLookupTable()
+            lut.SetTableRange(scalar_range)
+            lut.Build()
+            mapper.SetLookupTable(lut)
+            mapper.SetScalarRange(scalar_range)
+            mapper.SelectColorArray(scalar_name)
+
+    return mapper
+
+def create_vtk_actor(mapper):
+    """Return a VTK actor for the given mapper."""
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+    return actor
+
+def compute_global_bounds(vtk_files, input_type='ugrid'):
+    """Compute the global bounding box (min/max for x, y, z) for a list of VTK files."""
+    global_bounds = [float('inf'), -float('inf'),
+                     float('inf'), -float('inf'),
+                     float('inf'), -float('inf')]
 
     for vtk_file in vtk_files:
-        # Read the VTK file
-        reader = vtk.vtkPolyDataReader()
-        reader.SetFileName(vtk_file)
-        reader.Update()
-        polydata = reader.GetOutput()
+        data = create_vtk_reader(input_type, vtk_file, centered=True)
+        bounds = data.GetBounds()
+        
+        # Update global min/max for each axis
+        global_bounds[0] = min(global_bounds[0], bounds[0])  # xmin
+        global_bounds[1] = max(global_bounds[1], bounds[1])  # xmax
+        global_bounds[2] = min(global_bounds[2], bounds[2])  # ymin
+        global_bounds[3] = max(global_bounds[3], bounds[3])  # ymax
+        global_bounds[4] = min(global_bounds[4], bounds[4])  # zmin
+        global_bounds[5] = max(global_bounds[5], bounds[5])  # zmax
 
-        # Create a mapper
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputData(polydata)
+    print(f"Global bounds: {global_bounds}")
+    return global_bounds
 
-        # Create an actor
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
 
-        # Add the actor to the renderer
+def render_vtk_to_png(vtk_files, output_dir, window_size=(800, 600), input_type='ugrid', scalar_name='elemTag'):
+    render_window = vtk.vtkRenderWindow()
+    render_window.SetSize(window_size)
+
+    for vtk_file in vtk_files:
+        print(f"Rendering {vtk_file} to PNG...")
+
+        # Read and center the data
+        data = create_vtk_reader(input_type, vtk_file, centered=True)
+
+        # # Debug: Print bounds before and after centering
+        # original_bounds = data.GetBounds()
+        # print(f"Centered mesh bounds: {original_bounds}")
+
+        mapper = create_vtk_mapper(input_type, data, scalar_name)
+        actor = create_vtk_actor(mapper)
+
+        renderer = vtk.vtkRenderer()
         renderer.AddActor(actor)
-        renderer.SetBackground(1, 1, 1)  # Set background color to white
+        
+        # Optional: Actor color for visibility
+        # actor.GetProperty().SetColor(1, 0, 0)  # Red
+        renderer.SetBackground(1, 1, 1)  # Light gray background
 
-        # Render and create an image filter
+        render_window.AddRenderer(renderer)
+        
+        # **Reset the camera to fit this actor properly**
+        renderer.ResetCamera()
+        renderer.GetActiveCamera().Zoom(1.5)  # Optional: Zoom in slightly for better framing
+
         render_window.Render()
+
+        # Capture the rendered image
         window_to_image_filter = vtk.vtkWindowToImageFilter()
         window_to_image_filter.SetInput(render_window)
+        window_to_image_filter.ReadFrontBufferOff()  # Read from back buffer
         window_to_image_filter.Update()
 
-        # Write the image to a PNG file
+        # Save to PNG
         writer = vtk.vtkPNGWriter()
-        output_filename = f"{output_dir}/{vtk_file.split('/')[-1].replace('.vtk', '.png')}"
+        output_filename = f"{output_dir}/{os.path.basename(vtk_file).replace('.vtk', '.png')}"
         writer.SetFileName(output_filename)
         writer.SetInputConnection(window_to_image_filter.GetOutputPort())
         writer.Write()
 
-        # Clear the renderer for the next iteration
-        renderer.RemoveAllViewProps()
+        print(f"Saved PNG: {output_filename}")
 
-def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), window_size=(800, 600), scalar_name='elemTag', input_type='ugrid', overlapping_margin=0.0):
-    """
-    Renders VTK mesh files to a single PNG image arranged in a grid layout.
+        # **Important: Clear the renderer before next file**
+        render_window.RemoveRenderer(renderer)
 
-    Parameters:
-        vtk_files (list of str): List of paths to VTK files.
-        output_filename (str): Path where the combined PNG image will be saved.
-        grid_size (tuple of int): Number of rows and columns in the grid (rows, columns).
-        window_size (tuple of int): Size of each individual render window (width, height).
 
-    Returns:
-        None
-    """
+def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), window_size=(800, 600),
+                             scalar_name='elemTag', input_type='ugrid', overlapping_margin=0.0, names=None):
     num_files = len(vtk_files)
     rows, cols = grid_size
 
-    # Ensure the grid is large enough to fit all files
-    print(f'Grid size: {rows}x{cols} / Number of files: {num_files}')
+    # sort files by name 
+    vtk_files = sorted(vtk_files)
+
     if rows * cols < num_files:
         raise ValueError("Grid size is too small to fit all VTK files.")
 
-    # Create a renderer, render window, and interactor
-    renderers = []
     render_window = vtk.vtkRenderWindow()
     render_window.SetSize(window_size[0] * cols, window_size[1] * rows)
 
     for i, vtk_file in enumerate(vtk_files):
-        # Read the VTK file
-        if input_type == 'ugrid':
-            reader = vtk.vtkUnstructuredGridReader()
-        else : 
-            # "input_type == 'polydata'"
-            reader = vtk.vtkPolyDataReader()
-        
-        reader.SetFileName(vtk_file)
-        reader.Update()
-        ugrid = reader.GetOutput()
+        data = create_vtk_reader(input_type, vtk_file, centered=True)
+        mapper = create_vtk_mapper(input_type, data, scalar_name)
+        actor = create_vtk_actor(mapper)
 
-        # Check if scalar_name exists in the cell data
-        cell_data = ugrid.GetCellData()
-        scalar_range = None
-        set_scalar_range = True
-        if cell_data.HasArray(scalar_name):
-            elem_tag = cell_data.GetArray(scalar_name)
-            scalar_range = elem_tag.GetRange()
-        else:
-            # available_fields = [cell_data.GetArrayName(i) for i in range(cell_data.GetNumberOfArrays())]
-            # print(f"File {vtk_file} does not have a '{scalar_name}' scalar field. Available fields: {available_fields}")
-            # print('Continuing without coloring the mesh.')
-            set_scalar_range = False
-
-        # Create a mapper
-        if input_type == 'ugrid':
-            mapper = vtk.vtkDataSetMapper()
-        else :
-            mapper = vtk.vtkPolyDataMapper()
-
-        mapper.SetInputData(ugrid)
-
-        if set_scalar_range :
-            # Create a lookup table to map scalar values to colors
-            lut = vtk.vtkLookupTable()
-            lut.SetTableRange(scalar_range)
-            lut.Build()
-
-            mapper.SetLookupTable(lut)
-            mapper.SetScalarRange(scalar_range)
-            mapper.SetScalarModeToUseCellData()
-            mapper.SelectColorArray(scalar_name)
-            
-        # Create an actor
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-
-        # Create a renderer for this actor
         renderer = vtk.vtkRenderer()
         renderer.AddActor(actor)
-        renderer.SetBackground(1, 1, 1)  # Set background color to white
+        renderer.SetBackground(1, 1, 1)
 
-        # Calculate viewport for this renderer
-        margin = -overlapping_margin  # Adjust this value to control the overlap
-        row = i // cols
-        col = i % cols
+        if names and i < len(names):
+            vtk_name = os.path.basename(vtk_file)
+            vtk_name = vtk_name.replace('.vtk', '').replace('.vtp', '')
+            text_actor = vtk.vtkTextActor()
+            text_actor.SetInput(vtk_name)
+            text_actor.GetTextProperty().SetFontSize(24)
+            text_actor.GetTextProperty().SetColor(0, 0, 0)
+            text_actor.SetPosition(10, 10)
+            renderer.AddActor2D(text_actor)
+
+        margin = -overlapping_margin
+        row, col = divmod(i, cols)
         viewport = [
-            col / cols - margin,               # xmin
-            1 - (row + 1) / rows + margin,     # ymin
-            (col + 1) / cols + margin,         # xmax
-            1 - row / rows - margin            # ymax
+            col / cols - margin,
+            1 - (row + 1) / rows + margin,
+            (col + 1) / cols + margin,
+            1 - row / rows - margin
         ]
-        print(f'Processing file {i+1}/{num_files}... [{row},{col}] - File: {vtk_file} ')
         renderer.SetViewport(viewport)
-
-        # Add the renderer to the render window
         render_window.AddRenderer(renderer)
-        renderers.append(renderer)
+        print(f'Processing file {i+1}/{num_files}... [{row},{col}] - File: {vtk_file} ({vtk_name})')
 
-    # Render and create an image filter
     render_window.Render()
     window_to_image_filter = vtk.vtkWindowToImageFilter()
     window_to_image_filter.SetInput(render_window)
@@ -1171,11 +1699,610 @@ def render_vtk_to_single_png(vtk_files, output_filename, grid_size=(1, 1), windo
 
     vtk_image = window_to_image_filter.GetOutput()
     width, height, _ = vtk_image.GetDimensions()
-
     vtk_array = vtk_image.GetPointData().GetScalars()
     image_array = vtk.util.numpy_support.vtk_to_numpy(vtk_array).reshape(height, width, -1)
-    image_array = np.flipud(image_array)  # Flip the image vertically
+    image_array = np.flipud(image_array)
 
-    # Create a PIL image and save it
     image = Image.fromarray(image_array)
     image.save(output_filename)
+
+
+def normalise_vtk_values(imsh, fieldname='scalars') :
+    """
+    Normalise the values of a vtkPolyData object
+    """
+    array = convertPointDataToNpArray(imsh, fieldname)
+    array = (array - np.min(array)) / (np.max(array) - np.min(array))
+    scalars = np_to_vtk_array(array, fieldname)
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(imsh)
+    omsh.GetPointData().SetScalars(scalars)
+    # .GetPointData().SetScalars(scalars)
+    return omsh
+
+def convertToCarto(vtkpoly_path:str, cell_scalar_field:str, output_file:str) -> None:
+    """
+    Convert a vtkPolyData object to a Carto object
+    """    
+    try: 
+        vtkpoly = readVtk(vtkpoly_path)
+        working_msh = set_cell_to_point_data(vtkpoly, cell_scalar_field)
+        norm_working_msh = normalise_vtk_values(working_msh, cell_scalar_field) 
+        # save 
+        odir = os.path.dirname(output_file)
+       
+        writeVtk(norm_working_msh, odir, f'normalised_{cell_scalar_field}.vtk')
+
+        ## change lookup table for norm_working_msh
+        
+
+        lut = vtk.vtkColorTransferFunction()
+        lut.SetColorSpaceToRGB()
+        lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
+        lut.AddRGBPoint(0.5, 0.94, 0.47, 0.12)
+        lut.AddRGBPoint(1.0, 0.90, 0.11, 0.14)
+        lut.SetScaleToLinear()
+
+
+    except Exception as e:
+        print(f'Error: {e}')
+        return
+    
+    with open(output_file, 'w') as cartoFile:
+        # Header
+        cartoFile.write("# vtk DataFile Version 3.0\n")
+        cartoFile.write("PatientData Anon Anon 00000000\n")
+        cartoFile.write("ASCII\n")
+        cartoFile.write("DATASET POLYDATA\n")
+
+        # Points
+        cartoFile.write(f"POINTS\t{working_msh.GetNumberOfPoints()} float\n")
+        points = working_msh.GetPoints()
+        for ix in range(working_msh.GetNumberOfPoints()):
+            pt = points.GetPoint(ix)
+            cartoFile.write(f"{pt[0]} {pt[1]} {pt[2]}\n")
+        
+        cartoFile.write("\n")
+
+        # Cells 
+        cartoFile.write(f"POLYGONS\t{working_msh.GetNumberOfCells()}\t{working_msh.GetNumberOfCells()*4}\n")
+        for ix in range(working_msh.GetNumberOfCells()):
+            cell = working_msh.GetCell(ix)
+            cell_type = cell.GetCellType()
+            num_points = cell.GetNumberOfPoints()
+            cartoFile.write(f"{num_points}\n")
+            for jx in range(num_points):
+                cartoFile.write(f"{cell.GetPointId(jx)}\n")
+        
+        cartoFile.write("\n")
+
+        # Scalars
+        cartoFile.write(f"POINT_DATA\tSCALARS {cell_scalar_field} float\n")
+        cartoFile.write("LOOKUP_TABLE lookup_table\n")
+        
+        scalars = working_msh.GetPointData().GetScalars()
+        max_scalar = np.max(scalars)
+        min_scalar = np.min(scalars)
+
+        for kx in range(working_msh.GetNumberOfPoints()):
+            value = scalars.GetTuple1(kx)
+            normalized_value = (value - min_scalar) / (max_scalar - min_scalar)
+            # set precision to 2 decimal places
+            cartoFile.write(f"{normalized_value:.2f}\n")
+
+        cartoFile.write("\n")
+
+        # LUT
+        numCols = 256
+        cartoFile.write(f"LOOKUP_TABLE lookup_table {numCols}\n")
+        lut = vtk.vtkColorTransferFunction()
+        lut.SetColorSpaceToRGB()
+        lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
+        lut.AddRGBPoint((numCols - 1.0) / 2.0, 0.94, 0.47, 0.12)
+        lut.AddRGBPoint((numCols - 1.0), 0.90, 0.11, 0.14)
+        lut.SetScaleToLinear()
+        for i in range(numCols):
+            color = lut.GetColor(i)
+            cartoFile.write(f"{color[0]} {color[1]} {color[2]} 1.0\n")
+
+def poly2nx(msh: vtk.vtkPolyData) -> nx.Graph: 
+    G = nx.Graph()
+
+    # Get the points (nodes)
+    points = msh.GetPoints()
+    if points is None:
+        raise ValueError("No points found in vtkPolyData")
+
+    num_points = points.GetNumberOfPoints()
+    
+    # Add nodes with positions
+    for i in range(num_points):
+        coord = points.GetPoint(i)  # Get (x, y, z) coordinates
+        G.add_node(i, pos=np.array(coord))  # Store coordinates as node attribute
+
+    # Get the cells (edges)
+    for i in range(msh.GetNumberOfCells()):
+        cell = msh.GetCell(i)
+        point_ids = [cell.GetPointId(j) for j in range(cell.GetNumberOfPoints())]
+        
+        # Add edges based on cell connectivity
+        for j in range(len(point_ids) - 1):  # Connect sequential points
+            G.add_edge(point_ids[j], point_ids[j + 1])
+        
+        # If the cell is a polygon, close the loop
+        if cell.GetNumberOfPoints() > 2:
+            G.add_edge(point_ids[-1], point_ids[0])
+
+    return G
+
+def compute_cell_neighbor_count(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
+    """
+    Build a graph of cell connectivity for the input polydata (assumed to consist of triangles)
+    using vertex-based connectivity. Then create a vtkIntArray scalar field where each cell’s value
+    is the number of its unique immediate neighbors (cells that share at least one vertex).
+
+    Parameters:
+      polydata: vtk.vtkPolyData representing a surface mesh.
+
+    Returns:
+      neighborCountArray: vtkIntArray with one component per cell, containing the number
+                          of immediate neighbors.
+    """
+    numCells = polydata.GetNumberOfCells()
+    
+    # Build a dictionary mapping vertex IDs to the set of cell IDs that include that vertex.
+    vertex2cells = {}
+    for cellId in range(numCells):
+        cell = polydata.GetCell(cellId)
+        ptIds = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
+        for pt in ptIds:
+            if pt not in vertex2cells:
+                vertex2cells[pt] = set()
+            vertex2cells[pt].add(cellId)
+    
+    # Create an undirected graph where each node represents a cell.
+    G = nx.Graph()
+    G.add_nodes_from(range(numCells))
+    
+    # For every vertex, connect all cells that share that vertex.
+    for pt, cells in vertex2cells.items():
+        cells_list = list(cells)
+        for i in range(len(cells_list)):
+            for j in range(i + 1, len(cells_list)):
+                G.add_edge(cells_list[i], cells_list[j])
+    
+    # Create a vtkIntArray to store the number of immediate neighbors for each cell.
+    neighborCountArray = vtk.vtkIntArray()
+    neighborCountArray.SetName("CellNeighborCount")
+    neighborCountArray.SetNumberOfComponents(1)
+    neighborCountArray.SetNumberOfTuples(numCells)
+    
+    # For each cell, the degree in the graph is the number of immediate neighbors.
+    for cellId in range(numCells):
+        count = G.degree(cellId)
+        neighborCountArray.SetTuple1(cellId, count)
+    
+    return neighborCountArray
+
+
+def detect_bridges_with_graph_vertex(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
+    """
+    Analyze a triangle mesh (polydata) by building a connectivity graph of its cells
+    and detecting bridges. A bridge is an edge whose removal disconnects the graph.
+    This version includes both edge-based and vertex-based connectivity.
+
+    Parameters:
+      polydata: vtkPolyData representing a surface mesh (assumed to be composed of triangles).
+
+    Returns:
+      bridgeArray: vtkIntArray with 1 for cells that are flagged as being part of a bridge,
+                   and 0 otherwise.
+    """
+    numCells = polydata.GetNumberOfCells()
+    edge2cells = {}  # Maps edges (sorted tuples of point IDs) to the list of cell IDs that share them.
+    vertex2cells = {}  # Maps vertices (point IDs) to the list of cell IDs that contain them.
+
+    # Step 1: Populate edge and vertex connectivity
+    for cellId in range(numCells):
+        cell = polydata.GetCell(cellId)
+        ptIds = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
+        if len(ptIds) != 3:
+            continue
+
+        # Store edges (ensuring they are sorted to prevent duplicates)
+        edges = [
+            tuple(sorted((ptIds[0], ptIds[1]))),
+            tuple(sorted((ptIds[1], ptIds[2]))),
+            tuple(sorted((ptIds[2], ptIds[0])))
+        ]
+        for edge in edges:
+            if edge not in edge2cells:
+                edge2cells[edge] = []
+            edge2cells[edge].append(cellId)
+
+        # Store vertex-based connectivity
+        for pt in ptIds:
+            if pt not in vertex2cells:
+                vertex2cells[pt] = []
+            vertex2cells[pt].append(cellId)
+
+    # Step 2: Build the connectivity graph (G)
+    G = nx.Graph()
+    G.add_nodes_from(range(numCells))
+
+    # Edge-based connectivity: Connect triangles that share an edge
+    for edge, cells in edge2cells.items():
+        if len(cells) == 2:  # Only consider edges shared by exactly 2 triangles
+            G.add_edge(cells[0], cells[1])
+
+    # Vertex-based connectivity: Connect triangles that share at least one vertex
+    for pt, cells in vertex2cells.items():
+        for i in range(len(cells)):
+            for j in range(i + 1, len(cells)):  # Connect all triangles that share this vertex
+                G.add_edge(cells[i], cells[j])
+
+    # Step 3: Detect bridges (edges whose removal would disconnect the graph)
+    bridges = list(nx.bridges(G))
+
+    # Step 4: Create an array to flag cells that are part of any bridge
+    bridgeFlag = vtk.vtkIntArray()
+    bridgeFlag.SetName("BridgeFlag")
+    bridgeFlag.SetNumberOfComponents(1)
+    bridgeFlag.SetNumberOfTuples(numCells)
+
+    # Initialize all cells to 0 (not part of a bridge)
+    for i in range(numCells):
+        bridgeFlag.SetTuple1(i, 0)
+
+    # Mark cells that are part of a bridge
+    for (cellA, cellB) in bridges:
+        bridgeFlag.SetTuple1(cellA, 1)
+        bridgeFlag.SetTuple1(cellB, 1)
+
+    return bridgeFlag
+
+
+def detect_bridges_with_graph(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
+    """
+    Analyze a triangle mesh (polydata) by building a connectivity graph of its cells
+    and detecting bridges. A bridge is an edge whose removal disconnects the graph.
+    Returns a vtkIntArray (with one entry per cell) that flags cells involved in at least one bridge.
+    """
+    numCells = polydata.GetNumberOfCells()
+    # Map each edge (as a sorted tuple of point IDs) to the list of cell IDs that share it.
+    edge2cells = {}
+    for cellId in range(numCells):
+        cell = polydata.GetCell(cellId)
+        # Assuming triangles. Get the point IDs.
+        ptIds = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
+        if len(ptIds) != 3:
+            continue
+        # For each edge (3 per triangle)
+        edges = [
+            tuple(sorted((ptIds[0], ptIds[1]))),
+            tuple(sorted((ptIds[1], ptIds[2]))),
+            tuple(sorted((ptIds[2], ptIds[0])))
+        ]
+        for edge in edges:
+            if edge not in edge2cells:
+                edge2cells[edge] = []
+            edge2cells[edge].append(cellId)
+    
+    # Build a graph where each node is a cell (triangle) and an edge exists if two cells share an edge.
+    G = nx.Graph()
+    G.add_nodes_from(range(numCells))
+    for edge, cells in edge2cells.items():
+        if len(cells) == 2:
+            G.add_edge(cells[0], cells[1])
+    
+    # Identify bridge edges using networkx.
+    bridges = list(nx.bridges(G))
+    
+    # Create an array to flag cells that are part of any bridge edge.
+    bridgeFlag = vtk.vtkIntArray()
+    bridgeFlag.SetName("BridgeFlag")
+    bridgeFlag.SetNumberOfComponents(1)
+    bridgeFlag.SetNumberOfTuples(numCells)
+    for i in range(numCells):
+        bridgeFlag.SetTuple1(i, 0)
+    
+    # Mark both cells for each bridge edge.
+    for (cellA, cellB) in bridges:
+        bridgeFlag.SetTuple1(cellA, 1)
+        bridgeFlag.SetTuple1(cellB, 1)
+    
+    return bridgeFlag
+
+
+def detect_bridges_with_thickness(polydata: vtk.vtkPolyData, max_distance=5.0, thickness_threshold=1.5, output_raw_thickness=True) -> vtk.vtkDoubleArray:
+    """
+    Compute a local thickness at each vertex by casting a ray in the direction opposite the vertex normal.
+    Then, flag cells that have at least one vertex with a local thickness below thickness_threshold.
+    
+    Parameters:
+      polydata: vtkPolyData representing the surface. It is assumed that normals are computed.
+      max_distance: Maximum distance to search along the ray.
+      thickness_threshold: If the computed local thickness is below this threshold, the vertex is flagged.
+    
+    Returns:
+      thicknessFlag: vtkIntArray (one entry per cell) with 1 for cells that are likely part of a narrow bridge.
+    """
+    # Ensure that normals exist. If not, compute them.
+    if not polydata.GetPointData().GetNormals():
+        normalsFilter = vtk.vtkPolyDataNormals()
+        normalsFilter.SetInputData(polydata)
+        normalsFilter.ComputePointNormalsOn()
+        normalsFilter.ComputeCellNormalsOff()
+        normalsFilter.Update()
+        polydata = normalsFilter.GetOutput()
+
+    numPoints = polydata.GetNumberOfPoints()
+    
+    # Build a locator for fast intersection queries.
+    cellLocator = vtk.vtkCellLocator()
+    cellLocator.SetDataSet(polydata)
+    cellLocator.BuildLocator()
+    
+    # Create an array to store local thickness for each vertex.
+    thicknessArray = vtk.vtkDoubleArray()
+    thicknessArray.SetName("LocalThickness")
+    thicknessArray.SetNumberOfComponents(1)
+    thicknessArray.SetNumberOfTuples(numPoints)
+    
+    # For each vertex, cast a ray opposite to the normal and measure distance to the next intersection.
+    # We use a small epsilon to avoid detecting the originating cell.
+    epsilon = 1e-6
+    for i in range(numPoints):
+        point = polydata.GetPoint(i)
+        normal = polydata.GetPointData().GetNormals().GetTuple(i)
+        # Create a ray: from the point to (point - normal * max_distance)
+        start = point
+        end = (point[0] - normal[0]*max_distance,
+               point[1] - normal[1]*max_distance,
+               point[2] - normal[2]*max_distance)
+        t = vtk.mutable(0.0)
+        x = [0.0, 0.0, 0.0]
+        pcoords = [0.0, 0.0, 0.0]
+        subId = vtk.mutable(0)
+        # IntersectWithLine returns 1 if an intersection is found.
+        if cellLocator.IntersectWithLine(start, end, epsilon, t, x, pcoords, subId):
+            # t is a normalized parameter along the line. Multiply by max_distance.
+            distance = t * max_distance
+        else:
+            # No intersection found: set thickness to max_distance.
+            distance = max_distance
+        thicknessArray.SetTuple1(i, distance)
+    
+    # Now, flag cells that have any vertex with thickness below the threshold.
+    numCells = polydata.GetNumberOfCells()
+    thicknessFlag = vtk.vtkDoubleArray()
+    thicknessFlag.SetName("BridgeByThickness")
+    thicknessFlag.SetNumberOfComponents(1)
+    thicknessFlag.SetNumberOfTuples(numCells)
+    for cellId in range(numCells):
+        cell = polydata.GetCell(cellId)
+        flag = 0
+        raw_flag = 0
+        for j in range(cell.GetNumberOfPoints()):
+            ptId = cell.GetPointId(j)
+            raw_flag += thicknessArray.GetTuple1(ptId)
+            if thicknessArray.GetTuple1(ptId) > thickness_threshold:
+                flag = 1
+                break
+        raw_flag /= cell.GetNumberOfPoints()
+        
+        if output_raw_thickness:
+            thicknessFlag.SetTuple1(cellId, raw_flag)
+        else:
+            thicknessFlag.SetTuple1(cellId, flag)
+
+    
+    return thicknessFlag
+
+
+def extract_single_label(msh: vtk.vtkPolyData, label:int, scalar_field='elemTag') -> vtk.vtkPolyData : 
+    """
+    Extracts a single label from a vtkPolyData object.
+
+    Parameters:
+        msh (vtk.vtkPolyData): The input surface mesh.
+        label (int): The label to extract.
+        scalar_field (str): The scalar field name to use for extraction.
+
+    Returns:
+        vtk.vtkPolyData: A new vtkPolyData containing only the specified label.
+    """
+    threshold = vtk.vtkThreshold()
+    threshold.SetInputData(msh)
+    threshold.ThresholdBetween(label, label)  # Keep only the selected label
+    threshold.SetInputArrayToProcess(0, 0, 0, 1, scalar_field)  # Ensure correct scalar selection
+    threshold.Update()
+
+    # Convert vtkUnstructuredGrid to vtkPolyData
+    geo_filter = vtk.vtkGeometryFilter()
+    geo_filter.SetInputData(threshold.GetOutput())
+    geo_filter.Update()
+
+    return geo_filter.GetOutput()
+
+def clean_mesh(msh: vtk.vtkPolyData) : 
+    """
+    Clean a vtkPolyData object by removing duplicate points and cells.
+    """
+    cleanFilter = vtk.vtkCleanPolyData()
+    cleanFilter.SetInputData(msh)
+    cleanFilter.Update()
+
+    return cleanFilter.GetOutput()
+
+# def detect_bridges_combined(polydata: vtk.vtkPolyData, max_distance=5.0, thickness_threshold=1.5) -> vtk.vtkIntArray:
+#     """
+#     Combine graph-based and thickness-based methods. A cell is flagged only if both
+#     methods flag it as a bridge.
+#     """
+#     # Compute the individual flags.
+#     graphFlag = detect_bridges_with_graph(polydata)
+#     thicknessFlag = detect_bridges_with_thickness(polydata, max_distance, thickness_threshold)
+    
+#     numCells = polydata.GetNumberOfCells()
+#     combinedFlag = vtk.vtkIntArray()
+#     combinedFlag.SetName("CombinedBridgeFlag")
+#     combinedFlag.SetNumberOfComponents(1)
+#     combinedFlag.SetNumberOfTuples(numCells)
+    
+#     for i in range(numCells):
+#         # Logical AND: flag cell if both methods flag it.
+#         if graphFlag.GetTuple1(i) == 1 and thicknessFlag.GetTuple1(i) == 1:
+#             combinedFlag.SetTuple1(i, 1)
+#         else:
+#             combinedFlag.SetTuple1(i, 0)
+    
+#     return combinedFlag
+def compute_mesh_size(msh) -> tuple:
+    """
+    Compute the size of a mesh by calculating the sum of the areas of all cells.
+    """
+    total_area = 0.0
+    for i in range(msh.GetNumberOfCells()):
+        cell = msh.GetCell(i)
+        total_area += cell.ComputeArea()
+    
+    return msh.GetNumberOfCells(), total_area
+
+def mesh_to_image(mesh, reference_image, inside_value=1, outside_value=0, reverse_stencil=False):
+    """
+    Converts a vtkPolyData surface mesh to a binary segmentation image (SimpleITK) 
+    that matches the geometry of the reference image.
+
+    Parameters:
+      mesh             : vtkPolyData representing the surface.
+      reference_image  : A SimpleITK image used as a reference for size, spacing, origin, and direction.
+      inside_value     : The value assigned to voxels inside the mesh (default 1).
+      outside_value    : The value for voxels outside the mesh (default 0).
+
+    Returns:
+      A SimpleITK image with the segmentation mask.
+    """
+    # Get geometry from the reference image
+    spacing = reference_image.GetSpacing()       # e.g., (dx, dy, dz)
+    origin = reference_image.GetOrigin()           # e.g., (ox, oy, oz)
+    size = reference_image.GetSize()               # e.g., (nx, ny, nz)
+    # VTK image extents are specified as (xmin, xmax, ymin, ymax, zmin, zmax)
+    extent = (0, size[0]-1, 0, size[1]-1, 0, size[2]-1)
+
+    bounds = mesh.GetBounds()
+    logger.info(f"Mesh bounds: {bounds}")
+    logger.info(f"Reference image size: {size}, spacing: {spacing}, origin: {origin}")
+
+    # Create an empty vtkImageData with the same geometry as the reference image.
+    white_image = vtk.vtkImageData()
+    white_image.SetOrigin(origin)
+    white_image.SetSpacing(spacing)
+    white_image.SetExtent(extent)
+    white_image.AllocateScalars(vtk.VTK_UNSIGNED_CHAR, 1)
+
+    # Fill the image with the outside value.
+    dims = white_image.GetDimensions()
+    num_points = dims[0] * dims[1] * dims[2]
+    for i in range(num_points):
+        white_image.GetPointData().GetScalars().SetTuple1(i, inside_value)
+
+    # Convert the mesh to an image stencil.
+    poly2stenc = vtk.vtkPolyDataToImageStencil()
+    poly2stenc.SetTolerance(0.5)
+    poly2stenc.SetInputData(mesh)
+    poly2stenc.SetOutputOrigin(origin)
+    poly2stenc.SetOutputSpacing(spacing)
+    poly2stenc.SetOutputWholeExtent(white_image.GetExtent())
+    poly2stenc.Update()
+
+    # Use the stencil to “paint” the inside of the mesh.
+    imgstenc = vtk.vtkImageStencil()
+    imgstenc.SetInputData(white_image)
+    imgstenc.SetStencilConnection(poly2stenc.GetOutputPort())
+    if reverse_stencil:
+        imgstenc.ReverseStencilOn()
+    else:
+        imgstenc.ReverseStencilOff()  # voxels inside the mesh will be changed
+    imgstenc.SetBackgroundValue(outside_value)
+    imgstenc.Update()
+
+    vtk_mask = imgstenc.GetOutput()
+     # The result is a vtkImageData. Convert it to a numpy array.
+    dims = vtk_mask.GetDimensions()  # dims are (nx, ny, nz)
+    vtk_array = vtk_mask.GetPointData().GetScalars()
+    np_mask = vtknp.vtk_to_numpy(vtk_array)
+    
+    # vtk images are stored in x-fastest order so reshape as (nz, ny, nx)
+    np_mask = np_mask.reshape(dims[2], dims[1], dims[0])
+    # Now, ensure that the inside region gets the inside_value.
+    # (Depending on the stencil, you may need to threshold the result)
+    np_mask[np_mask != outside_value] = inside_value
+    
+    # Convert the result to SimpleITK
+    sitk_mask = sitk.GetImageFromArray(np_mask)
+    sitk_mask.CopyInformation(reference_image)
+    # sitk_mask.SetSpacing(spacing)
+    # sitk_mask.SetOrigin(origin)
+
+    logger.info(f"Converted mesh to image with size: {sitk_mask.GetSize()}, spacing: {sitk_mask.GetSpacing()}, origin: {sitk_mask.GetOrigin()}")
+
+    return sitk_mask
+
+def get_combined_bounds(meshes):
+    """
+    Given a list of vtkPolyData meshes, computes and returns the combined bounds.
+    
+    Parameters:
+        meshes (list of vtk.vtkPolyData): List of meshes.
+    
+    Returns:
+        tuple: (xmin, xmax, ymin, ymax, zmin, zmax) representing the overall bounds.
+    """
+    if not meshes:
+        raise ValueError("The list of meshes is empty!")
+    
+    # Initialize combined bounds with the bounds of the first mesh.
+    combined = list(meshes[0].GetBounds())  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    
+    # Iterate over the remaining meshes and update the combined bounds.
+    for mesh in meshes[1:]:
+        b = mesh.GetBounds()
+        combined[0] = min(combined[0], b[0])  # xmin
+        combined[1] = max(combined[1], b[1])  # xmax
+        combined[2] = min(combined[2], b[2])  # ymin
+        combined[3] = max(combined[3], b[3])  # ymax
+        combined[4] = min(combined[4], b[4])  # zmin
+        combined[5] = max(combined[5], b[5])  # zmax
+    
+    return tuple(combined)
+
+def create_image_with_combined_origin(reference_image, combined_bounds, pixel_value=0):
+    """
+    Creates a SimpleITK image with the same size and spacing as the reference image,
+    but sets its origin to the lower bounds (xmin, ymin, zmin) of the combined_bounds.
+    
+    Parameters:
+        reference_image (sitk.Image): The image whose size and spacing will be copied.
+        combined_bounds (tuple): A tuple (xmin, xmax, ymin, ymax, zmin, zmax) from the meshes.
+        pixel_value (int, optional): Fill value for the image (default is 0).
+    
+    Returns:
+        sitk.Image: A new SimpleITK image with the updated origin.
+    """
+    # Get size and spacing from the reference image.
+    size = reference_image.GetSize()       # (nx, ny, nz)
+    spacing = reference_image.GetSpacing()   # (dx, dy, dz)
+    
+    # Set new origin from the lower bounds (xmin, ymin, zmin).
+    new_origin = (combined_bounds[0], combined_bounds[2], combined_bounds[4])
+    
+    # Create a new image with the same size, spacing, and pixel type as the reference.
+    new_img = sitk.Image(size, reference_image.GetPixelID())
+    new_img.SetSpacing(spacing)
+    new_img.SetOrigin(new_origin)
+    
+    # Optionally fill the image with a pixel value.
+    new_img = sitk.Add(new_img, pixel_value)
+    
+    return new_img

@@ -1,13 +1,56 @@
 import os
 
 import SimpleITK as sitk
+import nrrd 
 import vtk 
 import numpy as np
 import json
 
-import imatools.common.vtktools as vtku 
 from imatools.common.config import configure_logging
 logger = configure_logging(log_name=__name__) 
+
+## Tools for header correction orientation 
+def fix_header_to_axis_aligned(hdr: nrrd.NRRDHeader ) : 
+    """Modify NRRD header to make space directions axis-aligned."""
+    hdr = hdr.copy()
+    dirs = np.asarray(hdr["space directions"], dtype=float)
+
+    # Compute voxel sizes (norms of direction vectors)
+    spacings = np.linalg.norm(dirs, axis=1)
+    if np.any(spacings <= 0):
+        raise ValueError(f"Invalid spacing values: {spacings}")
+
+    # Replace space directions with a diagonal matrix
+    aligned_dirs = np.diag(spacings)
+    hdr["space directions"] = aligned_dirs
+
+    # Update srow_* fields for ITK/NIfTI compatibility
+    origin = hdr["space origin"]
+    hdr["srow_x"] = f"{aligned_dirs[0,0]:.6f} 0.000000 0.000000 {origin[0]:.6f}"
+    hdr["srow_y"] = f"0.000000 {aligned_dirs[1,1]:.6f} 0.000000 {origin[1]:.6f}"
+    hdr["srow_z"] = f"0.000000 0.000000 {aligned_dirs[2,2]:.6f} {origin[2]:.6f}"
+
+    return hdr
+
+def fix_header_and_save(path_to_file, out_path) :
+    """
+    Reads a NRRD file, modifies its header to make space directions axis-aligned,
+    and saves the modified header back to a new NRRD file.
+    """
+    logger.info(f"Fixing header for {path_to_file} and saving to {out_path}")
+    data, hdr = nrrd.read(path_to_file)
+    
+    # Fix the header
+    fixed_header = fix_header_to_axis_aligned(hdr)
+    
+    # Save the modified data and header
+    nrrd.write(out_path, data, fixed_header)
+    logger.info(f"Saved fixed NRRD file to {out_path}")
+
+def set_direction_as(im: sitk.Image, ref: sitk.Image) : 
+    im.SetDirection(ref.GetDirection())
+    return im
+
 
 def load_image_as_np(path_to_file) :
     """ Reads image into numpy array """
@@ -19,21 +62,59 @@ def load_image_as_np(path_to_file) :
 
     return t1, origin, im_size 
 
-def load_image(path_to_file) :
+def load_image(path_to_file, ext='nii') :
     """ Reads image into SimpleITK object """
     logger.info(f'Loading image from {path_to_file}')
     sitk_t1 = sitk.ReadImage(path_to_file)
     return sitk_t1
+
+def load_nrrd_base(path_to_file):
+    """
+    Loads a NRRD file and returns the image and header.
+    """
+    logger.info(f'Loading NRRD file from {path_to_file}')
+    data, header = nrrd.read(path_to_file)
+
+    return data, header
+
+def get_nrrd_header(path_to_file):
+    """
+    Reads the NRRD header from a file.
+    """
+    logger.info(f'Reading NRRD header from {path_to_file}')
+    _, header = nrrd.read(path_to_file)
+    
+    return header
+
+def load_nrrd_image(path_to_file):
+    """
+    Loads a NRRD file and returns the image as a SimpleITK object.
+    """
+    logger.info(f'Loading NRRD image from {path_to_file}')
+    data, header = load_nrrd_base(path_to_file)
+    
+    # Convert the numpy array to a SimpleITK image
+    sitk_image = sitk.GetImageFromArray(data)
+    
+    # Set the image properties from the header
+    sitk_image.SetOrigin(header.get('space origin', (0, 0, 0)))
+    sitk_image.SetSpacing(header.get('space directions', (1, 1, 1)))
+    
+    return sitk_image
+
 
 def extract_single_label(image, label, binarise=False) -> sitk.Image:
     """
     Extracts a single label from a label map image.
     """
     image_array = imview(image)
-    label_array = np.zeros(image_array.shape, dtype=np.uint8)
+    label = np.array(label, dtype=image_array.dtype).item()
+
+    label_array = np.zeros(image_array.shape, dtype=image_array.dtype)
     label_array[np.equal(image_array, label)] = 1 if binarise else label
     label_image = sitk.GetImageFromArray(label_array)
     label_image.CopyInformation(image)
+    label_image = sitk.Cast(label_image, sitk.sitkUInt8)
     return label_image
 
 def merge_label_images(images):
@@ -84,6 +165,18 @@ def explore_labels_to_split(image):
 
     return labels_to_split
 
+def remove_label(image, label:int):
+    """
+    Removes a label from a label image.
+    """
+    image_array = imarray(image)
+    image_array[np.equal(image_array, label)] = 0
+
+    new_image = sitk.GetImageFromArray(image_array)
+    new_image.CopyInformation(image)
+
+    return new_image
+
 def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
     """
     Returns new image where label that can be split are split into two distinct 
@@ -125,30 +218,113 @@ def split_labels_on_repeats(image, label:int, open_image=False, open_radius=3):
 
     return new_image 
 
-def morph_operations(image, operation:str, radius=3, kernel_type='ball') :
-    """
-    Performs a morphological operation on a binary image with a binary ball of a given radius 
-    """
-    switcher_operation = {
-        "dilate": sitk.BinaryDilate,
-        "erode": sitk.BinaryErode,
-        "open": sitk.BinaryMorphologicalOpening,
-        "close": sitk.BinaryMorphologicalClosing,
-        "fill": sitk.BinaryFillhole
-    }
-    switcher_kernel = {
-        "ball": sitk.sitkBall,
-        "box": sitk.sitkBox,
-        "cross": sitk.sitkCross
-    }
+MORPH_SWITCHER = {
+    "dilate": sitk.BinaryDilate,
+    "erode": sitk.BinaryErode,
+    "open": sitk.BinaryMorphologicalOpening,
+    "close": sitk.BinaryMorphologicalClosing,
+    "fill": sitk.BinaryFillhole,
+    "smooth": sitk.DiscreteGaussian  # For smoothing, we'll use DiscreteGaussian.
+}
 
-    which_operation = switcher_operation.get(operation, lambda: "Invalid operation")
-    which_kernel = switcher_kernel.get(kernel_type, lambda: "Invalid kernel type")
+KERNEL_SWITCHER = {
+    "ball": sitk.sitkBall,
+    "box": sitk.sitkBox,
+    "cross": sitk.sitkCross
+}
+def morph_operations(image, operation:str, radius=3, kernel_type='ball'):
+    """
+    Performs a morphological operation on a binary image with a binary ball of a given radius.
+    Additionally, supports Gaussian smoothing using the 'smooth' operation.
+    """
+    import SimpleITK as sitk  # Ensure SimpleITK is imported
+    # Define operations for binary morphology and smoothing.
+    switcher_operation = MORPH_SWITCHER.copy()
+    switcher_kernel = KERNEL_SWITCHER.copy()
 
+    logger.info(f'Performing {operation} operation with radius {radius} and kernel type {kernel_type}')
+
+    which_operation = switcher_operation.get(operation, None)
+    if which_operation is None:
+        raise ValueError(f"Invalid operation: {operation}")
+    
+    # For fill, the filter only takes the image.
     if operation == 'fill':
         return which_operation(image)
+    
+    # If smoothing is requested, apply Gaussian smoothing.
+    if operation == 'smooth':
+        # DiscreteGaussian expects a parameter 'variance'. You can convert your "radius" to variance
+        # Here, we use radius directly as variance, but you might adjust this conversion.
+        return smooth_label_with_distance(image, sigma=1.0, threshold=0.0)
 
-    return which_operation(image, kernelRadius=(radius, radius, radius), kernelType = which_kernel)
+    # For the binary morphological operations, obtain the kernel type.
+    which_kernel = switcher_kernel.get(kernel_type, None)
+    if which_kernel is None:
+        raise ValueError(f"Invalid kernel type: {kernel_type}")
+
+    # Perform the morphological operation with the specified kernel and radius.
+    return which_operation(image, kernelRadius=(radius, radius, radius), kernelType=which_kernel)
+
+def smooth_label_with_distance(image, sigma=1.0, threshold=0.0):
+    """
+    Smooths a binary label image by converting it to a signed distance map,
+    applying Gaussian smoothing, and then re-thresholding.
+    
+    Parameters:
+      image    : Input binary label image (SimpleITK Image).
+      sigma    : Standard deviation for Gaussian smoothing.
+      threshold: Threshold value to re-binarize the smoothed distance map.
+                 Typically 0.0 works if inside is positive.
+    
+    Returns:
+      A smoothed binary label image.
+    """
+    # Convert the label to a signed distance map.
+    distance_map = sitk.DanielssonDistanceMap(image, inputIsBinary=True, squaredDistance=False, useImageSpacing=True)
+    # distance_map = sitk.SignedMaurerDistanceMap(image, insideIsPositive=True, useImageSpacing=True)
+    # save_image(distance_map, 'distance_map.nrrd')
+    
+    # Smooth the distance map.
+    smoothed_distance = sitk.DiscreteGaussian(distance_map, variance=sigma**2)
+    # save_image(smoothed_distance, 'smoothed_distance.nrrd')
+    
+    # Threshold the smoothed distance map to recover a binary image.
+    smoothed_label = sitk.BinaryThreshold(
+        smoothed_distance, lowerThreshold=-1e9, upperThreshold=threshold,
+        insideValue=1, outsideValue=0)
+    
+    return smoothed_label    
+
+def get_spacing(image: sitk.Image) -> tuple:
+    """
+    Returns the spacing of the image in mm.
+    """
+    return image.GetSpacing()
+def get_num_nonzero_voxels(image: sitk.Image) -> int:
+    """
+    Calculates the volume of a binary object in an image.
+    """
+    image_array = imarray(image)
+    
+    # Calculate the volume in mm^3
+    return np.count_nonzero(image_array)
+
+def regionprops(image: sitk.Image, label=None) : 
+    """
+    Returns region properties of a label in the image
+    """
+    if label is not None :
+        image = extract_single_label(image, label, binarise=True)
+
+    cc_image = sitk.ConnectedComponent(image)
+    label_image = sitk.RelabelComponent(cc_image, sortByObjectSize=True)
+
+    stats = sitk.LabelShapeStatisticsImageFilter()
+    stats.Execute(label_image)
+
+    return stats
+    
 
 def swap_labels(im, old_label: int, new_label=1):
     """
@@ -211,15 +387,67 @@ def convert_to_inr(image, out_path):
         file.write(header.encode(encoding='utf-8'))  # Write header as bytes
         file.write(data.tobytes())  # Write data as bytes
 
+def convert_from_inr(inr_path):
+    """
+    Converts an INR file to a SimpleITK image.
+    """
+    with open(inr_path, "rb") as file:
+        header = ""
+        while True:
+            line = file.readline().decode('utf-8')
+            header += line
+            if line.strip() == "##}":
+                break
+        
+        # Parse header
+        header_dict = {}
+        for line in header.split('\n'):
+            if '=' in line:
+                key, value = line.split('=')
+                header_dict[key.strip()] = value.strip()
+        
+        xdim = int(header_dict['XDIM'])
+        ydim = int(header_dict['YDIM'])
+        zdim = int(header_dict['ZDIM'])
+        spacing = [float(header_dict['VX']), float(header_dict['VY']), float(header_dict['VZ'])]
+        pixsize = int(header_dict['PIXSIZE'].split()[0])
+        dtype = header_dict['TYPE']
+        
+        if dtype == 'unsigned fixed':
+            if pixsize == 8:
+                np_dtype = np.uint8
+            elif pixsize == 16:
+                np_dtype = np.uint16
+        elif dtype == 'signed fixed':
+            if pixsize == 16:
+                np_dtype = np.int16
+        elif dtype == 'float':
+            if pixsize == 32:
+                np_dtype = np.float32
+            elif pixsize == 64:
+                np_dtype = np.float64
+        else:
+            raise ValueError('Volume format not supported')
+        
+        # Read image data
+        data = np.frombuffer(file.read(), dtype=np_dtype)
+        data = data.reshape((xdim, ydim, zdim), order='F')  # Fortran order to match INR format
+        
+        # Convert to SimpleITK image
+        image = sitk.GetImageFromArray(data)
+        image.SetSpacing(spacing)
+        
+        return image
+
 def get_labels(image : sitk.Image ) -> list:
     """
     Returns a list of labels in an image.
     """
     image_array_view = imview(image)
-    labels = set(image_array_view.flatten())
-    labels.discard(0) # background
+    unique_labels = np.unique(image_array_view)
+    unique_labels = unique_labels[unique_labels != 0]
     
-    return sorted(map(int, labels))
+    return unique_labels.astype(int).tolist()
 
 def zeros_like(image):
     """
@@ -227,13 +455,17 @@ def zeros_like(image):
     """
     return sitk.Image(image.GetSize(), sitk.sitkUInt8)
 
-def save_image(image, dir_or_path, name=None):
+def save_image(image, dir_or_path, name=None, manual_ow=False):
     """
     Saves a SimpleITK image to disk.
     """
     output_path = dir_or_path if name is None else os.path.join(dir_or_path, name)
     logger.info(f"Saving image to [{output_path}]")
+    if manual_ow and os.path.exists(output_path):
+        os.remove(output_path)
+
     sitk.WriteImage(image, output_path)
+    assert os.path.exists(output_path), f"Saving failed! File not found: {output_path}"
 
 def points_to_image(image, points, label=1, girth=2, points_are_indices=False) : 
     """
@@ -280,6 +512,44 @@ def points_to_image(image, points, label=1, girth=2, points_are_indices=False) :
     modified_image.SetDirection(image.GetDirection())
 
     return modified_image
+
+def get_indices_from_label(img: sitk.Image, label: int, get_voxel_bbox=False): 
+    arr = sitk.GetArrayFromImage(img)
+    print(f'{np.unique(arr)=}')
+    label = np.array(label, dtype=arr.dtype).item()
+
+    mask = arr == label
+    print(f"Num matching voxels: {mask.sum()}")
+    vox_indices = np.argwhere(mask)
+
+    world_coords = []
+    for idx in vox_indices:
+        world_coord = img.TransformIndexToPhysicalPoint(tuple(int(x) for x in reversed(idx)))
+        world_coords.append(world_coord)
+
+    if get_voxel_bbox:
+        bounding_boxes = [] 
+        bounding_boxes_centres = []
+        for idx in vox_indices:
+            corners = []
+            for dz in [0, 1]:
+                for dy in [0, 1]:
+                    for dx in [0, 1]:
+                        offset = np.array([dz, dy, dx])
+                        shifted_idx = idx + offset
+                        corner = img.TransformIndexToPhysicalPoint(
+                            tuple(int(x) for x in reversed(shifted_idx))
+                        )
+                        corners.append(corner)
+            corner_array = np.array(corners)
+            bounding_boxes.append(corner_array)
+            bounding_boxes_centres.append(np.mean(corner_array, axis=0))
+        
+        return vox_indices, world_coords, { "centres": bounding_boxes_centres, "corners": bounding_boxes}
+
+    return vox_indices, world_coords
+
+
 
 
 def pointfile_to_image(path_to_image, path_to_points, label=1, girth=2, points_are_indices=False):
@@ -588,7 +858,7 @@ def generate_scar_image(image_size=(300, 300, 100), prism_size=(80, 80, 80), ori
 
 def relabel_image(input_image, new_label) :
     """Assumes input_image is a binary image, every value>0 is set to new_label"""
-    input_array = imarray(input_image)
+    input_array = sitk.GetArrayFromImage(input_image)
     input_array[np.greater(input_array, 0)] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
@@ -596,15 +866,110 @@ def relabel_image(input_image, new_label) :
 
     return new_image
 
-def exchange_labels(input_image, old_label, new_label) :
+def cp_image(input_image) :
+    """Copy an image"""
     input_array = imarray(input_image)
-    input_array[np.equal(input_array, old_label)] = new_label
 
     new_image = sitk.GetImageFromArray(input_array)
     new_image.CopyInformation(input_image)
 
     return new_image
 
+def exchange_labels(input_image, old_label, new_label):
+    input_array = imarray(input_image)
+    
+    # Ensure it's an int type with enough bits for your labels
+    if not np.issubdtype(input_array.dtype, np.integer):
+        input_array = input_array.astype(np.int32)
+    
+    old_label = int(old_label)
+    new_label = int(new_label)
+
+    # Use np.where to replace old_label with new_label
+    input_array = np.where(input_array == old_label, new_label, input_array)
+
+    new_image = sitk.GetImageFromArray(input_array)
+    new_image.CopyInformation(input_image)
+
+    return new_image
+
+def get_labels_to_exchange(old_labels: list[int], new_labels: list[int], labels_in_image: list[int]) -> list[tuple[int, int]]:
+    """
+    Build an ordered list of swap operations (tuples of (source, target))
+    so that if a destination label is also a source in another mapping,
+    it is first remapped to a temporary label.
+    
+    For example, for swapping 4->5 and 5->6, we produce:
+      [(5, temp), (4,5), (temp,6)]
+    so that the conflicting label 5 is freed before assigning it.
+    
+    Parameters:
+      old_labels: list of labels to replace.
+      new_labels: list of target labels.
+      labels_in_image: the list of all labels present in the image.
+    
+    Returns:
+      A list of (source, target) swap operations in the order they should be applied.
+    """
+    swap_ops = []
+    temp_map = {}  # Map a label that is used as a destination and is also in old_labels to a temporary value.
+    additional_label_count = 1
+    max_label_value = max(labels_in_image)
+    
+    # Phase 1: Identify conflicts and assign temporary labels.
+    # We consider it a conflict if a destination label (new) appears in the list of old labels.
+    for old, new in zip(old_labels, new_labels):
+        if old == new:
+            print(f'Old label {old} is the same as new label {new}. Skipping...')
+            continue
+        if new in old_labels:
+            if new not in temp_map:
+                temp_label = max_label_value + additional_label_count
+                additional_label_count += 1
+                temp_map[new] = temp_label
+                print(f'Conflict detected: new label {new} appears as a source. Using temporary label {temp_label}.')
+    
+    # Phase 2: Build the swap sequence.
+    # First, remove the conflicting label by mapping it to its temporary value.
+    for conflict_label, temp_label in temp_map.items():
+        swap_ops.append((conflict_label, temp_label))
+    
+    # Then, for each intended mapping:
+    # If the source was remapped (i.e. is in temp_map), use the temporary label for the swap.
+    for old, new in zip(old_labels, new_labels):
+        if old == new:
+            continue
+        if old in temp_map:
+            # Use the temporary label instead of the original source.
+            swap_ops.append((temp_map[old], new))
+        else:
+            swap_ops.append((old, new))
+    
+    return swap_ops
+
+
+def exchange_many_labels(input_image, old_labels:list, new_labels:list) :
+    labels_in_image = get_labels(input_image)
+
+    swap_labels = get_labels_to_exchange(old_labels, new_labels, labels_in_image)
+    new_image = cp_image(input_image)
+    for old_label, new_label in swap_labels :
+        logger.info(f'Exchanging label {old_label} with {new_label}')
+        new_image = exchange_labels(new_image, old_label, new_label)
+
+    return new_image
+
+def exchange_labels_form_json(input_image, json_old: str, json_new: str) :
+    with open(json_old, 'r') as f:
+        old_labels_json = json.load(f)
+    with open(json_new, 'r') as f:
+        new_labels_json = json.load(f)
+
+    old_labels = list(old_labels_json.values())
+    new_labels = list(new_labels_json.values())
+
+    return exchange_many_labels(input_image, old_labels, new_labels)
+        
 def add_images(im1, im2) :
     add_im = sitk.Add(im1, im2)
     add_im.CopyInformation(im1)
@@ -612,8 +977,9 @@ def add_images(im1, im2) :
     return add_im
 
 def simple_mask(im, mask, mask_value=0) -> sitk.Image :
+    logger.info(f'Masking image with mask value {mask_value}')
     masked_im_array = imarray(im)
-    mask_array = imarray(mask)
+    mask_array = imview(mask)
     
     masked_im_array[ mask_array > 0 ] = mask_value
     
@@ -923,6 +1289,7 @@ def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
     return output_im
 
 def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False) -> vtk.vtkPolyData :
+    import imatools.common.vtktools as vtku 
     cog = vtku.get_cog_per_element(surface)    
     scalars = surface.GetCellData().GetScalars()
     visited_indices = set()
@@ -938,6 +1305,25 @@ def project_surface_onto_segmentation(segmentation: sitk.Image, surface: vtk.vtk
         segmentation.SetPixel(index, value)
 
     return segmentation
+
+def project_segmentation_onto_mesh(segmentation: sitk.Image, mesh, check_visited=False) -> vtk.vtkPolyData :
+    import imatools.common.vtktools as vtku 
+    cog = vtku.get_cog_per_element(mesh)    
+    scalars = mesh.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(mesh.GetNumberOfCells()) :
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix) 
+        index = segmentation.TransformPhysicalPointToIndex((x,y,z))
+
+        if visited_indices.__contains__(index) and check_visited :
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
+
 
 def swap_axes(im: sitk.Image, axes: list) -> sitk.Image :
     """
@@ -1059,3 +1445,84 @@ def extract_largest(im: sitk.Image) -> sitk.Image :
 
     return sitk.Multiply(im, largest_cc)
 
+def array2im(im_array: np.ndarray, im: sitk.Image) -> sitk.Image :
+    """
+    Convert a NumPy array to a SimpleITK image.
+    """
+    im_out = sitk.GetImageFromArray(im_array)
+    im_out.CopyInformation(im)
+
+    return im_out
+
+# def np_mask_to_sitk(np_mask: np.ndarray, im: sitk.Image) -> sitk.Image :
+
+#     sitk_mask = sitk.GetImageFromArray(np_mask)
+#     sitk_mask.SetSpacing(spacing)
+#     sitk_mask.SetOrigin(origin)
+#     # Transfer the direction cosines if needed:
+#     sitk_mask.SetDirection(reference_image.GetDirection())
+
+def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0) -> sitk.Image : 
+    """
+    Find pointy bits of the segmentation based on distance to smooth version of itself
+    """
+
+    segmentation = extract_single_label(mlseg, label, binarise=True) 
+    
+    gaussian_filter = sitk.SmoothingRecursiveGaussianImageFilter()
+    gaussian_filter.SetSigma(gauss_sigma)  # Adjust sigma based on segmentation resolution
+    smoothed_segmentation = gaussian_filter.Execute(segmentation)
+
+    # cast smoothed_segmentation to the same pixel type as segmentation
+    smoothed_segmentation = sitk.Cast(smoothed_segmentation, segmentation.GetPixelID())
+
+    distance_map = sitk.Abs(segmentation - smoothed_segmentation)
+    save_image(distance_map, 'distance_map.nrrd')
+    sharp_regions = sitk.BinaryThreshold(distance_map, lowerThreshold=10, upperThreshold=1000)
+
+    segmentation_array = imarray(segmentation)
+    sharp_array = imview(sharp_regions)
+
+    highlighted_segmentation = np.where(sharp_array == 1, 2, segmentation_array)  # Label sharp regions as '2'
+
+    return array2im(highlighted_segmentation, mlseg)
+
+def combine_segmentations(seg_images, labels=None):
+    """
+    Combines multiple segmentation images into a single label image.
+    
+    Each segmentation image is assumed to be binary (0 for background and non-zero for foreground)
+    and to share the same physical geometry. For each segmentation, a distinct label value is assigned.
+    
+    Parameters:
+      seg_images (list of sitk.Image): List of segmentation images.
+      labels (list of int, optional): List of label values. If None, labels will be assigned as 1,2,3,...
+      
+    Returns:
+      sitk.Image: A label image with the same geometry as the input images.
+    """
+    if not seg_images:
+        raise ValueError("No segmentation images provided.")
+    
+    # If labels are not provided, assign 1,2,3,...
+    if labels is None:
+        labels = list(range(1, len(seg_images) + 1))
+    elif len(labels) != len(seg_images):
+        raise ValueError("Length of labels must match number of segmentation images.")
+    
+    # Initialize the combined image with zeros.
+    combined = sitk.Image(seg_images[0].GetSize(), sitk.sitkUInt8)
+    combined.CopyInformation(seg_images[0])
+    
+    for seg, label in zip(seg_images, labels):
+        # Ensure that the segmentation is binary.
+        # Here we assume that any voxel > 0 belongs to the segmentation.
+        binary_mask = sitk.BinaryThreshold(seg, lowerThreshold=1, upperThreshold=1e9, 
+                                           insideValue=1, outsideValue=0)
+        # Multiply the binary mask by the label.
+        label_img = sitk.Cast(binary_mask, sitk.sitkUInt8) * label
+        
+        # Combine using maximum. In case of overlaps, the highest label is taken.
+        combined = sitk.Maximum(combined, label_img)
+        
+    return combined
