@@ -157,14 +157,17 @@ def execute_cog_mesh(input_info: dict) -> str:
 
     """
     msh_path = os.path.join(input_info['dirname'], input_info['base'])
-    output_name = input_info['base'].replace('.vtk', '.pts')
-    
-    msh = vtku.read_vtk(msh_path, input_type='ugrid') 
-    cogs = vtku.cogs_from_ugrid(msh) 
+    output_name = input_info['name'] + '.pts'
+
+    msh = vtku.read_vtk(msh_path, input_type='ugrid')
+    if msh.GetNumberOfCells() == 0:
+        raise ValueError(f"Mesh has no cells (failed to read as ugrid?): {msh_path}")
+
+    cogs = vtku.cogs_from_ugrid(msh)
 
     output_path = os.path.join(input_info['dirname'], output_name)
     logger.info(f'Saving COG file to: {output_path}')
-    np.savetxt(output_path, cogs, delimiter=' ') 
+    np.savetxt(output_path, cogs, delimiter=' ')
 
     return output_path
 
@@ -176,125 +179,184 @@ def execute_vscar_projection(input_info: dict, cog_path: str, reference_image: s
     python scripts/vscar_projection.py scar --input <path_to_cog_file> -ref <path_to_LGE_segmentation> -label <SCAR_LABEL>
     """
     msh_path = os.path.join(input_info['dirname'], input_info['base'])
-    output_msh_name = f'scar3d_{input_info["base"]}'
+    output_msh_name = f'scar3d_{input_info["name"]}'
 
-    cogs = np.loadtxt(cog_path)
+    msh = vtku.read_vtk(msh_path, input_type='ugrid')
+    if msh.GetNumberOfCells() == 0:
+        raise ValueError(f"Mesh has no cells (failed to read as ugrid?): {msh_path}")
+
+    cogs = np.atleast_2d(np.loadtxt(cog_path))
+    if len(cogs) != msh.GetNumberOfCells():
+        raise ValueError(
+            f"COG count ({len(cogs)}) does not match mesh cell count "
+            f"({msh.GetNumberOfCells()}); cog file '{cog_path}' likely came from a different mesh."
+        )
+
     img = itku.load_image(reference_image)
     _, _, bboxes_dict = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
 
-    msh = vtku.read_vtk(msh_path, input_type='ugrid')
-    # outmsh = vtku.tag_mesh_elements_by_growing_from_seed(msh, bboxes_dict['centres'], bboxes_dict['corners'],  cogs=cogs, label_name='scar')
-    outmsh = vtku.tag_mesh_elements_by_growing_from_seed_optimized(msh, bboxes_dict['centres'], bboxes_dict['corners'],  cogs=cogs, label_name='scar')
-    
-    output_path = os.path.join(input_info['dirname'], f'{output_msh_name}')
+    outmsh = vtku.tag_mesh_elements_by_growing_from_seed_optimized(
+        msh, bboxes_dict['centres'], bboxes_dict['corners'], cogs=cogs, label_name='scar')
+
     vtku.write_vtk(outmsh, input_info['dirname'], output_msh_name, output_type='ugrid')
 
+    output_path = os.path.join(input_info['dirname'], output_msh_name + '.vtk')
+    logger.info(f'Saving scar mesh to: {output_path}')
     return output_path
 
-def validate_pipeline_args(args) -> None:
-    """Validate required arguments for pipeline mode."""
-    required_for_pipeline = {
-        'path_to_mirtk': 'MIRTK path',
-        'path_to_moving': 'moving image path',
-        'path_to_fixed': 'fixed image path', 
-        'reference_image': 'reference image path'
-    }
-    
-    missing = [desc for arg, desc in required_for_pipeline.items() 
-               if getattr(args, arg) is None]
-    
-    if missing:
-        raise ValueError(f"Pipeline mode requires: {', '.join(missing)}")
-    
 def update_arguments_for_cwd(args, input_info) -> None:
-    """Update argument paths based on inferred working directory."""
-    if args.infer_working_directory:
-        logger.info("Inferring working directory from input file path")
-        if args.path_to_moving:
-            args.path_to_moving = os.path.join(input_info['dirname'], os.path.basename(args.path_to_moving))
-        if args.path_to_fixed:
-            args.path_to_fixed = os.path.join(input_info['dirname'], os.path.basename(args.path_to_fixed))
-        if args.reference_image:
-            args.reference_image = os.path.join(input_info['dirname'], os.path.basename(args.reference_image))
-    else :
+    """Resolve auxiliary path arguments against the input's directory.
+
+    Only acts when --infer-working-directory/-cwd is set. Tolerant of modes
+    that do not declare every auxiliary path (uses getattr defaults).
+    """
+    if not getattr(args, 'infer_working_directory', False):
         logger.info("Using provided paths without inferring working directory")
+        return
 
-def main(args):
-    """
-    Main execution function.
+    logger.info("Inferring working directory from input file path")
+    for attr in ('path_to_moving', 'path_to_fixed', 'reference_image'):
+        value = getattr(args, attr, None)
+        if value:
+            setattr(args, attr, os.path.join(input_info['dirname'], os.path.basename(value)))
 
-    Mode descriptions:
-      pipeline  - Run complete pipeline (scale -> deform -> cog -> scar)
-      scale     - Scale mesh (input: msh_cine -> output: msh_cine_mm)
-      deform    - Deform mesh (input: msh_cine_mm -> output: msh_cine_mm_on_LGE)  
-      cog       - Calculate COG (input: msh_cine_mm_on_LGE -> output: *.pts)
-      scar      - Project scar (input: COG file -> output: scar3d_*.vtk)
+# --- Mode handlers (one per subcommand) ------------------------------------
 
-      USAGE: 
+def _run_scale(args) -> None:
+    info = parse_input_name(args.input)
+    execute_scale_mesh(info, scale=args.scale, convert_format=args.convert_format)
 
-      python scripts/vscar_projection.py pipeline --input <path_to_msh_cine> -mirtk <mirtk_libraries> -moving <path_to_cine> -fixed <path_to_LGE> -ref <path_to_LGE_segmentation> -label <SCAR_LABEL>
+def _run_deform(args) -> None:
+    info = parse_input_name(args.input)
+    update_arguments_for_cwd(args, info)
+    execute_deform_mesh(info, path_to_mirtk=args.path_to_mirtk,
+                        path_to_moving=args.path_to_moving,
+                        path_to_fixed=args.path_to_fixed)
 
-      CWD_OPTION USAGE: 
-      To infer working directory from input file path, use --infer-working-directory or -cwd flag.
+def _run_cog(args) -> None:
+    info = parse_input_name(args.input)
+    execute_cog_mesh(info)
 
-      python scripts/vscar_projection.py pipeline --input <PATH_to_msh_cine> -mirtk <mirtk_libraries> -moving <cine_filename> -fixed <LGE_filename> -ref <LGE_segmentation_filename> -label <SCAR_LABEL> -cwd
-    """
-    input_info = parse_input_name(args.input)
-    mode = args.mode
-    update_arguments_for_cwd(args, input_info)
+def _run_scar(args) -> None:
+    info = parse_input_name(args.input)
+    update_arguments_for_cwd(args, info)
+    execute_vscar_projection(info, cog_path=args.cog,
+                             reference_image=args.reference_image, label=args.label)
 
+def _run_pipeline(args) -> None:
+    info = parse_input_name(args.input)
+    update_arguments_for_cwd(args, info)
+    pipeline = VScarPipeline(args)
+    final_output = pipeline.run_pipeline()
+    logger.info(f"Pipeline completed. Final output: {final_output}")
+
+def main(args) -> None:
+    """Dispatch to the handler selected by the chosen subcommand."""
     try:
-        if mode == 'pipeline':
-            validate_pipeline_args(args)
-            pipeline = VScarPipeline(args)
-            final_output = pipeline.run_pipeline()
-            logger.info(f"Pipeline completed. Final output: {final_output}")
-            
-        elif mode == 'scale':
-            execute_scale_mesh(input_info, scale=args.scale, 
-                             convert_format=args.convert_format)
-            
-        elif mode == 'deform':
-
-            execute_deform_mesh(input_info, path_to_mirtk=args.path_to_mirtk, 
-                              path_to_moving=args.path_to_moving, 
-                              path_to_fixed=args.path_to_fixed)
-            
-        elif mode == 'cog':
-            execute_cog_mesh(input_info)
-            
-        elif mode == 'scar':
-            execute_vscar_projection(input_info, cog_path=args.input, 
-                                   reference_image=args.reference_image, label=args.label)
-            
-        else:
-            raise ValueError(f"Unknown mode: {mode}")
-            
+        args.func(args)
     except Exception as e:
-        logger.error(f"Error in {mode} mode: {str(e)}")
+        logger.error(f"Error in {args.mode} mode: {str(e)}")
         raise
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Project ventricular scar from CINE onto LGE.")
+    subparsers = parser.add_subparsers(dest='mode', required=True,
+                                       metavar='{pipeline,scale,deform,cog,scar}')
+
+    # `-cwd` is identical across the modes that use it; share it via `parents`.
+    cwd = argparse.ArgumentParser(add_help=False)
+    cwd.add_argument('--infer-working-directory', '-cwd', action='store_true',
+                     help="Resolve auxiliary path basenames against the input's directory")
+
+    # scale -----------------------------------------------------------------
+    p_scale = subparsers.add_parser(
+        'scale',
+        help='Scale a mesh (um -> mm) and optionally convert format',
+        description='Scale a mesh by a factor (default 0.001, um -> mm). '
+                    'Optionally also write it in the swapped format '
+                    '(vtk <-> carp_txt). Output: <name>_mm.<ext>.')
+    p_scale.add_argument('--input', '-in', type=str, required=True,
+                         help='Mesh to scale (vtk or carp_txt)')
+    p_scale.add_argument('--scale', '-scale', type=float, default=0.001,
+                         help='Scaling factor (default: 0.001 for um to mm)')
+    p_scale.add_argument('--convert-format', '-format', action='store_true',
+                         help='Also write the mesh in the swapped format (vtk <-> carp_txt)')
+    p_scale.set_defaults(func=_run_scale)
+
+    # deform ----------------------------------------------------------------
+    p_deform = subparsers.add_parser(
+        'deform', parents=[cwd],
+        help='Rigidly register CINE->LGE and transform mesh points (MIRTK)',
+        description='Rigidly register moving (CINE) to fixed (LGE) with MIRTK '
+                    'and apply the transform to the mesh points. '
+                    'Output: <name>_on_LGE.<ext>.')
+    p_deform.add_argument('--input', '-in', type=str, required=True,
+                          help='Scaled mesh (<name>_mm.vtk)')
+    p_deform.add_argument('--path-to-mirtk', '-mirtk', type=str, required=True,
+                          help='MIRTK executables folder (must contain register, transform-points)')
+    p_deform.add_argument('--path-to-moving', '-moving', type=str, required=True,
+                          help='Moving image (CINE)')
+    p_deform.add_argument('--path-to-fixed', '-fixed', type=str, required=True,
+                          help='Fixed image (LGE)')
+    p_deform.set_defaults(func=_run_deform)
+
+    # cog -------------------------------------------------------------------
+    p_cog = subparsers.add_parser(
+        'cog',
+        help='Write per-element centres of gravity to a .pts file',
+        description='Compute per-element centres of gravity of a deformed '
+                    'unstructured-grid mesh and write them as a .pts file '
+                    '(one cell centroid per line). Output: <name>.pts.')
+    p_cog.add_argument('--input', '-in', type=str, required=True,
+                       help='Deformed mesh (<name>_on_LGE.vtk, vtk ugrid)')
+    p_cog.set_defaults(func=_run_cog)
+
+    # scar ------------------------------------------------------------------
+    p_scar = subparsers.add_parser(
+        'scar', parents=[cwd], aliases=['projection'],
+        help='Tag mesh elements as scar from an LGE segmentation label',
+        description='Tag mesh elements as scar by growing from voxels of the '
+                    'given label in the LGE segmentation. Requires both the '
+                    'mesh (--input) and its COG file (--cog). '
+                    'Output: scar3d_<mesh>.vtk.')
+    p_scar.add_argument('--input', '-in', type=str, required=True,
+                        help='Deformed mesh (vtk ugrid) to tag')
+    p_scar.add_argument('--cog', '-cog', type=str, required=True,
+                        help='COG .pts file for that mesh (from `cog` mode)')
+    p_scar.add_argument('--reference-image', '-ref', type=str, required=True,
+                        help='LGE segmentation image')
+    p_scar.add_argument('--label', '-label', type=int, default=3,
+                        help='Scar label in the segmentation (default: 3)')
+    p_scar.set_defaults(func=_run_scar)
+
+    # pipeline --------------------------------------------------------------
+    p_pipe = subparsers.add_parser(
+        'pipeline', parents=[cwd],
+        help='Run the full pipeline: scale -> deform -> cog -> scar',
+        description='Run scale -> deform -> cog -> scar end to end. '
+                    '--input is the raw CINE mesh; required paths are enforced '
+                    'up front by argparse.')
+    p_pipe.add_argument('--input', '-in', type=str, required=True,
+                        help='Raw CINE mesh (vtk or carp_txt)')
+    p_pipe.add_argument('--path-to-mirtk', '-mirtk', type=str, required=True,
+                        help='MIRTK executables folder (must contain register, transform-points)')
+    p_pipe.add_argument('--path-to-moving', '-moving', type=str, required=True,
+                        help='Moving image (CINE)')
+    p_pipe.add_argument('--path-to-fixed', '-fixed', type=str, required=True,
+                        help='Fixed image (LGE)')
+    p_pipe.add_argument('--reference-image', '-ref', type=str, required=True,
+                        help='LGE segmentation image')
+    p_pipe.add_argument('--label', '-label', type=int, default=3,
+                        help='Scar label in the segmentation (default: 3)')
+    p_pipe.add_argument('--scale', '-scale', type=float, default=0.001,
+                        help='Scaling factor (default: 0.001 for um to mm)')
+    p_pipe.add_argument('--convert-format', '-format', action='store_true',
+                        help='Also write the mesh in the swapped format (vtk <-> carp_txt)')
+    p_pipe.set_defaults(func=_run_pipeline)
+
+    return parser
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Project Ventricular Scar from CINE", usage=main.__doc__, add_help=False)
-    
-    parser.add_argument('mode', type=str,  choices=['pipeline', 'scale', 'deform', 'cog', 'scar'],  help='Mode of operation')
-    parser.add_argument('--input', '-in', type=str, required=True, help='Input file path')
-    parser.add_argument('--infer-working-directory', '-cwd', action='store_true', help='Infer working directory from input file path')
-
-    # Scale options
-    scale_group = parser.add_argument_group('Scale Options')
-    scale_group.add_argument('--scale', '-scale', type=float, default=0.001,  help='Scaling factor (default: 0.001 for um to mm)')
-    scale_group.add_argument('--convert-format', '-format', action='store_true',  help='Convert mesh format (vtk <-> carp_txt)')
-
-    # Deform options  
-    deform_group = parser.add_argument_group('Deform Options')
-    deform_group.add_argument('--path-to-mirtk', '-mirtk', type=str,  help='Path to MIRTK executables folder')
-    deform_group.add_argument('--path-to-moving', '-moving', type=str,  help='Path to moving image (CINE)')
-    deform_group.add_argument('--path-to-fixed', '-fixed', type=str,  help='Path to fixed image (LGE)')
-
-    # Scar projection options
-    scar_group = parser.add_argument_group('Scar Projection Options')
-    scar_group.add_argument('--reference-image', '-ref', type=str,  help='Path to reference image (LGE Segmentation)')
-    scar_group.add_argument('--label', '-label', type=int, default=3,  help='Label for scar region (default: 3)')
-
-    args = parser.parse_args()
+    args = build_parser().parse_args()
     main(args)

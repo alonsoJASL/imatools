@@ -141,3 +141,6 @@ dmypy.json
 .qodo
 
 IMATOOLS_ENV_SETUP
+CLAUDE.md
+.claude/ 
+.claude/**
