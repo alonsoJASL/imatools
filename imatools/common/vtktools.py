@@ -437,88 +437,120 @@ def build_adjacency_list_optimized(msh) -> List[List[int]]:
     
     return adjacency
 
-def tag_mesh_elements_by_growing_from_seed_optimized(msh, seed_points: np.ndarray, voxel_bounding_boxes: List, cogs: Optional[np.ndarray] = None, label_name: str = 'scar'
+def _seed_cell_field(msh, label_name: str, num_cells: int) -> np.ndarray:
+    """Return a writable working copy of the named cell field for overlay.
+
+    If a cell array called ``label_name`` already exists (and has the right
+    length) its values are preserved so tagging overlays onto it. Otherwise a
+    fresh int32 zero array is created.
+    """
+    existing = msh.GetCellData().GetArray(label_name)
+    if existing is not None and existing.GetNumberOfTuples() == num_cells:
+        logger.info(f"Overlaying onto existing cell field '{label_name}'")
+        return vtknp.vtk_to_numpy(existing).copy()
+
+    if existing is not None:
+        logger.warning(
+            f"Existing field '{label_name}' has {existing.GetNumberOfTuples()} "
+            f"tuples but mesh has {num_cells} cells; ignoring it and creating a new field."
+        )
+    return np.zeros(num_cells, dtype=np.int32)
+
+def _attach_cell_field(msh, values: np.ndarray, label_name: str) -> None:
+    """Write ``values`` back onto the mesh as the named cell field.
+
+    Preserves the numpy dtype of ``values`` (so an existing float field stays
+    float). ``AddArray`` replaces any same-named array.
+    """
+    vtk_array = vtknp.numpy_to_vtk(np.ascontiguousarray(values), deep=True)
+    vtk_array.SetName(label_name)
+    msh.GetCellData().AddArray(vtk_array)
+
+def tag_mesh_elements_by_growing_from_seed_optimized(msh, seed_points: np.ndarray, voxel_bounding_boxes: List, cogs: Optional[np.ndarray] = None, label_name: str = 'scar', label_value: int = 1
 ) -> np.ndarray:
     """
     Optimized version with pre-filtering and improved BFS.
-    
+
     Key optimizations:
     1. Pre-identify valid cells within bounding boxes
     2. Stop growing when reaching boundary of valid region
     3. Use sets for faster membership testing
     4. Vectorized bounding box checks
+
+    Tagged cells are set to ``label_value`` in the cell field ``label_name``.
+    If that field already exists on the mesh it is overlaid (other cells keep
+    their values); otherwise it is created from zeros.
     """
     num_cells = msh.GetNumberOfCells()
-    
+
     if cogs is None:
         cogs = get_element_cogs(msh)
-    
+
+    # Seed the working array from the existing field (overlay) or zeros.
+    tag_array = _seed_cell_field(msh, label_name, num_cells)
+
     # Pre-compute which cells are within any bounding box
     logger.info('Pre-computing valid cells within bounding boxes...')
     valid_cells = precompute_valid_cells(cogs, voxel_bounding_boxes)
     logger.info(f'Found {len(valid_cells)} valid cells out of {num_cells}')
-    
+
     if len(valid_cells) == 0:
-        logger.warning('No cells found within bounding boxes!')
-        # Return mesh with all zeros
-        tag_array = np.zeros(num_cells, dtype=np.int32)
-        tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
-        tag_vtk_array.SetName(label_name)
-        msh.GetCellData().AddArray(tag_vtk_array)
+        logger.warning('No cells found within bounding boxes! Field left unchanged.')
+        # Overlay added nothing; write back the (existing or fresh) field as-is.
+        _attach_cell_field(msh, tag_array, label_name)
         return msh
-    
+
     logger.info(f'Building adjacency list for {num_cells} cells.')
     adjacency = build_adjacency_list_optimized(msh)
-    
-    tag_array = np.zeros(num_cells, dtype=np.int32)
+
     visited = np.zeros(num_cells, dtype=bool)
-    
+    num_tagged = 0
+
     logger.info('Building cell locator...')
     cell_locator = vtk.vtkCellLocator()
     cell_locator.SetDataSet(msh)
     cell_locator.BuildLocator()
-    
+
     logger.info(f'Processing {len(seed_points)} seed points...')
-    
+
     for i, seed in enumerate(seed_points):
         if i % 10 == 0:  # Progress logging
             logger.info(f'Processing seed {i+1}/{len(seed_points)}')
-        
+
         closest_point = [0.0, 0.0, 0.0]
         cell_id = vtk.reference(0)
         sub_id = vtk.reference(0)
         dist2 = vtk.reference(0.0)
-        
+
         cell_locator.FindClosestPoint(seed, closest_point, cell_id, sub_id, dist2)
         seed_idx = cell_id.get()
-        
+
         if visited[seed_idx] or seed_idx not in valid_cells:
             continue
-        
+
         # Modified BFS that only grows within valid region
         queue = deque([seed_idx])
         visited[seed_idx] = True
-        
+
         while queue:
             current_cell_id = queue.popleft()
-            
+
             # Only tag if cell is in valid region
             if current_cell_id in valid_cells:
-                tag_array[current_cell_id] = 1
-                
+                tag_array[current_cell_id] = label_value
+                num_tagged += 1
+
                 # Only expand to neighbors if current cell is valid
                 for neighbor in adjacency[current_cell_id]:
                     if not visited[neighbor]:
                         visited[neighbor] = True
                         # Add to queue regardless - we'll check validity when processing
                         queue.append(neighbor)
-    
-    # Create VTK array and add to mesh
-    tag_vtk_array = vtknp.numpy_to_vtk(tag_array, deep=True, array_type=vtk.VTK_INT)
-    tag_vtk_array.SetName(label_name)
-    msh.GetCellData().AddArray(tag_vtk_array)
-    
-    logger.info(f'Tagged {np.sum(tag_array)} cells out of {num_cells}')
+
+    # Write the merged field back onto the mesh.
+    _attach_cell_field(msh, tag_array, label_name)
+
+    logger.info(f"Tagged {num_tagged} cells with {label_name}={label_value} out of {num_cells}")
     return msh
 
 def tag_mesh_elements_parallel_regions(

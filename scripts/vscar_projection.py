@@ -44,7 +44,8 @@ class VScarPipeline:
         
         # Step 4: Project scar
         logger.info("Step 4: Projecting scar")
-        final_path = execute_vscar_projection(info, cog_path=cog_path, reference_image=self.args.reference_image, label=self.args.label)
+        final_path = execute_vscar_projection(info, cog_path=cog_path, reference_image=self.args.reference_image, label=self.args.label,
+                                              field_name=self.args.field_name, label_value=self.args.label_value)
         
         logger.info(f"Pipeline completed successfully. Final output: {final_path}")
         return final_path
@@ -171,12 +172,18 @@ def execute_cog_mesh(input_info: dict) -> str:
 
     return output_path
 
-def execute_vscar_projection(input_info: dict, cog_path: str, reference_image: str, label: int) -> str:
+def execute_vscar_projection(input_info: dict, cog_path: str, reference_image: str, label: int,
+                             field_name: str = 'scar', label_value: int = 1) -> str:
     """
     Project ventricular scar onto mesh.
-    
+
+    `label` selects which voxels are scar in the LGE segmentation image;
+    `field_name`/`label_value` control what is written onto the mesh: tagged
+    cells get `label_value` in the cell field `field_name`, overlaid onto that
+    field if it already exists (other cells keep their values), else created.
+
     USAGE:
-    python scripts/vscar_projection.py scar --input <path_to_cog_file> -ref <path_to_LGE_segmentation> -label <SCAR_LABEL>
+    python scripts/vscar_projection.py scar --input <path_to_mesh> --cog <path_to_cog_file> -ref <path_to_LGE_segmentation> -label <SCAR_LABEL>
     """
     msh_path = os.path.join(input_info['dirname'], input_info['base'])
     output_msh_name = f'scar3d_{input_info["name"]}'
@@ -196,7 +203,8 @@ def execute_vscar_projection(input_info: dict, cog_path: str, reference_image: s
     _, _, bboxes_dict = itku.get_indices_from_label(img, label, get_voxel_bbox=True)
 
     outmsh = vtku.tag_mesh_elements_by_growing_from_seed_optimized(
-        msh, bboxes_dict['centres'], bboxes_dict['corners'], cogs=cogs, label_name='scar')
+        msh, bboxes_dict['centres'], bboxes_dict['corners'], cogs=cogs,
+        label_name=field_name, label_value=label_value)
 
     vtku.write_vtk(outmsh, input_info['dirname'], output_msh_name, output_type='ugrid')
 
@@ -241,7 +249,8 @@ def _run_scar(args) -> None:
     info = parse_input_name(args.input)
     update_arguments_for_cwd(args, info)
     execute_vscar_projection(info, cog_path=args.cog,
-                             reference_image=args.reference_image, label=args.label)
+                             reference_image=args.reference_image, label=args.label,
+                             field_name=args.field_name, label_value=args.label_value)
 
 def _run_pipeline(args) -> None:
     info = parse_input_name(args.input)
@@ -327,7 +336,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_scar.add_argument('--reference-image', '-ref', type=str, required=True,
                         help='LGE segmentation image')
     p_scar.add_argument('--label', '-label', type=int, default=3,
-                        help='Scar label in the segmentation (default: 3)')
+                        help='Scar label in the SEGMENTATION image (which voxels are scar; default: 3)')
+    p_scar.add_argument('--field-name', '-fname', type=str, default='scar',
+                        help='Mesh cell field to modify or create (default: scar)')
+    p_scar.add_argument('--label-value', '-lval', type=int, default=1,
+                        help='Value written onto tagged mesh cells (default: 1)')
     p_scar.set_defaults(func=_run_scar)
 
     # pipeline --------------------------------------------------------------
@@ -348,7 +361,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_pipe.add_argument('--reference-image', '-ref', type=str, required=True,
                         help='LGE segmentation image')
     p_pipe.add_argument('--label', '-label', type=int, default=3,
-                        help='Scar label in the segmentation (default: 3)')
+                        help='Scar label in the SEGMENTATION image (which voxels are scar; default: 3)')
+    p_pipe.add_argument('--field-name', '-fname', type=str, default='scar',
+                        help='Mesh cell field to modify or create (default: scar)')
+    p_pipe.add_argument('--label-value', '-lval', type=int, default=1,
+                        help='Value written onto tagged mesh cells (default: 1)')
     p_pipe.add_argument('--scale', '-scale', type=float, default=0.001,
                         help='Scaling factor (default: 0.001 for um to mm)')
     p_pipe.add_argument('--convert-format', '-format', action='store_true',
