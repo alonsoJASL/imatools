@@ -1,0 +1,36 @@
+{
+  "laplacesolver": {
+    "abs_toll": 1e-06,
+    "dimKrilovSp": 500,
+    "itr_max": 700,
+    "rel_toll": 1e-06,
+    "verbose": true
+  },
+  "meshing": {
+    "cell_rad_edge_ratio": 2,
+    "cell_size": 0.6,
+    "facet_angle": 25,
+    "facet_distance": 0.1,
+    "facet_size": 0.5,
+    "rescaleFactor": 1000
+  },
+  "others": {
+    "eval_thickness": false
+  },
+  "output": {
+    "name": "result",
+    "out_carp": false,
+    "out_carp_binary": false,
+    "out_medit": false,
+    "out_potential": true,
+    "out_vtk": true,
+    "out_vtk_binary": true,
+    "outdir": "/data/output_v2"
+  },
+  "segmentation": {
+    "boundary_relabeling": false,
+    "mesh_from_segmentation": true,
+    "seg_dir": "/data/segs",
+    "seg_name": "heart"
+  }
+}

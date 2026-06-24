@@ -1,0 +1,5 @@
+{
+  "basename": "test.log",
+  "formatter_fmt": "[%(asctime)s] [%(levelname)s] [%(funcName)s] %(message)s",
+  "level": 0
+}
