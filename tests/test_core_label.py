@@ -55,7 +55,7 @@ def _to_arr(im: sitk.Image) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_binarise_multilabel(golden):
     from imatools.core.label import binarise
 
@@ -64,7 +64,7 @@ def test_binarise_multilabel(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_binarise_binary_noop(golden):
     from imatools.core.label import binarise
 
@@ -78,7 +78,7 @@ def test_binarise_binary_noop(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_extract_single_label_keep_value(golden):
     from imatools.core.label import extract_single_label
 
@@ -87,7 +87,7 @@ def test_extract_single_label_keep_value(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_extract_single_label_binarise(golden):
     from imatools.core.label import extract_single_label
 
@@ -101,7 +101,7 @@ def test_extract_single_label_binarise(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_merge_label_images(golden):
     from imatools.core.label import merge_label_images
 
@@ -116,7 +116,7 @@ def test_merge_label_images(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_bwlabeln_binary(golden):
     from imatools.core.label import bwlabeln
 
@@ -135,7 +135,7 @@ def test_bwlabeln_binary(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_relabel_image(golden):
     from imatools.core.label import relabel_image
 
@@ -149,7 +149,7 @@ def test_relabel_image(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_exchange_labels(golden):
     from imatools.core.label import exchange_labels
 
@@ -163,7 +163,7 @@ def test_exchange_labels(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_get_labels_to_exchange_no_conflict(golden):
     from imatools.core.label import get_labels_to_exchange
 
@@ -173,7 +173,7 @@ def test_get_labels_to_exchange_no_conflict(golden):
     assert [list(op) for op in result] == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_get_labels_to_exchange_conflict(golden):
     from imatools.core.label import get_labels_to_exchange
 
@@ -188,7 +188,7 @@ def test_get_labels_to_exchange_conflict(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_exchange_labels_form_json(golden):
     from imatools.core.label import exchange_labels_form_json
 
@@ -211,7 +211,7 @@ def test_exchange_labels_form_json(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_swap_labels(golden):
     from imatools.core.label import swap_labels
 
@@ -220,7 +220,7 @@ def test_swap_labels(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_swap_labels_default_new(golden):
     from imatools.core.label import swap_labels
 
@@ -234,7 +234,7 @@ def test_swap_labels_default_new(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_get_labels_multilabel(golden):
     from imatools.core.label import get_labels
 
@@ -243,7 +243,7 @@ def test_get_labels_multilabel(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_get_labels_binary(golden):
     from imatools.core.label import get_labels
 
@@ -260,7 +260,7 @@ def test_get_labels_binary(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_combine_segmentations_auto_labels(golden):
     from imatools.core.label import combine_segmentations
 
@@ -270,7 +270,7 @@ def test_combine_segmentations_auto_labels(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_combine_segmentations_explicit_labels(golden):
     from imatools.core.label import combine_segmentations
 
@@ -285,7 +285,7 @@ def test_combine_segmentations_explicit_labels(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_gaps_binary(golden):
     from imatools.core.label import gaps
 
@@ -294,7 +294,7 @@ def test_gaps_binary(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_gaps_multilabel(golden):
     from imatools.core.label import gaps
 
@@ -308,7 +308,7 @@ def test_gaps_multilabel(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_fill_gaps_single(golden):
     from imatools.core.label import fill_gaps
 
@@ -317,7 +317,7 @@ def test_fill_gaps_single(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_fill_gaps_two_images(golden):
     from imatools.core.label import fill_gaps
 
@@ -332,7 +332,7 @@ def test_fill_gaps_two_images(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_dice_score(golden):
     from imatools.core.label import dice_score
 
@@ -342,7 +342,7 @@ def test_dice_score(golden):
     assert result == pytest.approx(float(expected), rel=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_dice_score_identical(golden):
     from imatools.core.label import dice_score
 
@@ -356,7 +356,7 @@ def test_dice_score_identical(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_compare_images(golden):
     from imatools.core.label import compare_images
 
@@ -370,7 +370,7 @@ def test_compare_images(golden):
     assert sorted(unique["im2"]) == expected["unique_im2"]
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_compare_images_identical(golden):
     from imatools.core.label import compare_images
 
@@ -388,7 +388,7 @@ def test_compare_images_identical(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_multilabel_comparison(golden):
     from imatools.core.label import multilabel_comparison
 
@@ -398,7 +398,7 @@ def test_multilabel_comparison(golden):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_multilabel_comparison_explicit_labels(golden):
     from imatools.core.label import multilabel_comparison
 
@@ -413,7 +413,7 @@ def test_multilabel_comparison_explicit_labels(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_get_labels_volumes(golden):
     from imatools.core.label import get_labels_volumes
 
@@ -432,7 +432,7 @@ def test_get_labels_volumes(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a1", strict=False)
+
 def test_distance_based_outlier_detection(golden, tmp_path, monkeypatch):
     from imatools.core.label import distance_based_outlier_detection
 
