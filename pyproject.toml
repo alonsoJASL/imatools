@@ -83,7 +83,8 @@ target-version = ['py39']
 line-length = 100
 target-version = "py39"
 select = ["E", "F", "I", "N", "W"]
-ignore = ["E501"]
+# N813: `import SimpleITK as sitk` is the repo-wide idiom (camelcase-as-lowercase).
+ignore = ["E501", "N813"]
 
 [tool.mypy]
 python_version = "3.9"
