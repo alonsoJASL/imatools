@@ -1,0 +1,10 @@
+{
+  "handler_fmts": [
+    "%(levelname)s %(message)s"
+  ],
+  "handler_types": [
+    "StreamHandler"
+  ],
+  "level": 10,
+  "name": "_capture_config_custom"
+}
