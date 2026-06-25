@@ -10,7 +10,7 @@ This enforces the separation of concerns defined in the Developer's Manifest.
 """
 
 from imatools.contracts.image import ImageContract, ImageMetadata
-from imatools.contracts.mesh import MeshContract, MeshMetadata
+from imatools.contracts.mesh import MeshContract, MeshMetadata, MeshType
 from imatools.contracts.operations import (
     LabelOperation,
     MorphOperation,
@@ -22,6 +22,7 @@ __all__ = [
     "ImageMetadata",
     "MeshContract",
     "MeshMetadata",
+    "MeshType",
     "LabelOperation",
     "MorphOperation",
     "TransformOperation",
