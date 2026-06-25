@@ -82,7 +82,6 @@ _BOXES_MINMAX = [
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_l2_norm_rows(golden):
     from imatools.core.geometry import l2_norm
 
@@ -91,7 +90,6 @@ def test_l2_norm_rows(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_l2_norm_single_row(golden):
     from imatools.core.geometry import l2_norm
 
@@ -105,7 +103,6 @@ def test_l2_norm_single_row(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_dot_prod_vec_basic(golden):
     from imatools.core.geometry import dot_prod_vec
 
@@ -114,7 +111,6 @@ def test_dot_prod_vec_basic(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_dot_prod_vec_self(golden):
     from imatools.core.geometry import dot_prod_vec
 
@@ -128,7 +124,6 @@ def test_dot_prod_vec_self(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_point_in_aabb_inside(golden):
     from imatools.core.geometry import point_in_aabb
 
@@ -137,7 +132,6 @@ def test_point_in_aabb_inside(golden):
     assert bool(result) == bool(expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_point_in_aabb_outside(golden):
     from imatools.core.geometry import point_in_aabb
 
@@ -146,7 +140,6 @@ def test_point_in_aabb_outside(golden):
     assert bool(result) == bool(expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_point_in_aabb_boundary(golden):
     from imatools.core.geometry import point_in_aabb
 
@@ -160,7 +153,6 @@ def test_point_in_aabb_boundary(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_point_in_aabb_vectorized_mixed(golden):
     from imatools.core.geometry import point_in_aabb_vectorized
 
@@ -169,7 +161,6 @@ def test_point_in_aabb_vectorized_mixed(golden):
     np.testing.assert_array_equal(result.astype(np.uint8), expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_point_in_aabb_vectorized_empty_boxes(golden):
     from imatools.core.geometry import point_in_aabb_vectorized
 
@@ -183,7 +174,6 @@ def test_point_in_aabb_vectorized_empty_boxes(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_get_bounding_box_polydata(golden):
     from imatools.core.geometry import get_bounding_box
 
@@ -197,7 +187,6 @@ def test_get_bounding_box_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_get_cog_per_element_polydata(golden):
     from imatools.core.geometry import get_cog_per_element
 
@@ -211,7 +200,6 @@ def test_get_cog_per_element_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_precompute_valid_cells_basic(golden):
     from imatools.core.geometry import get_cog_per_element, precompute_valid_cells
 
@@ -221,7 +209,6 @@ def test_precompute_valid_cells_basic(golden):
     assert sorted(result) == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_precompute_valid_cells_empty(golden):
     from imatools.core.geometry import get_cog_per_element, precompute_valid_cells
 
@@ -236,7 +223,6 @@ def test_precompute_valid_cells_empty(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_compute_mesh_size_polydata(golden):
     from imatools.core.geometry import compute_mesh_size
 
@@ -250,7 +236,6 @@ def test_compute_mesh_size_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_rotation_matrix_z45(golden):
     from imatools.core.geometry import rotation_matrix
 
@@ -259,7 +244,6 @@ def test_rotation_matrix_z45(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_rotation_matrix_zero(golden):
     from imatools.core.geometry import rotation_matrix
 
@@ -268,7 +252,6 @@ def test_rotation_matrix_zero(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b1", strict=False)
 def test_rotation_matrix_x180(golden):
     from imatools.core.geometry import rotation_matrix
 

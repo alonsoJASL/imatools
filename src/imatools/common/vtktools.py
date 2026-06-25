@@ -124,9 +124,6 @@ def parse_dotmesh_file(file_path, myencoding='utf-8'):
 
 
 
-def l2_norm(a): return np.linalg.norm(a, axis=1)
-def dot_prod_vec(a,b): return np.sum(a*b, axis=1)
-
 DATA_TYPES = ['polydata', 'ugrid', 'stl']
 def readVtk(fname, input_type='polydata'):
     logger.warning("This function is deprecated. Please use read_vtk instead.")
@@ -212,30 +209,6 @@ def setCellDataToPointData(msh, fieldname='scalars') :
     """
     print(__doc__)
     return set_cell_to_point_data(msh, fieldname)
-
-def get_cog_per_element(msh) -> np.ndarray:
-    pts, el = extractPointsAndElemsFromVtk(msh)
-    element_coordinates = pts[el]
-
-    cog = np.mean(element_coordinates, axis=1)
-    
-    return cog
-
-def get_bounding_box(msh):
-    """
-    Get the bounding box of a mesh.
-    Returns a tuple of (min_x, min_y, min_z, max_x, max_y, max_z).
-    """
-    bounds = msh.GetBounds()
-    return (bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5])
-
-def point_in_aabb(point, box_corners):
-    """
-    Check if a point lies within the axis-aligned bounding box defined by the 8 voxel corners.
-    """
-    mins = np.min(box_corners, axis=0)
-    maxs = np.max(box_corners, axis=0)
-    return np.all(point >= mins) and np.all(point <= maxs)
 
 def tag_elements_by_voxel_boxes(mesh: vtk.vtkUnstructuredGrid, voxel_bounding_boxes, label_name='scar'):
     """
@@ -355,56 +328,6 @@ def tag_mesh_elements_by_growing_from_seed(msh, seed_points:np.ndarray, voxel_bo
     msh.GetCellData().AddArray(tag_vtk_array)
 
     return msh
-
-def point_in_aabb_vectorized(points: np.ndarray, boxes: List) -> np.ndarray:
-    """
-    Vectorized version to check if points are in any bounding box.
-    
-    Args:
-        points: Nx3 array of points
-        boxes: List of bounding boxes
-    
-    Returns:
-        Boolean array indicating which points are in any box
-    """    
-    if len(boxes) == 0:
-        return np.zeros(len(points), dtype=bool)
-    
-    # Convert boxes to numpy array for vectorized operations
-    # Assuming boxes are in format [(min_x, min_y, min_z, max_x, max_y, max_z), ...]
-    boxes_array = np.array(boxes)
-    points_in_any_box = np.zeros(len(points), dtype=bool)
-    
-    for box in boxes_array:
-        if box.shape == (8, 3):   # 8 corners
-            min_coords = box.min(axis=0)
-            max_coords = box.max(axis=0)
-        elif box.shape == (6,):   # already in min/max form
-            min_coords, max_coords = box[:3], box[3:]
-        elif box.shape == (2, 3): # explicit [min,max]
-            min_coords, max_coords = box[0], box[1]
-        else:
-            raise ValueError(f"Unexpected box shape: {box.shape}")
-        
-        # Vectorized check for all points in this box
-        in_box = np.all((points >= min_coords) & (points <= max_coords), axis=1)
-        points_in_any_box |= in_box
-    
-    return points_in_any_box
-
-def precompute_valid_cells(cogs: np.ndarray, voxel_bounding_boxes: List) -> Set[int]:
-    """
-    Pre-identify which cells are within bounding boxes.
-    
-    Args:
-        cogs: Nx3 array of cell centers of gravity
-        voxel_bounding_boxes: List of bounding boxes
-    
-    Returns:
-        Set of valid cell indices
-    """
-    valid_mask = point_in_aabb_vectorized(cogs, voxel_bounding_boxes)
-    return set(np.where(valid_mask)[0])
 
 def build_adjacency_list_optimized(msh) -> List[List[int]]:
     """
@@ -2158,17 +2081,6 @@ def clean_mesh(msh: vtk.vtkPolyData) :
 #             combinedFlag.SetTuple1(i, 0)
     
 #     return combinedFlag
-def compute_mesh_size(msh) -> tuple:
-    """
-    Compute the size of a mesh by calculating the sum of the areas of all cells.
-    """
-    total_area = 0.0
-    for i in range(msh.GetNumberOfCells()):
-        cell = msh.GetCell(i)
-        total_area += cell.ComputeArea()
-    
-    return msh.GetNumberOfCells(), total_area
-
 def mesh_to_image(mesh, reference_image, inside_value=1, outside_value=0, reverse_stencil=False):
     """
     Converts a vtkPolyData surface mesh to a binary segmentation image (SimpleITK) 
@@ -2304,5 +2216,22 @@ def create_image_with_combined_origin(reference_image, combined_bounds, pixel_va
     
     # Optionally fill the image with a pixel value.
     new_img = sitk.Add(new_img, pixel_value)
-    
+
     return new_img
+
+
+# ---------------------------------------------------------------------------
+# Re-export shim — geometry functions now live in imatools.core.geometry (T2b1).
+# These names are injected into this module's namespace so that all existing
+# ``from imatools.common.vtktools import …`` call sites keep working unchanged.
+# ---------------------------------------------------------------------------
+from imatools.core.geometry import (  # noqa: E402,F401
+    l2_norm,
+    dot_prod_vec,
+    point_in_aabb,
+    point_in_aabb_vectorized,
+    get_bounding_box,
+    precompute_valid_cells,
+    get_cog_per_element,
+    compute_mesh_size,
+)

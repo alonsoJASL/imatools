@@ -7,32 +7,6 @@ import math
 import pyvista as pv
 import vtk
 
-def rotation_matrix(u: np.ndarray, theta: float) -> np.ndarray:
-	'''
-	Calculate the rotation matrix for a given axis and angle.
-
-	Parameters:
-	- u (array-like): 3-element array representing the rotation axis.
-	- theta (float): Angle of rotation in radians.
-
-	Returns:
-	- array: 3x3 rotation matrix.
-	'''
-	R = np.zeros((3,3),dtype=float)
-	R[0,0] = u[0]**2 +math.cos(theta) * (1 - u[0]**2)
-	R[0,1] = (1 -math.cos(theta)) * u[0] * u[1] - u[2] *math.sin(theta)
-	R[0,2] = (1 -math.cos(theta)) * u[0] * u[2] + u[1] *math.sin(theta)	
-
-	R[1,0] = (1 -math.cos(theta)) * u[0] * u[1] + u[2] *math.sin(theta)
-	R[1,1] = u[1]**2 +math.cos(theta) * (1 - u[1]**2)
-	R[1,2] = (1 - math.cos(theta)) * u[1] * u[2] - u[0] *math.sin(theta)	
-
-	R[2,0] = (1 - math.cos(theta)) * u[0] * u[2] - u[1] *math.sin(theta)
-	R[2,1] = (1 - math.cos(theta)) * u[1] * u[2] + u[0] *math.sin(theta)
-	R[2,2] = u[2]**2 +math.cos(theta) * (1 - u[2]**2)
-
-	return R
-
 def rotate_mesh(plt_msh,
 				lv_tag=1,
 				mv_tag=7,
@@ -148,3 +122,9 @@ def pts_elem_to_pyvista(pts,elem,add_tags=False,el_type='Tt'):
         plt_msh.cell_data["ID"] = tags
 
     return plt_msh
+
+
+# ---------------------------------------------------------------------------
+# Re-export shim — rotation_matrix now lives in imatools.core.geometry (T2b1).
+# ---------------------------------------------------------------------------
+from imatools.core.geometry import rotation_matrix  # noqa: E402,F401
