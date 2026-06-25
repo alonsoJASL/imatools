@@ -70,7 +70,6 @@ _REGION = np.arange(_N, dtype=int) % 3
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_performance_metrics_balanced(golden):
     from imatools.core.metrics import performanceMetrics
 
@@ -79,7 +78,6 @@ def test_performance_metrics_balanced(golden):
     _assert_dict_allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_performance_metrics_degenerate_zeros(golden):
     from imatools.core.metrics import performanceMetrics
 
@@ -96,7 +94,6 @@ def test_performance_metrics_degenerate_zeros(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_get_boxplot_values_linspace(golden):
     from imatools.core.metrics import get_boxplot_values
 
@@ -110,7 +107,6 @@ def test_get_boxplot_values_linspace(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_l2_norm_vector_field(golden):
     from imatools.core.metrics import l2_norm
 
@@ -124,7 +120,6 @@ def test_l2_norm_vector_field(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_classify_array_bins(golden):
     from imatools.core.metrics import classify_array
 
@@ -138,7 +133,6 @@ def test_classify_array_bins(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_count_values_in_ranges(golden):
     from imatools.core.metrics import count_values_in_ranges
 
@@ -153,7 +147,6 @@ def test_count_values_in_ranges(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_near_equal(golden):
     from imatools.core.metrics import near
 
@@ -162,7 +155,6 @@ def test_near_equal(golden):
     assert bool(result) == bool(expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_near_far(golden):
     from imatools.core.metrics import near
 
@@ -176,7 +168,6 @@ def test_near_far(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_compare_large_arrays_basic(golden):
     from imatools.core.metrics import compare_large_arrays
 
@@ -185,7 +176,6 @@ def test_compare_large_arrays_basic(golden):
     _assert_dict_allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_compare_large_arrays_identical(golden):
     from imatools.core.metrics import compare_large_arrays
 
@@ -199,7 +189,6 @@ def test_compare_large_arrays_identical(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_compare_scalar_field_linspace(golden):
     from imatools.core.metrics import compare_scalar_field
 
@@ -208,7 +197,6 @@ def test_compare_scalar_field_linspace(golden):
     _assert_dict_allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_compare_scalar_field_identical(golden):
     from imatools.core.metrics import compare_scalar_field
 
@@ -222,7 +210,6 @@ def test_compare_scalar_field_identical(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_compare_vector_field_unit(golden):
     from imatools.core.metrics import compare_vector_field
 
@@ -231,7 +218,6 @@ def test_compare_vector_field_unit(golden):
     _assert_dict_allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c1", strict=False)
 def test_compare_vector_field_identical(golden):
     from imatools.core.metrics import compare_vector_field
 
