@@ -12,27 +12,7 @@ logger = configure_logging(log_name=__name__)
 
 
 ## Tools for header correction orientation
-def fix_header_to_axis_aligned(hdr: nrrd.NRRDHeader):
-    """Modify NRRD header to make space directions axis-aligned."""
-    hdr = hdr.copy()
-    dirs = np.asarray(hdr["space directions"], dtype=float)
-
-    # Compute voxel sizes (norms of direction vectors)
-    spacings = np.linalg.norm(dirs, axis=1)
-    if np.any(spacings <= 0):
-        raise ValueError(f"Invalid spacing values: {spacings}")
-
-    # Replace space directions with a diagonal matrix
-    aligned_dirs = np.diag(spacings)
-    hdr["space directions"] = aligned_dirs
-
-    # Update srow_* fields for ITK/NIfTI compatibility
-    origin = hdr["space origin"]
-    hdr["srow_x"] = f"{aligned_dirs[0,0]:.6f} 0.000000 0.000000 {origin[0]:.6f}"
-    hdr["srow_y"] = f"0.000000 {aligned_dirs[1,1]:.6f} 0.000000 {origin[1]:.6f}"
-    hdr["srow_z"] = f"0.000000 0.000000 {aligned_dirs[2,2]:.6f} {origin[2]:.6f}"
-
-    return hdr
+# fix_header_to_axis_aligned moved to core.spatial (T2a3); re-exported via shim below.
 
 
 def fix_header_and_save(path_to_file, out_path):
@@ -51,9 +31,7 @@ def fix_header_and_save(path_to_file, out_path):
     logger.info(f"Saved fixed NRRD file to {out_path}")
 
 
-def set_direction_as(im: sitk.Image, ref: sitk.Image):
-    im.SetDirection(ref.GetDirection())
-    return im
+# set_direction_as moved to core.spatial (T2a3); re-exported via shim below.
 
 
 def load_image_as_np(path_to_file):
@@ -369,73 +347,9 @@ def check_for_existing_label(im: sitk.Image, label) -> bool:
     return label in labels_in_im
 
 
-def create_normal_vector_for_plane(axis, angle):
-    """
-    Returns a normal vector for a plane rotated around the given axis by the given angle
-    """
-    AXES = ["x", "y", "z"]
-    if axis not in AXES:
-        raise ValueError(f"Axis {axis} not recognised")
-
-    vector = np.zeros(3)
-    vector[AXES.index(axis)] = 1
-
-    angle_rad = np.radians(angle)
-
-    if axis == "x":
-        rotation_matrix = np.array(
-            [[1, 0, 0], [0, np.cos(angle), -np.sin(angle)], [0, np.sin(angle), np.cos(angle)]]
-        )
-    elif axis == "y":
-        rotation_matrix = np.array(
-            [[np.cos(angle), 0, np.sin(angle)], [0, 1, 0], [-np.sin(angle), 0, np.cos(angle)]]
-        )
-    elif axis == "z":
-        rotation_matrix = np.array(
-            [[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]]
-        )
-
-    # Apply the rotation matrix to the initial vector
-    normal_vector = np.dot(rotation_matrix, vector)
-    normal_vector = normal_vector / np.linalg.norm(normal_vector)
-
-    return normal_vector
-
-
-def create_image_at_plane(image: sitk.Image, point_on_plane: np.array, axis: str, angle: float):
-    normal_vector = create_normal_vector_for_plane(axis, angle)
-    return create_image_at_plane_from_vector(image, point_on_plane, normal_vector)
-
-
-def create_image_at_plane_from_vector(
-    image: sitk.Image, point_on_plane: np.array, normal_vector: np.array
-):
-    transform = sitk.AffineTransform(3)
-    transform.SetMatrix(normal_vector + [0, 0, 1])
-
-    i_transform = transform.GetInverse()
-
-    im_size = image.GetSize()
-    spacing = image.GetSpacing()
-
-    # Transform the point on the plane to the image's coordinate system
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetOutputDirection([0, 0, -1, 0, -1, 0, 1, 0, 0])
-    resampler.SetOutputOrigin(point_on_plane)
-    resampler.SetSize(im_size)
-    resampler.SetOutputSpacing(spacing)
-    resampler.SetTransform(i_transform)
-
-    resampled_im = resampler.Execute(image)
-
-    # Convert the 3D image to a 2D array
-    array = imview(resampled_im)
-
-    # Select the middle slice along the third dimension
-    slice_index = array.shape[2] // 2
-    slice_2d = array[:, :, slice_index]
-
-    return slice_2d
+# create_normal_vector_for_plane, create_image_at_plane,
+# create_image_at_plane_from_vector moved to core.spatial (T2a3);
+# re-exported via shim below.
 
 
 def project_surface_onto_segmentation(
@@ -565,4 +479,11 @@ from imatools.core.image import (  # noqa: E402,F401,I001
     smooth_labels,
     swap_axes,
     zeros_like,
+)
+from imatools.core.spatial import (  # noqa: E402,F401,I001
+    create_image_at_plane,
+    create_image_at_plane_from_vector,
+    create_normal_vector_for_plane,
+    fix_header_to_axis_aligned,
+    set_direction_as,
 )

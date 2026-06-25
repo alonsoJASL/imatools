@@ -83,7 +83,6 @@ _HDR_ALIGNED = {
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_normal_vector_z_zero(golden):
     """Rotating the z-axis around z by 0 radians → [0, 0, 1]."""
     from imatools.core.spatial import create_normal_vector_for_plane
@@ -93,7 +92,6 @@ def test_normal_vector_z_zero(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_normal_vector_z_quarter_pi(golden):
     """Rotating the z-axis around z by pi/4 → still [0, 0, 1]."""
     from imatools.core.spatial import create_normal_vector_for_plane
@@ -103,7 +101,6 @@ def test_normal_vector_z_quarter_pi(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_normal_vector_x_half_pi(golden):
     """Rotating the x-axis around x by pi/2 → still [1, 0, 0]."""
     from imatools.core.spatial import create_normal_vector_for_plane
@@ -113,7 +110,6 @@ def test_normal_vector_x_half_pi(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_normal_vector_y_pi(golden):
     """Rotating the y-axis around y by pi → still [0, 1, 0]."""
     from imatools.core.spatial import create_normal_vector_for_plane
@@ -133,13 +129,11 @@ def test_normal_vector_y_pi(golden):
 # instead of 9.  No golden file exists; this test is a stub for T2a3.
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_create_image_at_plane_import():
     """Target module can be imported and ``create_image_at_plane`` is accessible."""
     from imatools.core.spatial import create_image_at_plane  # noqa: F401
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_create_image_at_plane_returns_2d_array():
     """``create_image_at_plane`` returns a 2-D numpy array for valid inputs.
 
@@ -161,13 +155,11 @@ def test_create_image_at_plane_returns_2d_array():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_create_image_at_plane_from_vector_import():
     """Target module can be imported and ``create_image_at_plane_from_vector`` is accessible."""
     from imatools.core.spatial import create_image_at_plane_from_vector  # noqa: F401
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_create_image_at_plane_from_vector_returns_2d_array():
     """``create_image_at_plane_from_vector`` returns a 2-D numpy array.
 
@@ -188,7 +180,6 @@ def test_create_image_at_plane_from_vector_returns_2d_array():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_set_direction_as_basic(golden):
     """Direction is copied from ref; spacing and origin remain from im."""
     from imatools.core.spatial import set_direction_as
@@ -208,7 +199,6 @@ def test_set_direction_as_basic(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_fix_header_oblique(golden):
     """Off-diagonal space directions are replaced by a diagonal of their row norms."""
     from imatools.core.spatial import fix_header_to_axis_aligned
@@ -231,7 +221,6 @@ def test_fix_header_oblique(golden):
     assert result["srow_z"] == expected["srow_z"]
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a3", strict=False)
 def test_fix_header_aligned(golden):
     """Already axis-aligned header passes through unchanged (identity case)."""
     from imatools.core.spatial import fix_header_to_axis_aligned
