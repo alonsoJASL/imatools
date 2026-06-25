@@ -26,8 +26,6 @@ from __future__ import annotations
 import os
 import tempfile
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -57,7 +55,6 @@ def _seed_tmpdir(tmpdir: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_fullfile_3parts(golden):
     from imatools.io.paths import fullfile
 
@@ -66,7 +63,6 @@ def test_fullfile_3parts(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_fullfile_2parts(golden):
     from imatools.io.paths import fullfile
 
@@ -80,7 +76,6 @@ def test_fullfile_2parts(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_ext_add(golden):
     from imatools.io.paths import ext
 
@@ -89,7 +84,6 @@ def test_ext_add(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_ext_already_has(golden):
     from imatools.io.paths import ext
 
@@ -98,7 +92,6 @@ def test_ext_already_has(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_ext_dot_prefix(golden):
     from imatools.io.paths import ext
 
@@ -112,7 +105,6 @@ def test_ext_dot_prefix(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_num2padstr_default(golden):
     from imatools.io.paths import num2padstr
 
@@ -121,7 +113,6 @@ def test_num2padstr_default(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_num2padstr_wide(golden):
     from imatools.io.paths import num2padstr
 
@@ -130,7 +121,6 @@ def test_num2padstr_wide(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_num2padstr_overflow(golden):
     from imatools.io.paths import num2padstr
 
@@ -144,7 +134,6 @@ def test_num2padstr_overflow(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_mkdirplus_creates(golden):
     from imatools.io.paths import mkdirplus
 
@@ -159,7 +148,6 @@ def test_mkdirplus_creates(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_search_file_by_type_vtk(golden):
     from imatools.io.paths import searchFileByType
 
@@ -171,7 +159,6 @@ def test_search_file_by_type_vtk(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_search_file_by_type_prefix(golden):
     from imatools.io.paths import searchFileByType
 
@@ -188,12 +175,14 @@ def test_search_file_by_type_prefix(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_get_subfolders_sorted(golden):
-    from imatools.io.paths import get_subfolders
+    from imatools.io.paths import get_subfolders, mkdirplus
 
     tmpdir = tempfile.mkdtemp()
     _seed_tmpdir(tmpdir)
+    # The golden was captured from a shared tmpdir where mkdirplus already
+    # created 'newdir/leaf' before get_subfolders ran.  Reproduce that here.
+    mkdirplus(tmpdir, "newdir", "leaf")
     subs = get_subfolders(tmpdir)
     result = sorted(os.path.basename(s) for s in subs)
     expected = golden("paths/get_subfolders_sorted")
@@ -205,7 +194,6 @@ def test_get_subfolders_sorted(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_find_file_single(golden):
     from imatools.io.paths import find_file
 
@@ -217,7 +205,6 @@ def test_find_file_single(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_find_file_with_ext(golden):
     from imatools.io.paths import find_file
 
@@ -229,7 +216,6 @@ def test_find_file_with_ext(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c3", strict=False)
 def test_find_file_missing(golden):
     from imatools.io.paths import find_file
 

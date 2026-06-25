@@ -1,4 +1,3 @@
-import glob
 import os
 import platform as pltf
 import sys
@@ -9,89 +8,6 @@ import numpy as np
 
 def dot_prod_vec(a, b):
     return np.sum(a * b, axis=1)
-
-
-def ext(fname, extension):
-    """
-    Returns filename with extension
-    """
-    xt = f".{extension}" if extension[0] != "." else extension
-    fname = fname if fname[-len(xt) :] == xt else fname + xt
-    return fname
-
-
-def get_subfolders(directory: str) -> list:
-    """
-    Returns list of subfolders in a directory
-    """
-    return [f.path for f in os.scandir(directory) if f.is_dir()]
-
-
-def find_file(directory: str, fname: str, extension="") -> str:
-    """
-    Returns path of file in a directory
-    """
-    list_of_files = []
-    for name in os.listdir(directory):
-        if os.path.isfile(os.path.join(directory, name)):
-            if fname in name:
-                list_of_files.append(os.path.join(directory, name))
-
-    if len(list_of_files) == 0:
-        return ""
-
-    if len(list_of_files) == 1:
-        return list_of_files[0]
-
-    if len(list_of_files) > 1:
-        if extension == "":
-            return list_of_files[0]
-        else:
-            for f in list_of_files:
-                if extension in f:
-                    return f
-
-    return ""
-
-
-def slot_in_path_hrchy(filepath: str, fname="", num_levels_above=1) -> str:
-    """
-    Returns path of file in a directory
-    """
-    filepath = os.path.normpath(filepath)
-    num_levels_above = np.abs(num_levels_above)
-
-    res = "/".join(filepath.split("/")[0:-num_levels_above])
-    if fname != "":
-        res = os.path.join(res, fname)
-
-    return res
-
-
-def fullfile(*paths):
-    """
-    Returns path separated by '/'
-    """
-    s = "/"
-    return s.join(paths)
-
-
-def mkdirplus(*paths):
-    """
-    Joins paths with fullfile, then creates path
-    returns path
-    """
-    res = fullfile(*paths)
-    os.makedirs(res, exist_ok=True)
-    return res
-
-
-def searchFileByType(directory, prefix="", extension=""):
-    """
-    Search file by filetype
-    """
-    l = glob.glob(fullfile(directory, prefix + "*." + extension))
-    return l
 
 
 def cout(msg, typeMsg="INFO", print2console=True, logger=None):
@@ -159,15 +75,6 @@ def readFileToList(fname, delim=","):
 
 def chooseplatform():
     return pltf.platform().split("-")[0]
-
-
-def num2padstr(number, padding=3):
-    padstr = str(number)
-    if len(padstr) < padding:
-        for ix in range(padding - len(padstr)):
-            padstr = "0" + padstr
-
-    return padstr
 
 
 def compareCarpMesh(pts1, el1, pts2, el2):
@@ -249,4 +156,19 @@ from imatools.io.carp_io import (  # noqa: E402,F401
     readParseElem,
     loadCarpMesh,
     saveToCarpTxt,
+)
+
+# ---------------------------------------------------------------------------
+# Re-export shim — path helper functions now live in imatools.io.paths (T2c3).
+# Legacy callers that import from imatools.common.ioutils continue to work.
+# ---------------------------------------------------------------------------
+from imatools.io.paths import (  # noqa: E402,F401
+    ext,
+    get_subfolders,
+    find_file,
+    slot_in_path_hrchy,
+    fullfile,
+    mkdirplus,
+    searchFileByType,
+    num2padstr,
 )
