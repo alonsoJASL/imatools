@@ -48,7 +48,6 @@ def _reduce_parse_result(result):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b4", strict=False)
 def test_parse_dotmesh_file_synthetic(golden):
     from imatools.parsers.dotmesh import parse_dotmesh_file
 
@@ -71,7 +70,6 @@ def test_parse_dotmesh_file_synthetic(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b4", strict=False)
 def test_save_array_pts(golden):
     from imatools.parsers.dotmesh import save_array
 
@@ -91,7 +89,6 @@ def test_save_array_pts(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b4", strict=False)
 def test_save_array_elem(golden):
     from imatools.parsers.dotmesh import save_array
 
