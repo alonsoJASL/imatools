@@ -32,14 +32,11 @@ import logging
 import os
 import tempfile
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # configure_logging
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2d", strict=False)
 def test_configure_logging_defaults(golden):
     """configure_logging with defaults: INFO level, default format."""
     from imatools.common.config import configure_logging
@@ -61,7 +58,6 @@ def test_configure_logging_defaults(golden):
         logger.handlers.clear()
 
 
-@pytest.mark.xfail(reason="awaiting migration T2d", strict=False)
 def test_configure_logging_custom(golden):
     """configure_logging with custom log_level=DEBUG and custom format."""
     from imatools.common.config import configure_logging
@@ -91,7 +87,6 @@ def test_configure_logging_custom(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2d", strict=False)
 def test_add_file_handler_default(golden):
     """add_file_handler with default log_level (ERROR=40).
 
@@ -120,7 +115,6 @@ def test_add_file_handler_default(golden):
         logger.handlers.clear()
 
 
-@pytest.mark.xfail(reason="awaiting migration T2d", strict=False)
 def test_add_file_handler_warning(golden):
     """add_file_handler with explicit log_level=WARNING.
 
