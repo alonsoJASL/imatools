@@ -164,7 +164,6 @@ def _make_rotate_mesh_input():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_clean_mesh_polydata(golden):
     from imatools.core.mesh import clean_mesh
 
@@ -179,7 +178,6 @@ def test_clean_mesh_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_set_cell_to_point_data(golden):
     from imatools.core.mesh import set_cell_to_point_data
 
@@ -195,7 +193,6 @@ def test_set_cell_to_point_data(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_point_to_cell_data(golden):
     from imatools.core.mesh import point_to_cell_data
 
@@ -210,7 +207,6 @@ def test_point_to_cell_data(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_cell_to_point_data(golden):
     from imatools.core.mesh import cell_to_point_data
 
@@ -226,7 +222,6 @@ def test_cell_to_point_data(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_convert_point_data_to_np_array(golden):
     from imatools.core.mesh import convertPointDataToNpArray  # noqa: N802
 
@@ -235,7 +230,6 @@ def test_convert_point_data_to_np_array(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_convert_cell_data_to_np_array(golden):
     from imatools.core.mesh import convertCellDataToNpArray  # noqa: N802
 
@@ -249,7 +243,6 @@ def test_convert_cell_data_to_np_array(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_set_vtk_scalars_all(golden):
     from imatools.core.mesh import set_vtk_scalars
 
@@ -259,7 +252,6 @@ def test_set_vtk_scalars_all(golden):
     assert result_values == pytest.approx(expected, rel=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_set_vtk_scalars_indexed(golden):
     from imatools.core.mesh import set_vtk_scalars
 
@@ -274,7 +266,6 @@ def test_set_vtk_scalars_indexed(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_set_cell_scalars(golden):
     from imatools.core.mesh import set_cell_scalars
 
@@ -289,7 +280,6 @@ def test_set_cell_scalars(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_indices_at_scalar_default(golden):
     from imatools.core.mesh import indices_at_scalar
 
@@ -298,7 +288,6 @@ def test_indices_at_scalar_default(golden):
     assert result.tolist() == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_indices_at_scalar_value(golden):
     from imatools.core.mesh import indices_at_scalar
 
@@ -312,7 +301,6 @@ def test_indices_at_scalar_value(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_get_surface_area(golden):
     from imatools.core.mesh import getSurfaceArea  # noqa: N802
 
@@ -326,7 +314,6 @@ def test_get_surface_area(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_get_elem_permutation_diff_size(golden):
     from imatools.core.mesh import getElemPermutation  # noqa: N802
 
@@ -340,7 +327,6 @@ def test_get_elem_permutation_diff_size(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_fibrosis_score_cell(golden):
     from imatools.core.mesh import fibrosis_score
 
@@ -349,7 +335,6 @@ def test_fibrosis_score_cell(golden):
     assert result == pytest.approx(expected, rel=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_fibrosis_score_cell_wrapper(golden):
     from imatools.core.mesh import fibrosis_score_cell
 
@@ -358,7 +343,6 @@ def test_fibrosis_score_cell_wrapper(golden):
     assert result == pytest.approx(expected, rel=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_fibrois_score_legacy(golden):
     from imatools.core.mesh import fibrorisScore  # noqa: N802
 
@@ -372,7 +356,6 @@ def test_fibrois_score_legacy(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_fibrosis_overlap_cell(golden):
     from imatools.core.mesh import fibrosis_overlap
 
@@ -383,7 +366,6 @@ def test_fibrosis_overlap_cell(golden):
     } == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_fibrosis_overlap_cells_wrapper(golden):
     from imatools.core.mesh import fibrosis_overlap_cells
 
@@ -394,7 +376,6 @@ def test_fibrosis_overlap_cells_wrapper(golden):
     } == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_fibrosis_overlap_cell_legacy(golden):
     from imatools.core.mesh import fibrosisOverlapCell  # noqa: N802
 
@@ -410,7 +391,6 @@ def test_fibrosis_overlap_cell_legacy(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_tag_elements_by_voxel_boxes(golden):
     from imatools.core.mesh import tag_elements_by_voxel_boxes
 
@@ -427,7 +407,6 @@ def test_tag_elements_by_voxel_boxes(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_tag_mesh_elements_by_voxel_boxes_centroids(golden):
     from imatools.core.mesh import tag_mesh_elements_by_voxel_boxes
 
@@ -443,7 +422,6 @@ def test_tag_mesh_elements_by_voxel_boxes_centroids(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_tag_mesh_elements_by_growing_from_seed(golden):
     from imatools.core.mesh import tag_mesh_elements_by_growing_from_seed
 
@@ -460,7 +438,6 @@ def test_tag_mesh_elements_by_growing_from_seed(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_tag_mesh_elements_by_growing_from_seed_optimized(golden):
     from imatools.core.mesh import tag_mesh_elements_by_growing_from_seed_optimized
 
@@ -479,7 +456,6 @@ def test_tag_mesh_elements_by_growing_from_seed_optimized(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_tag_mesh_elements_parallel_regions(golden):
     from imatools.core.mesh import tag_mesh_elements_parallel_regions
 
@@ -495,7 +471,6 @@ def test_tag_mesh_elements_parallel_regions(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_flip_xy(golden):
     from imatools.core.mesh import flip_xy
 
@@ -512,7 +487,6 @@ def test_flip_xy(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_global_centre_of_mass(golden):
     from imatools.core.mesh import global_centre_of_mass
 
@@ -526,7 +500,6 @@ def test_global_centre_of_mass(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_translate_to_point_origin(golden):
     from imatools.core.mesh import global_centre_of_mass, translate_to_point
 
@@ -536,7 +509,6 @@ def test_translate_to_point_origin(golden):
     assert result.GetNumberOfPoints() == expected["n_points"]
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_translate_to_point_custom(golden):
     from imatools.core.mesh import global_centre_of_mass, translate_to_point
 
@@ -551,7 +523,6 @@ def test_translate_to_point_custom(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_join_vtk(golden):
     from imatools.core.mesh import join_vtk
 
@@ -566,7 +537,6 @@ def test_join_vtk(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_np_to_vtk_array(golden):
     from imatools.core.mesh import np_to_vtk_array
 
@@ -581,7 +551,6 @@ def test_np_to_vtk_array(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_mask_cell_scalars(golden):
     from imatools.core.mesh import mask_cell_scalars
 
@@ -596,7 +565,6 @@ def test_mask_cell_scalars(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_ugrid2polydata(golden):
     from imatools.core.mesh import ugrid2polydata
 
@@ -611,7 +579,6 @@ def test_ugrid2polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_cogs_from_ugrid(golden):
     from imatools.core.mesh import cogs_from_ugrid
 
@@ -625,7 +592,6 @@ def test_cogs_from_ugrid(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_extract_points_and_elems_from_vtk_pts(golden):
     from imatools.core.mesh import extractPointsAndElemsFromVtk  # noqa: N802
 
@@ -634,7 +600,6 @@ def test_extract_points_and_elems_from_vtk_pts(golden):
     np.testing.assert_allclose(pts, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_extract_points_and_elems_from_vtk_tri(golden):
     from imatools.core.mesh import extractPointsAndElemsFromVtk  # noqa: N802
 
@@ -648,7 +613,6 @@ def test_extract_points_and_elems_from_vtk_tri(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_get_element_cogs_polydata(golden):
     from imatools.core.mesh import get_element_cogs
 
@@ -657,7 +621,6 @@ def test_get_element_cogs_polydata(golden):
     np.testing.assert_allclose(result, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_get_element_cogs_ugrid(golden):
     from imatools.core.mesh import get_element_cogs
 
@@ -688,7 +651,6 @@ def _build_small_pd():
     return pd2
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_compare_mesh_sizes_pts(golden):
     from imatools.core.mesh import compare_mesh_sizes, write_vtk
 
@@ -705,7 +667,6 @@ def test_compare_mesh_sizes_pts(golden):
     assert result[5] == expected["small_id"]
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_compare_mesh_sizes_elem(golden):
     from imatools.core.mesh import compare_mesh_sizes, write_vtk
 
@@ -727,7 +688,6 @@ def test_compare_mesh_sizes_elem(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_map_cells(golden):
     from imatools.core.mesh import map_cells
 
@@ -744,7 +704,6 @@ def test_map_cells(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_map_points(golden):
     from imatools.core.mesh import map_points
 
@@ -759,7 +718,6 @@ def test_map_points(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_verify_cell_indices(golden):
     from imatools.core.mesh import get_element_cogs, verify_cell_indices
 
@@ -774,7 +732,6 @@ def test_verify_cell_indices(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b2", strict=False)
 def test_rotate_mesh(golden):
     from imatools.core.mesh import rotate_mesh
 
