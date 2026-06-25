@@ -43,7 +43,6 @@ from typing import Any, Dict
 
 import _fixtures as fx
 import numpy as np
-import pytest
 import vtk
 
 # ---------------------------------------------------------------------------
@@ -162,7 +161,6 @@ def _write_points_csv(tmpdir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_read_vtk_polydata(golden):
     from imatools.io.mesh_io import read_vtk
 
@@ -182,7 +180,6 @@ def test_read_vtk_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_read_vtk_ugrid(golden):
     from imatools.io.mesh_io import read_vtk
 
@@ -202,7 +199,6 @@ def test_read_vtk_ugrid(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_read_vtk_deprecated_polydata(golden):
     """readVtk is the deprecated wrapper around read_vtk."""
     from imatools.io.mesh_io import readVtk
@@ -222,7 +218,6 @@ def test_read_vtk_deprecated_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_write_vtk_polydata(golden):
     from imatools.io.mesh_io import read_vtk, write_vtk
 
@@ -242,7 +237,6 @@ def test_write_vtk_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_write_vtk_ugrid(golden):
     from imatools.io.mesh_io import read_vtk, write_vtk
 
@@ -262,7 +256,6 @@ def test_write_vtk_ugrid(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_write_vtk_deprecated_polydata(golden):
     """writeVtk is the deprecated wrapper around write_vtk."""
     from imatools.io.mesh_io import read_vtk, writeVtk
@@ -283,7 +276,6 @@ def test_write_vtk_deprecated_polydata(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_clean_stl_file(golden):
     from imatools.io.mesh_io import clean_stl_file
 
@@ -305,7 +297,6 @@ def test_clean_stl_file(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_export_as_ply(golden):
     from imatools.io.mesh_io import export_as
 
@@ -325,7 +316,6 @@ def test_export_as_ply(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_export_as_stl(golden):
     from imatools.io.mesh_io import export_as
 
@@ -345,7 +335,6 @@ def test_export_as_stl(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_export_as_vtp(golden):
     from imatools.io.mesh_io import export_as
 
@@ -365,7 +354,6 @@ def test_export_as_vtp(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_save_carp_as_vtk(golden):
     from imatools.io.mesh_io import read_vtk, saveCarpAsVtk
 
@@ -386,7 +374,6 @@ def test_save_carp_as_vtk(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2b3", strict=False)
 def test_vtk_from_points_file(golden):
     from imatools.io.mesh_io import vtk_from_points_file
 

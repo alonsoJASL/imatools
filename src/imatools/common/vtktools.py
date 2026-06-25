@@ -127,77 +127,12 @@ def parse_dotmesh_file(file_path, myencoding="utf-8"):
     return general_attributes, vertices_section, triangles_section
 
 
-DATA_TYPES = ["polydata", "ugrid", "stl"]
-
-
-def readVtk(fname, input_type="polydata"):
-    logger.warning("This function is deprecated. Please use read_vtk instead.")
-    return read_vtk(fname, input_type)
-
-
 def clean_stl_file(input_path, output_path):
     with open(input_path, "r") as f_in, open(output_path, "w") as f_out:
         for line in f_in:
             f_out.write(line)
             if line.strip().startswith("endsolid"):  # Stop writing after endsolid
                 break
-
-
-def read_vtk(fname, input_type="polydata"):
-    """
-    Read VTK file
-    """
-    if input_type not in DATA_TYPES:
-        logger.error(f"Invalid input type: {input_type}")
-        raise ValueError(f"Invalid input type: {input_type}")
-
-    try:
-        if input_type == "ugrid":
-            reader = vtk.vtkUnstructuredGridReader()
-        elif input_type == "polydata":
-            reader = vtk.vtkPolyDataReader()
-        else:  # stl
-            reader = vtk.vtkSTLReader()
-
-        logger.info(f"Reading VTK [{input_type}] file: {fname}")
-        reader.SetFileName(fname)
-        reader.Update()
-        output = reader.GetOutput()
-
-        if reader.GetErrorCode() != vtk.vtkErrorCode.NoError:
-            raise ValueError(f"Error reading VTK file: {fname}")
-
-        return output
-    except Exception as e:
-        logger.error(f"Failed to read VTK file: {fname}. Error: {e}")
-        raise
-
-
-def writeVtk(mesh, directory, outname="output", output_type="polydata"):
-    logger.warning("This function is deprecated. Please use write_vtk instead.")
-    return write_vtk(mesh, directory, outname, output_type)
-
-
-def write_vtk(mesh, directory, outname="output", output_type="polydata"):
-    filename = os.path.join(directory, outname)
-    filename += ".vtk" if not filename.endswith(".vtk") else ""
-
-    if output_type not in DATA_TYPES:
-        logger.error(f"Invalid output type: {output_type}")
-        raise ValueError(f"Invalid output type: {output_type}")
-
-    if output_type == "ugrid":
-        writer = vtk.vtkUnstructuredGridWriter()
-    else:
-        writer = vtk.vtkPolyDataWriter()
-    writer.WriteArrayMetaDataOff()
-    writer.SetInputData(mesh)
-    writer.SetFileName(filename)
-    writer.SetFileTypeToASCII()
-    # check for vtk version
-    if vtk.vtkVersion().GetVTKMajorVersion() >= 9 and vtk.vtkVersion().GetVTKMinorVersion() >= 1:
-        writer.SetFileVersion(42)
-    writer.Update()
 
 
 def getHausdorffDistance(input_mesh0, input_mesh1, label=0):
@@ -257,34 +192,6 @@ def getSurfacesJaccard(pd1, pd2):
     intersection = getBooleanOperation(pd1, pd2, "intersection")
 
     return getSurfaceArea(intersection) / getSurfaceArea(union)
-
-
-def saveCarpAsVtk(pts, el, dir, name, dat=None):
-    nodes = vtk.vtkPoints()
-    for ix in range(len(pts)):
-        nodes.InsertPoint(ix, pts[ix, 0], pts[ix, 1], pts[ix, 2])
-
-    elems = vtk.vtkCellArray()
-    for ix in range(len(el)):
-        elIdList = vtk.vtkIdList()
-        elIdList.InsertNextId(el[ix][0])
-        elIdList.InsertNextId(el[ix][1])
-        elIdList.InsertNextId(el[ix][2])
-        elems.InsertNextCell(elIdList)
-
-    pd = vtk.vtkPolyData()
-    pd.SetPoints(nodes)
-    pd.SetPolys(elems)
-    if dat is not None:
-        pd.GetPointData().SetScalars(vtknp.numpy_to_vtk(dat))
-        p2c = vtk.vtkPointDataToCellData()
-        p2c.SetInputData(pd)
-        p2c.Update()
-        outpd = p2c.GetOutput()
-    else:
-        outpd = pd
-
-    writeVtk(outpd, dir, name)
 
 
 def projectCellData(msh_source, msh_target):
@@ -512,56 +419,6 @@ def verify_cell_indices_from_mesh(msh1, msh_test, test_indices):
     test_cog = cog_test[test_indices, :]
 
     return verify_cell_indices(msh1, test_indices, test_cog)
-
-
-def vtk_from_points_file(file_path: str, mydelim=","):
-    """
-    Creates a vtkPolyData object from a points file
-    """
-    points_read = np.loadtxt(file_path, delimiter=mydelim)
-    points = vtk.vtkPoints()
-
-    for pt in points_read:
-        points.InsertNextPoint(pt[0], pt[1], pt[2])
-
-    polydata = vtk.vtkPolyData()
-    polydata.SetPoints(points)
-
-    return polydata
-
-
-EXPORT_DATA_TYPES = ["vtp", "vtk", "ply", "stl", "obj", "ugrid"]
-
-
-def export_as(input_mesh, output_file: str, export_as="ply") -> None:
-    """
-    Export a vtkPolyData object to a file
-    """
-
-    if export_as not in EXPORT_DATA_TYPES:
-        raise ValueError(f"Invalid export type {export_as}. Choose from: {EXPORT_DATA_TYPES}")
-
-    if export_as == "ply":
-        writer = vtk.vtkPLYWriter()
-    elif export_as == "stl":
-        writer = vtk.vtkSTLWriter()
-    elif export_as == "obj":
-        writer = vtk.vtkOBJWriter()
-    elif export_as == "vtp":
-        writer = vtk.vtkXMLPolyDataWriter()
-    elif export_as == "vtk" or export_as == "ugrid":
-        export_as = "polydata" if export_as == "vtk" else "ugrid"
-        write_vtk(
-            input_mesh,
-            os.path.dirname(output_file),
-            os.path.basename(output_file),
-            output_type=export_as,
-        )
-        return
-
-    writer.SetFileName(output_file)
-    writer.SetInputData(input_mesh)
-    writer.Write()
 
 
 def create_vtk_reader(input_type, filename, centered=False):
@@ -1452,4 +1309,13 @@ from imatools.core.mesh import (  # noqa: E402,F401
     tag_mesh_elements_parallel_regions,
     translate_to_point,
     verify_cell_indices,
+)
+from imatools.io.mesh_io import (  # noqa: E402,F401
+    readVtk,
+    read_vtk,
+    writeVtk,
+    write_vtk,
+    export_as,
+    saveCarpAsVtk,
+    vtk_from_points_file,
 )
