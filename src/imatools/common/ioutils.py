@@ -142,60 +142,6 @@ def check_file(file):
         raise Exception(f"With the options selected, you need to have {file}")
 
 
-def read_pts(filename):
-    print(f"Reading: {filename}")
-    return np.loadtxt(filename, dtype=float, skiprows=1)
-
-
-ELEM_TYPES = ["Tt", "Tr", "Ln"]
-
-
-def read_elem(filename, el_type="Tt", tags=True):
-    if el_type not in ELEM_TYPES:
-        raise Exception("element type not recognised. Accepted: Tt, Tr, Ln")
-
-    cols_notags_dic = {"Tt": (1, 2, 3, 4), "Tr": (1, 2, 3), "Ln": (1, 2)}
-    cols = cols_notags_dic[el_type]
-    if tags:
-        # add tags column (largest + 1)
-        cols += (cols[-1] + 1,)
-
-    return np.loadtxt(filename, dtype=int, skiprows=1, usecols=cols)
-
-
-def read_lon(filename):
-    print(f"Reading: {filename}")
-    return np.loadtxt(filename, dtype=float, skiprows=1)
-
-
-def readParsePts(ptsFname):
-    """
-    Read parse CARP point files
-    """
-    numNodes = getTotal(ptsFname)
-    nodes = read_pts(ptsFname)
-
-    if numNodes != len(nodes):
-        print("Error in file")
-        raise Exception("Error in file")
-
-    return nodes, numNodes
-
-
-def readParseElem(elFname):
-    """
-    Read and parse CARP element file
-    """
-    nElem = getTotal(elFname)
-    el = read_elem(elFname)
-
-    if nElem != len(el):
-        print("Error in file")
-        raise Exception("Error in file")
-
-    return el, nElem
-
-
 def readFileToList(fname, delim=","):
     """
     Read File to list. Input is normally a table, like a csv
@@ -209,38 +155,6 @@ def readFileToList(fname, delim=","):
     except Exception as e:
         print("[readFileToList] Error - file not found")
         sys.exit(-1)
-
-
-def loadCarpMesh(mshname, directory=None):
-    """
-    Load CARP mesh. Supports for triangle (Tr) and tetrahedral (Tt) meshes
-    """
-
-    if directory is not None:
-        ptsname = fullfile(directory, mshname + ".pts")
-        elemname = fullfile(directory, mshname + ".elem")
-    else:
-        ptsname = mshname + ".pts"
-        elemname = mshname + ".elem"
-
-    pts, nPts = readParsePts(ptsname)
-    el, nElem = readParseElem(elemname)
-
-    elem = list()
-    for e in el:
-        nel = 4 if e[0] == "Tr" else 5
-        elem_before = e[1:nel]
-        elem.append([int(ex.strip()) for ex in elem_before])
-
-    region_before = [e[-1] for e in el]
-    region = [int(x.strip()) for x in region_before]
-
-    return pts, elem, np.asarray(region, dtype=int)
-
-
-def saveToCarpTxt(pts, el, mshname):
-    np.savetxt(mshname + ".pts", pts, header=str(len(pts)), comments="", fmt="%6.12f")
-    np.savetxt(mshname + ".elem", el, header=str(len(el)), comments="", fmt="Tr %d %d %d 1")
 
 
 def chooseplatform():
@@ -321,4 +235,18 @@ from imatools.core.metrics import (  # noqa: E402,F401,I001
     compare_large_arrays,
     classify_array,
     count_values_in_ranges,
+)
+
+# ---------------------------------------------------------------------------
+# Re-export shim — CARP I/O functions now live in imatools.io.carp_io (T2c2).
+# Legacy callers that import from imatools.common.ioutils continue to work.
+# ---------------------------------------------------------------------------
+from imatools.io.carp_io import (  # noqa: E402,F401
+    read_pts,
+    read_elem,
+    read_lon,
+    readParsePts,
+    readParseElem,
+    loadCarpMesh,
+    saveToCarpTxt,
 )

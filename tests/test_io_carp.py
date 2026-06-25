@@ -35,7 +35,6 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_read_pts(golden, carp_mesh_files):
     from imatools.io.carp_io import read_pts
 
@@ -49,7 +48,6 @@ def test_read_pts(golden, carp_mesh_files):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_read_elem_tr_notags(golden, carp_mesh_files):
     from imatools.io.carp_io import read_elem
 
@@ -58,7 +56,6 @@ def test_read_elem_tr_notags(golden, carp_mesh_files):
     np.testing.assert_array_equal(result, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_read_elem_tr_tags(golden, carp_mesh_files):
     from imatools.io.carp_io import read_elem
 
@@ -72,7 +69,6 @@ def test_read_elem_tr_tags(golden, carp_mesh_files):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_read_lon(golden, carp_mesh_files):
     from imatools.io.carp_io import read_lon
 
@@ -86,7 +82,6 @@ def test_read_lon(golden, carp_mesh_files):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_save_to_carp_txt_pts_lines(golden):
     from imatools.io.carp_io import saveToCarpTxt
 
@@ -100,7 +95,6 @@ def test_save_to_carp_txt_pts_lines(golden):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_save_to_carp_txt_elem_lines(golden):
     from imatools.io.carp_io import saveToCarpTxt
 
@@ -119,7 +113,6 @@ def test_save_to_carp_txt_elem_lines(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_read_parse_pts_nodes(golden, carp_mesh_files):
     from imatools.io.carp_io import readParsePts
 
@@ -128,7 +121,6 @@ def test_read_parse_pts_nodes(golden, carp_mesh_files):
     np.testing.assert_allclose(nodes, expected, rtol=1e-7)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2c2", strict=False)
 def test_read_parse_pts_count(golden, carp_mesh_files):
     from imatools.io.carp_io import readParsePts
 
@@ -149,7 +141,8 @@ def test_read_parse_pts_count(golden, carp_mesh_files):
 
 
 @pytest.mark.xfail(
-    reason="awaiting migration T2c2 (master bug: readParseElem broken for Tr meshes)", strict=False
+    reason="Cat-B preserved: readParseElem/loadCarpMesh default el_type='Tt' breaks triangle meshes (fix deferred to future_work)",
+    strict=False,
 )
 def test_read_parse_elem_intent(carp_mesh_files):
     from imatools.io.carp_io import readParseElem
@@ -167,7 +160,8 @@ def test_read_parse_elem_intent(carp_mesh_files):
 
 
 @pytest.mark.xfail(
-    reason="awaiting migration T2c2 (master bug: loadCarpMesh broken for Tr meshes)", strict=False
+    reason="Cat-B preserved: readParseElem/loadCarpMesh default el_type='Tt' breaks triangle meshes (fix deferred to future_work)",
+    strict=False,
 )
 def test_load_carp_mesh_intent(carp_mesh_files):
     from imatools.io.carp_io import loadCarpMesh
