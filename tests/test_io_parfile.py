@@ -39,8 +39,6 @@ import copy
 import os
 import tempfile
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # Shared fixture data (mirrors _golden_cases/parfile.py definitions)
 # ---------------------------------------------------------------------------
@@ -147,7 +145,6 @@ out_potential = False
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2e", strict=False)
 def test_update_pot_basic(golden):
     """update_pot merges non-None values from patch into base."""
     from imatools.core.parfile import update_pot
@@ -167,7 +164,6 @@ def test_update_pot_basic(golden):
             ), f"section={section!r} key={key!r}: got {res_val!r}, expected {exp_val!r}"
 
 
-@pytest.mark.xfail(reason="awaiting migration T2e", strict=False)
 def test_update_pot_identity(golden):
     """update_pot with empty-section patch leaves base unchanged."""
     from imatools.core.parfile import update_pot
@@ -190,7 +186,6 @@ def test_update_pot_identity(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2e", strict=False)
 def test_load_from_par_minimal(golden):
     """load_from_par parses a minimal .par file; values are strings."""
     from imatools.io.parfile_io import load_from_par
@@ -221,7 +216,6 @@ def test_load_from_par_minimal(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2e", strict=False)
 def test_save_pot_lines(golden):
     """save_pot writes a .par file; round-trip via readlines matches golden."""
     from imatools.io.parfile_io import save_pot
