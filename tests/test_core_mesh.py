@@ -738,4 +738,7 @@ def test_rotate_mesh(golden):
     grid = _make_rotate_mesh_input()
     result = rotate_mesh(grid)
     expected = golden("mesh/rotate_mesh")
-    np.testing.assert_allclose(np.array(result.points), expected, rtol=1e-6)
+    # atol absorbs near-zero floating-point noise (~1e-16) from the rotation so the
+    # comparison stays valid against the MASTER golden across numpy versions
+    # (rtol alone fails on coordinates that should be ~0). Keeps master as the oracle.
+    np.testing.assert_allclose(np.array(result.points), expected, rtol=1e-6, atol=1e-9)
