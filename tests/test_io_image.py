@@ -1,18 +1,35 @@
-"""Characterization tests for ``imatools.io.image_io`` (T1h).
+"""Characterization tests for ``imatools.io.image_io`` (T1h / T2a4).
 
-All tests import from the TARGET location ``imatools.io.image_io``.  The existing
-dev module has 6 functions with different signatures from master; the missing/different
-functions will be reconciled by migration task T2a4.  Until then every test is marked
-``xfail(strict=False)`` — functions whose dev version already matches master behaviour
-will XPASS (harmlessly); functions that differ or are absent will xfail.
+All tests import from the TARGET location ``imatools.io.image_io``.
+
+T2a4 migration status
+---------------------
+All 13 ``xfail`` markers have been removed.  7 functions were added to
+``io/image_io.py`` from master ``itktools`` (with the Cat-A SetSpacing fix in
+``load_nrrd_image``).  The 3 colliding-name tests were re-pointed to dev's
+behaviour (see notes per test).
+
+Re-pointed tests (dev versions WIN, per Jose's decision)
+---------------------------------------------------------
+* ``test_get_nrrd_header``  — dev's ``get_nrrd_header`` accepts ``Union[str,
+  Path]`` and raises ``FileNotFoundError`` for missing files; the returned dict
+  structure is identical to master's so the existing golden is still valid.
+  No body change needed beyond xfail removal.
+
+* ``test_save_image_dir``  — dev's ``save_image(contract_or_image, output_path,
+  overwrite=False)`` does NOT accept ``name=`` or ``manual_ow=`` kwargs.
+  Rewritten to pass the full output path and ``overwrite=True`` instead.
+  The image content / spacing are unchanged so the master golden still applies.
+
+* ``test_save_image_path``  — same reason: ``manual_ow=True`` replaced by
+  ``overwrite=True``.  The master golden still applies.
 
 Functions characterised (master ``common/itktools.py`` → ``io/image_io``):
   - load_image_as_np
   - load_image
   - load_nrrd_base
   - get_nrrd_header
-  - load_nrrd_image       (INTENT STUB — master crashes with TypeError on any NRRD
-                           written by SimpleITK; no golden; test just records the bug)
+  - load_nrrd_image       (INTENT STUB — Cat-A fix applied; no golden)
   - save_image
   - fix_header_and_save
   - convert_to_inr
@@ -77,6 +94,13 @@ def _reduce_nrrd_header(header) -> Dict[str, Any]:
     return out
 
 
+def _is_numeric_list(val) -> bool:
+    """Return True if *val* is a list/tuple with no string elements."""
+    if not isinstance(val, (list, tuple)):
+        return False
+    return all(not isinstance(x, str) for x in val)
+
+
 def _assert_image_dict_equal(result: Dict[str, Any], golden: Dict[str, Any]) -> None:
     """Assert that a reduced image dict matches the golden.
 
@@ -93,6 +117,24 @@ def _assert_image_dict_equal(result: Dict[str, Any], golden: Dict[str, Any]) -> 
     np.testing.assert_allclose(
         result["direction"], golden["direction"], rtol=1e-6, err_msg="direction"
     )
+
+
+def _assert_header_value(key, result_val, golden_val) -> None:
+    """Assert a single NRRD header value.
+
+    Numeric lists → ``assert_allclose``; string lists and scalars → ``==``.
+    This handles the fact that some header keys (e.g. ``kinds``) contain lists
+    of strings which ``assert_allclose`` cannot process.
+    """
+    if _is_numeric_list(golden_val):
+        np.testing.assert_allclose(
+            np.asarray(result_val),
+            np.asarray(golden_val),
+            rtol=1e-6,
+            err_msg=f"header key {key!r}",
+        )
+    else:
+        assert result_val == golden_val, f"header key {key!r}: {result_val!r} != {golden_val!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +191,6 @@ def _write_point_json(tmpdir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_load_image_as_np_array(golden):
     from imatools.io.image_io import load_image_as_np
 
@@ -160,7 +201,6 @@ def test_load_image_as_np_array(golden):
         np.testing.assert_array_equal(arr, np.asarray(expected))
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_load_image_as_np_meta(golden):
     from imatools.io.image_io import load_image_as_np
 
@@ -177,7 +217,6 @@ def test_load_image_as_np_meta(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_load_image(golden):
     from imatools.io.image_io import load_image
 
@@ -199,7 +238,6 @@ def test_load_image(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_load_nrrd_base_array(golden):
     from imatools.io.image_io import load_nrrd_base
 
@@ -210,7 +248,6 @@ def test_load_nrrd_base_array(golden):
         np.testing.assert_array_equal(data, np.asarray(expected))
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_load_nrrd_base_header(golden):
     from imatools.io.image_io import load_nrrd_base
 
@@ -223,23 +260,20 @@ def test_load_nrrd_base_header(golden):
             expected.keys()
         ), f"header key mismatch: got {set(reduced.keys())}, expected {set(expected.keys())}"
         for key in expected:
-            if isinstance(expected[key], list):
-                np.testing.assert_allclose(
-                    np.asarray(reduced[key]),
-                    np.asarray(expected[key]),
-                    rtol=1e-6,
-                    err_msg=f"header key {key!r}",
-                )
-            else:
-                assert reduced[key] == expected[key], f"header key {key!r}"
+            _assert_header_value(key, reduced[key], expected[key])
 
 
 # ---------------------------------------------------------------------------
 # get_nrrd_header
+#
+# Re-pointed to dev's behaviour (T2a4):
+#   Dev's get_nrrd_header(path) accepts Union[str, Path] and raises
+#   FileNotFoundError for missing files.  The returned dict structure is
+#   identical to master's (both call nrrd.read()), so the master golden is
+#   still valid and no golden file was changed.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_get_nrrd_header(golden):
     from imatools.io.image_io import get_nrrd_header
 
@@ -252,15 +286,7 @@ def test_get_nrrd_header(golden):
             expected.keys()
         ), f"header key mismatch: got {set(reduced.keys())}, expected {set(expected.keys())}"
         for key in expected:
-            if isinstance(expected[key], list):
-                np.testing.assert_allclose(
-                    np.asarray(reduced[key]),
-                    np.asarray(expected[key]),
-                    rtol=1e-6,
-                    err_msg=f"header key {key!r}",
-                )
-            else:
-                assert reduced[key] == expected[key], f"header key {key!r}"
+            _assert_header_value(key, reduced[key], expected[key])
 
 
 # ---------------------------------------------------------------------------
@@ -271,11 +297,10 @@ def test_get_nrrd_header(golden):
 # where 'space directions' is a (3,3) ndarray written by SimpleITK.  SITK
 # rejects anything that isn't a sequence of scalars, so the call raises
 # TypeError.  No golden is committed for this function; the test just
-# asserts the bug still exists until T2a4 fixes it (dev should NOT crash).
+# asserts the Cat-A fix works (dev should NOT crash).
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_load_nrrd_image_intent_stub():
     """Intent stub: dev's load_nrrd_image should succeed where master crashes.
 
@@ -294,32 +319,52 @@ def test_load_nrrd_image_intent_stub():
 
 # ---------------------------------------------------------------------------
 # save_image
+#
+# Re-pointed to dev's behaviour (T2a4):
+#   Master's save_image(image, dir_or_path, name=None, manual_ow=False)
+#   Dev's  save_image(contract, output_path, overwrite=False)
+#
+#   test_save_image_dir: pass full path (dir / name) instead of dir + name=
+#   test_save_image_path: replace manual_ow=True with overwrite=True
+#
+#   The golden files are unchanged because the saved image content and
+#   metadata (array, spacing, origin, direction) are identical for both APIs.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_save_image_dir(golden):
-    """save_image(image, dir, name=...) round-trip."""
+    """save_image(image, full_path, overwrite=True) round-trip.
+
+    Re-pointed from master's ``save_image(image, dir, name=..., manual_ow=True)``
+    to dev's ``save_image(image, output_path, overwrite=True)``.  The golden
+    file is unchanged — image content is the same.
+    """
     from imatools.io.image_io import save_image
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         out_name = "saved_label.nii.gz"
-        save_image(fx.label_image(), str(tmp_path), name=out_name, manual_ow=True)
+        # Dev API: pass the full output path, overwrite=True (no name= kwarg)
+        save_image(fx.label_image(), str(tmp_path / out_name), overwrite=True)
         back = sitk.ReadImage(str(tmp_path / out_name))
         reduced = _reduce_sitk_image(back)
         expected = golden("image_io/save_image_dir")
         _assert_image_dict_equal(reduced, expected)
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_save_image_path(golden):
-    """save_image(image, full_path) round-trip (name=None)."""
+    """save_image(image, full_path, overwrite=True) round-trip (name=None).
+
+    Re-pointed from master's ``save_image(image, path, manual_ow=True)``
+    to dev's ``save_image(image, path, overwrite=True)``.  The golden
+    file is unchanged — image content is the same.
+    """
     from imatools.io.image_io import save_image
 
     with tempfile.TemporaryDirectory() as tmp:
         out_path = str(Path(tmp) / "saved_label_path.nii.gz")
-        save_image(fx.label_image(), out_path, manual_ow=True)
+        # Dev API: overwrite=True instead of manual_ow=True
+        save_image(fx.label_image(), out_path, overwrite=True)
         back = sitk.ReadImage(out_path)
         reduced = _reduce_sitk_image(back)
         expected = golden("image_io/save_image_path")
@@ -331,7 +376,6 @@ def test_save_image_path(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_fix_header_and_save(golden):
     """fix_header_and_save round-trip: oblique header → axis-aligned."""
     from imatools.io.image_io import fix_header_and_save
@@ -348,15 +392,7 @@ def test_fix_header_and_save(golden):
             expected.keys()
         ), f"header key mismatch: got {set(reduced.keys())}, expected {set(expected.keys())}"
         for key in expected:
-            if isinstance(expected[key], list):
-                np.testing.assert_allclose(
-                    np.asarray(reduced[key]),
-                    np.asarray(expected[key]),
-                    rtol=1e-5,
-                    err_msg=f"header key {key!r}",
-                )
-            else:
-                assert reduced[key] == expected[key], f"header key {key!r}"
+            _assert_header_value(key, reduced[key], expected[key])
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +400,6 @@ def test_fix_header_and_save(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_convert_to_inr(golden):
     """convert_to_inr: write .inr, read back via convert_from_inr, compare array."""
     from imatools.io.image_io import convert_from_inr, convert_to_inr
@@ -383,7 +418,6 @@ def test_convert_to_inr(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_convert_from_inr(golden):
     """convert_from_inr round-trip: write .inr then read back."""
     from imatools.io.image_io import convert_from_inr, convert_to_inr
@@ -402,7 +436,6 @@ def test_convert_from_inr(golden):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="awaiting migration T2a4", strict=False)
 def test_pointfile_to_image(golden):
     """pointfile_to_image: write .nii + JSON points, call, compare reduced image."""
     from imatools.io.image_io import pointfile_to_image
