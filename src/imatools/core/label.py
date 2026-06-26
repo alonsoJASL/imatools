@@ -194,7 +194,7 @@ def exchange_labels_form_json(input_image, json_old: str, json_new: str):
     old_labels = list(old_labels_json.values())
     new_labels = list(new_labels_json.values())
 
-    return _itk().exchange_many_labels(input_image, old_labels, new_labels)
+    return exchange_many_labels(input_image, old_labels, new_labels)
 
 
 def swap_labels(im, old_label: int, new_label=1):
@@ -358,6 +358,7 @@ def compare_images(im1: sitk.Image, im2: sitk.Image, return_comparison=False):
     scores = {}
     # sort common_labels to ensure consistent results
     common_labels = sorted(list(common_labels))
+    
     for label in common_labels:
         im1_label = extract_single_label(im1, label, binarise=True)
         im2_label = extract_single_label(im2, label, binarise=True)
@@ -398,6 +399,63 @@ def multilabel_comparison(
     new_im.CopyInformation(im1)
 
     return new_im
+
+
+def split_label_into_components(image, label: int, open_image=False, open_radius=3):
+    """
+    Split one label into its connected components: the largest component keeps the
+    original ``label``; the others get ``label*10 + i`` (escalating powers of 10 to
+    avoid colliding with labels already present). Returns the input unchanged if the
+    label forms a single component.
+
+    Migrated verbatim from itktools.split_labels_on_repeats (renamed for clarity).
+    """
+    itk = _itk()
+    forbidden_labels = get_labels(image)
+    forbidden_labels.remove(label)
+
+    image_label = extract_single_label(image, label, binarise=True)
+
+    if open_image:
+        logger.info(f"Opening image with radius {open_radius}")
+        image_label = itk.morph_operations(image_label, "open", radius=open_radius)
+
+    cc_im_label, cc_labels, num_cc_labels = bwlabeln(image_label)
+    if num_cc_labels == 1:
+        logger.info(f"No connected components found for label {label}")
+        return image
+
+    logger.info(f"Found {num_cc_labels} connected components for label {label}")
+    image_array = itk.imarray(image)
+    image_array[np.equal(image_array, label)] = 0  # remove
+
+    cc_array = itk.imview(cc_im_label)
+    for ix, ccl in enumerate(cc_labels):
+        new_label = label if ix == 0 else label * 10 + (ccl - 1)
+
+        qx = 1
+        while new_label in forbidden_labels:
+            new_label = label * np.power(10, qx) + (ccl - 1)
+            qx += 1
+
+        image_array[np.equal(cc_array, ccl)] = new_label
+
+    new_image = sitk.GetImageFromArray(image_array)
+    new_image.CopyInformation(image)
+
+    return new_image
+
+
+def exchange_many_labels(input_image, old_labels: list, new_labels: list):
+    labels_in_image = get_labels(input_image)
+
+    swap_ops = get_labels_to_exchange(old_labels, new_labels, labels_in_image)
+    new_image = _itk().cp_image(input_image)
+    for old_label, new_label in swap_ops:
+        logger.info(f"Exchanging label {old_label} with {new_label}")
+        new_image = exchange_labels(new_image, old_label, new_label)
+
+    return new_image
 
 
 def get_labels_volumes(im: sitk.Image) -> dict:

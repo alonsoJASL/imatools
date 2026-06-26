@@ -56,6 +56,10 @@ def imarray(im: sitk.Image) -> np.ndarray:
     return sitk.GetArrayFromImage(im)
 
 
+def imview(im: sitk.Image) -> np.ndarray:
+    return sitk.GetArrayViewFromImage(im)
+
+
 def array2im(im_array: np.ndarray, im: sitk.Image) -> sitk.Image:
     """
     Convert a NumPy array to a SimpleITK image.
@@ -314,7 +318,7 @@ def add_images(im1, im2):
 def simple_mask(im, mask, mask_value=0) -> sitk.Image:
     logger.info(f"Masking image with mask value {mask_value}")
     masked_im_array = imarray(im)
-    mask_array = _itk().imview(mask)
+    mask_array = imview(mask)
 
     masked_im_array[mask_array > 0] = mask_value
 
@@ -401,7 +405,7 @@ def segmentation_curvature_value(im: sitk.Image, gradient_sigma=1.0) -> float:
     """
     gradient_im = segmentation_curvature(im, gradient_sigma)
     total_voxels = im.GetNumberOfPixels()
-    mean_gradient = _itk().imview(gradient_im).mean()
+    mean_gradient = imview(gradient_im).mean()
 
     return mean_gradient / total_voxels
 
@@ -662,7 +666,7 @@ def find_neighbours(image, indices):
     """
     logger.info(f"Finding neighbours for {len(indices)} indices.")
     # Get a NumPy array view of the image data
-    image_array_view = _itk().imview(image)
+    image_array_view = imview(image)
 
     # Define the 26-connectivity offsets in 3D space
     offsets = [

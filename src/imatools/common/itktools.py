@@ -63,48 +63,6 @@ def remove_label(image, label: int):
     return new_image
 
 
-def split_labels_on_repeats(image, label: int, open_image=False, open_radius=3):
-    """
-    Returns new image where label that can be split are split into two distinct
-    labels. The largest object gets the original label, while the others get
-            label*10 + ix, for ix in range(1, num_splits)
-    If any label is already present in image, then that label is 100*label + ix
-    """
-    forbidden_labels = get_labels(image)
-    forbidden_labels.remove(label)
-
-    image_label = extract_single_label(image, label, binarise=True)
-
-    if open_image:
-        logger.info(f"Opening image with radius {open_radius}")
-        image_label = morph_operations(image_label, "open", radius=open_radius)
-
-    cc_im_label, cc_labels, num_cc_labels = bwlabeln(image_label)
-    if num_cc_labels == 1:
-        logger.info(f"No connected components found for label {label}")
-        return image
-
-    logger.info(f"Found {num_cc_labels} connected components for label {label}")
-    image_array = imarray(image)
-    image_array[np.equal(image_array, label)] = 0  # remove
-
-    cc_array = imview(cc_im_label)
-    for ix, ccl in enumerate(cc_labels):
-        new_label = label if ix == 0 else label * 10 + (ccl - 1)
-
-        qx = 1
-        while new_label in forbidden_labels:
-            new_label = label * np.power(10, qx) + (ccl - 1)
-            qx += 1
-
-        image_array[np.equal(cc_array, ccl)] = new_label
-
-    new_image = sitk.GetImageFromArray(image_array)
-    new_image.CopyInformation(image)
-
-    return new_image
-
-
 def show_labels(image):
     """
     Prints all the labels in an image.
@@ -235,22 +193,6 @@ def get_scarq_boundaries(mode: str):  #
     return bounds
 
 
-def exchange_many_labels(input_image, old_labels: list, new_labels: list):
-    labels_in_image = get_labels(input_image)
-
-    swap_ops = get_labels_to_exchange(old_labels, new_labels, labels_in_image)
-    new_image = cp_image(input_image)
-    for old_label, new_label in swap_ops:
-        logger.info(f"Exchanging label {old_label} with {new_label}")
-        new_image = exchange_labels(new_image, old_label, new_label)
-
-    return new_image
-
-
-def imview(im: sitk.Image) -> np.ndarray:
-    return sitk.GetArrayViewFromImage(im)
-
-
 # ---------------------------------------------------------------------------
 # Re-export shims — MUST be at the very bottom of this file so that itktools
 # finishes defining its own helpers (imview, get_mask_array_with_restrictions,
@@ -279,6 +221,10 @@ from imatools.core.label import (  # noqa: E402,F401,I001
     relabel_image,
     swap_labels,
 )
+from imatools.core.label import (  # noqa: E402,F401,I001
+    exchange_many_labels,
+    split_label_into_components as split_labels_on_repeats,  # renamed in migration; legacy name preserved
+)
 from imatools.core.image import (  # noqa: E402,F401,I001
     add_images,
     array2im,
@@ -291,6 +237,7 @@ from imatools.core.image import (  # noqa: E402,F401,I001
     get_spacing,
     image_operation,
     imarray,
+    imview,
     mask_image,
     morph_operations,
     points_to_image,

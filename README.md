@@ -67,22 +67,21 @@ During migration, legacy scripts in the old structure remain functional:
 ```bash
 # Example: Calculate volume of a mesh
 python -m imatools.calculate_volume /path/to/mesh.vtk
-
-# Example: Extract label from segmentation
-python -m imatools.segmentation_tools extract -in image.nii -l 1
 ```
+
+(The segmentation tools have been migrated — use the `imatools-segmentation` CLI below.)
 
 ## New CLI (Post-Migration)
 
-The new CLI structure will provide:
+The new CLI structure provides:
 
 ```bash
 # Volume calculations
 imatools-volume /path/to/mesh.vtk
 
 # Segmentation operations
-imatools-segmentation extract -in image.nii -l 1 -out label1.nii
-imatools-segmentation mask -in image.nii -in2 mask.nii
+imatools-segmentation extract-label -in image.nii -l 1 -out label1.nii
+imatools-segmentation mask -in image.nii -mask mask.nii
 
 # Mesh operations
 imatools-mesh convert input.mesh -o output.vtk
