@@ -80,71 +80,8 @@ def getSurfacesJaccard(pd1, pd2):
     return getSurfaceArea(intersection) / getSurfaceArea(union)
 
 
-def projectCellData(msh_source, msh_target):
-    """
-    Projects TARGET's cell data on SOURCE
-    """
-    omsh = vtk.vtkPolyData()
-    omsh.DeepCopy(msh_source)
-
-    target_pl = vtk.vtkCellLocator()
-    target_pl.SetDataSet(msh_target)
-    target_pl.AutomaticOn()
-    target_pl.BuildLocator()
-
-    target_scalar = msh_target.GetCellData().GetScalars()
-    o_scalar = vtk.vtkFloatArray()
-    o_scalar.SetNumberOfComponents(1)
-
-    default_value = 0
-    cog = get_cog_per_element(msh_source)
-    for ix in range(msh_source.GetNumberOfCells()):
-        pt = cog[ix, :]
-        closest_pt = np.zeros((3, 1))
-        c_id = np.int8()
-        subid = np.int8()
-        dist2 = np.float32()
-        id_on_target = vtk.reference(c_id)
-        Subid = vtk.reference(subid)
-        Dist2 = vtk.reference(dist2)
-        # target_pl.FindCell(pt)
-        target_pl.FindClosestPoint(pt, closest_pt, id_on_target, Subid, Dist2)
-        if id_on_target > 0:
-            mapped_val = target_scalar.GetTuple1(id_on_target)
-        else:
-            mapped_val = default_value
-
-        o_scalar.InsertNextTuple1(mapped_val)
-
-    omsh.GetCellData().SetScalars(o_scalar)
-
-    return omsh
-
-
-def projectPointData(msh_source, msh_target):
-    omsh = vtk.vtkPolyData()
-    omsh.DeepCopy(msh_source)
-
-    target_pl = vtk.vtkPointLocator()
-    target_pl.SetDataSet(msh_target)
-    target_pl.AutomaticOn()
-    target_pl.BuildLocator()
-
-    target_scalar = msh_target.GetPointData().GetScalars()
-    o_scalar = vtk.vtkFloatArray()
-    o_scalar.SetNumberOfComponents(1)
-
-    default_value = 0
-    for ix in range(msh_source.GetNumberOfPoints()):
-        pt = msh_source.GetPoint(ix)
-        id_on_target = target_pl.FindClosestPoint(pt)
-
-        mapped_val = target_scalar.GetTuple1(id_on_target) if (id_on_target > 0) else default_value
-        o_scalar.InsertNextTuple1(mapped_val)
-
-    omsh.GetPointData().SetScalars(o_scalar)
-
-    return omsh
+# Deprecated — use project_cell_data and project_point_data (from core.mesh) instead.
+# These legacy names are now aliases defined at the bottom of this file.
 
 
 norm2 = lambda a: np.linalg.norm(a)
@@ -1138,14 +1075,14 @@ def create_image_with_combined_origin(reference_image, combined_bounds, pixel_va
 # ``from imatools.common.vtktools import …`` call sites keep working unchanged.
 # ---------------------------------------------------------------------------
 from imatools.core.geometry import (  # noqa: E402,F401
-    l2_norm,
+    compute_mesh_size,
     dot_prod_vec,
+    get_bounding_box,
+    get_cog_per_element,
+    l2_norm,
     point_in_aabb,
     point_in_aabb_vectorized,
-    get_bounding_box,
     precompute_valid_cells,
-    get_cog_per_element,
-    compute_mesh_size,
 )
 
 # ---------------------------------------------------------------------------
@@ -1154,55 +1091,63 @@ from imatools.core.geometry import (  # noqa: E402,F401
 # ``from imatools.common.vtktools import …`` call sites keep working unchanged.
 # ---------------------------------------------------------------------------
 from imatools.core.mesh import (  # noqa: E402,F401
+    cell_to_point_data,
     clean_mesh,
-    genericThreshold,
-    thresholdExactValue,
-    getElemPermutation,
-    getSurfaceArea,
-    get_element_cogs,
     cogs_from_ugrid,
-    ugrid2polydata,
-    global_centre_of_mass,
-    flip_xy,
-    join_vtk,
-    map_cells,
-    map_points,
     compare_mesh_sizes,
-    indices_at_scalar,
-    mask_cell_scalars,
-    set_cell_scalars,
-    set_vtk_scalars,
-    np_to_vtk_array,
     convertCellDataToNpArray,
     convertPointDataToNpArray,
-    cell_to_point_data,
-    point_to_cell_data,
-    set_cell_to_point_data,
-    setCellDataToPointData,
     extractPointsAndElemsFromVtk,
     fibrorisScore,
+    fibrosis_overlap,
+    fibrosis_overlap_cells,
+    fibrosis_overlap_points,
     fibrosis_score,
     fibrosis_score_cell,
     fibrosis_score_point,
     fibrosisOverlapCell,
-    fibrosis_overlap,
-    fibrosis_overlap_cells,
-    fibrosis_overlap_points,
+    flip_xy,
+    genericThreshold,
+    get_element_cogs,
+    getElemPermutation,
+    getSurfaceArea,
+    global_centre_of_mass,
+    indices_at_scalar,
+    join_vtk,
+    map_cells,
+    map_points,
+    mask_cell_scalars,
+    np_to_vtk_array,
+    point_to_cell_data,
+    project_cell_data,
+    project_point_data,
+    set_cell_scalars,
+    set_cell_to_point_data,
+    set_vtk_scalars,
+    setCellDataToPointData,
     tag_elements_by_voxel_boxes,
-    tag_mesh_elements_by_voxel_boxes,
     tag_mesh_elements_by_growing_from_seed,
     tag_mesh_elements_by_growing_from_seed_optimized,
+    tag_mesh_elements_by_voxel_boxes,
     tag_mesh_elements_parallel_regions,
+    thresholdExactValue,
     translate_to_point,
+    ugrid2polydata,
     verify_cell_indices,
 )
 from imatools.io.mesh_io import (  # noqa: E402,F401
-    readVtk,
-    read_vtk,
-    writeVtk,
-    write_vtk,
     export_as,
+    read_vtk,
+    readVtk,
     saveCarpAsVtk,
     vtk_from_points_file,
+    write_vtk,
+    writeVtk,
 )
 from imatools.parsers.dotmesh import parse_dotmesh_file  # noqa: E402,F401
+
+# ---------------------------------------------------------------------------
+# Legacy camelCase aliases for backward compatibility (M1.2-A).
+# ---------------------------------------------------------------------------
+projectCellData = project_cell_data  # noqa: N816
+projectPointData = project_point_data  # noqa: N816

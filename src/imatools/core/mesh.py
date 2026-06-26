@@ -1196,3 +1196,69 @@ def rotate_mesh(
         return plt_msh, fibres_transformed
     else:
         return plt_msh
+
+
+def project_cell_data(msh_source, msh_target):
+    """Projects TARGET's cell data on SOURCE"""
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh_source)
+
+    target_pl = vtk.vtkCellLocator()
+    target_pl.SetDataSet(msh_target)
+    target_pl.AutomaticOn()
+    target_pl.BuildLocator()
+
+    target_scalar = msh_target.GetCellData().GetScalars()
+    o_scalar = vtk.vtkFloatArray()
+    o_scalar.SetNumberOfComponents(1)
+
+    default_value = 0
+    cog = get_cog_per_element(msh_source)
+    for ix in range(msh_source.GetNumberOfCells()):
+        pt = cog[ix, :]
+        closest_pt = np.zeros((3, 1))
+        c_id = np.int8()
+        subid = np.int8()
+        dist2 = np.float32()
+        id_on_target = vtk.reference(c_id)
+        Subid = vtk.reference(subid)  # noqa: N806
+        Dist2 = vtk.reference(dist2)  # noqa: N806
+        # target_pl.FindCell(pt)
+        target_pl.FindClosestPoint(pt, closest_pt, id_on_target, Subid, Dist2)
+        if id_on_target > 0:
+            mapped_val = target_scalar.GetTuple1(id_on_target)
+        else:
+            mapped_val = default_value
+
+        o_scalar.InsertNextTuple1(mapped_val)
+
+    omsh.GetCellData().SetScalars(o_scalar)
+
+    return omsh
+
+
+def project_point_data(msh_source, msh_target):
+    """Projects TARGET's point data on SOURCE"""
+    omsh = vtk.vtkPolyData()
+    omsh.DeepCopy(msh_source)
+
+    target_pl = vtk.vtkPointLocator()
+    target_pl.SetDataSet(msh_target)
+    target_pl.AutomaticOn()
+    target_pl.BuildLocator()
+
+    target_scalar = msh_target.GetPointData().GetScalars()
+    o_scalar = vtk.vtkFloatArray()
+    o_scalar.SetNumberOfComponents(1)
+
+    default_value = 0
+    for ix in range(msh_source.GetNumberOfPoints()):
+        pt = msh_source.GetPoint(ix)
+        id_on_target = target_pl.FindClosestPoint(pt)
+
+        mapped_val = target_scalar.GetTuple1(id_on_target) if (id_on_target > 0) else default_value
+        o_scalar.InsertNextTuple1(mapped_val)
+
+    omsh.GetPointData().SetScalars(o_scalar)
+
+    return omsh
