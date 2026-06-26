@@ -302,6 +302,12 @@ def getSurfaceArea(msh):  # noqa: N802
     return mp.GetSurfaceArea()
 
 
+def get_mesh_volume(msh):
+    mp = vtk.vtkMassProperties()
+    mp.SetInputData(msh)
+    return mp.GetVolume()
+
+
 def extractPointsAndElemsFromVtk(msh):  # noqa: N802
     pts = [list(msh.GetPoint(ix)) for ix in range(msh.GetNumberOfPoints())]
     el = [

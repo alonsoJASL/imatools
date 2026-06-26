@@ -1151,3 +1151,4 @@ from imatools.parsers.dotmesh import parse_dotmesh_file  # noqa: E402,F401
 # ---------------------------------------------------------------------------
 projectCellData = project_cell_data  # noqa: N816
 projectPointData = project_point_data  # noqa: N816
+from imatools.core.mesh import get_mesh_volume  # noqa: E402,F401
