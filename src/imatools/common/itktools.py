@@ -312,59 +312,15 @@ from imatools.core.spatial import (  # noqa: E402,F401,I001
     set_direction_as,
 )
 
-# io.image_io shim — lazy wrappers so that importing itktools does NOT
-# trigger imatools.io.__init__ (which imports mesh_io which may fail on
-# MeshType in the current dev environment).  Callers of these names via
-# `imatools.common.itktools` will transparently hit the canonical
-# implementations in `imatools.io.image_io`.
-
-
-def load_image_as_np(path_to_file):  # noqa: F811
-    """Shim → imatools.io.image_io.load_image_as_np (T2a4)."""
-    from imatools.io.image_io import load_image_as_np as _f  # noqa: PLC0415
-
-    return _f(path_to_file)
-
-
-def load_nrrd_base(path_to_file):  # noqa: F811
-    """Shim → imatools.io.image_io.load_nrrd_base (T2a4)."""
-    from imatools.io.image_io import load_nrrd_base as _f  # noqa: PLC0415
-
-    return _f(path_to_file)
-
-
-def load_nrrd_image(path_to_file):  # noqa: F811
-    """Shim → imatools.io.image_io.load_nrrd_image (T2a4, Cat-A SetSpacing fix)."""
-    from imatools.io.image_io import load_nrrd_image as _f  # noqa: PLC0415
-
-    return _f(path_to_file)
-
-
-def fix_header_and_save(path_to_file, out_path):  # noqa: F811
-    """Shim → imatools.io.image_io.fix_header_and_save (T2a4)."""
-    from imatools.io.image_io import fix_header_and_save as _f  # noqa: PLC0415
-
-    return _f(path_to_file, out_path)
-
-
-def convert_to_inr(image, out_path):  # noqa: F811
-    """Shim → imatools.io.image_io.convert_to_inr (T2a4)."""
-    from imatools.io.image_io import convert_to_inr as _f  # noqa: PLC0415
-
-    return _f(image, out_path)
-
-
-def convert_from_inr(inr_path):  # noqa: F811
-    """Shim → imatools.io.image_io.convert_from_inr (T2a4)."""
-    from imatools.io.image_io import convert_from_inr as _f  # noqa: PLC0415
-
-    return _f(inr_path)
-
-
-def pointfile_to_image(  # noqa: F811
-    path_to_image, path_to_points, label=1, girth=2, points_are_indices=False
-):
-    """Shim → imatools.io.image_io.pointfile_to_image (T2a4)."""
-    from imatools.io.image_io import pointfile_to_image as _f  # noqa: PLC0415
-
-    return _f(path_to_image, path_to_points, label, girth, points_are_indices)
+# io.image_io shim — file-I/O functions migrated to io/image_io (T2a4).
+# Direct re-export (object-identity); the earlier lazy-wrapper workaround for the
+# io/__init__ MeshType import crash is no longer needed — contracts now exports MeshType.
+from imatools.io.image_io import (  # noqa: E402,F401
+    convert_from_inr,
+    convert_to_inr,
+    fix_header_and_save,
+    load_image_as_np,
+    load_nrrd_base,
+    load_nrrd_image,
+    pointfile_to_image,
+)
