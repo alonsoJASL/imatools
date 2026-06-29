@@ -71,6 +71,20 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 
 (The segmentation tools have been migrated — use the `imatools-segmentation` CLI below.)
 
+> **Migration notice:** `patient_table_from_dicom.py` and `stack_individual_dicoms.py`
+> have been removed.  Use the `imatools-dicom` subcommands instead:
+>
+> ```bash
+> # Was: python -m imatools.patient_table_from_dicom folder -in /data/dicom -out table.csv
+> imatools-dicom patient-table folder -in /data/dicom -out table.csv
+>
+> # Was: python -m imatools.patient_table_from_dicom single -in /data/dicom/file.dcm
+> imatools-dicom patient-table single -in /data/dicom/file.dcm
+>
+> # Was: python -m imatools.stack_individual_dicoms -d /data -i slices -o volume.nii.gz
+> imatools-dicom stack-slices -d /data -i slices -o volume.nii.gz
+> ```
+
 > **Migration notice:** `create_mapping.py` and `compare_fibrosis_overlap.py` have been
 > removed.  Use the `imatools-mesh` subcommands below instead:
 >
