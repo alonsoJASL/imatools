@@ -105,20 +105,8 @@ def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> n
     return mask_array
 
 
-def get_mask_with_restrictions(im, mask, threshold=0, ignore_im=None):
-    """
-    Returns a mask with the following restrictions:
-        - mask_value is set to 1
-        - mask_value is set to 0 if ignore_im is not None and ignore_im > 0
-        - mask_value is set to 0 if mask_value > threshold
-    """
-    mask_array = get_mask_array_with_restrictions(
-        im, mask, threshold=threshold, ignore_im=ignore_im
-    )
-    new_mask = sitk.GetImageFromArray(mask_array)
-    new_mask.CopyInformation(im)
-
-    return new_mask
+# get_mask_with_restrictions migrated to core.image (M1.6a straggler);
+# re-exported via shim below.
 
 
 def check_for_existing_label(im: sitk.Image, label) -> bool:
@@ -233,6 +221,7 @@ from imatools.core.image import (  # noqa: E402,F401,I001
     find_neighbours,
     generate_scar_image,
     get_indices_from_label,
+    get_mask_with_restrictions,
     get_num_nonzero_voxels,
     get_spacing,
     image_operation,

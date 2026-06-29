@@ -1,0 +1,8 @@
+{
+  "output_dir": "OUTPUT",
+  "roi_legacy_projection": false,
+  "roi_limits": "-1,3",
+  "roi_radius": true,
+  "threshold_values": "0.97,1.2,1.32",
+  "thresholds_method": 1
+}

@@ -342,6 +342,32 @@ def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
     return new_im
 
 
+def get_mask_with_restrictions(im, mask, threshold=0, ignore_im=None) -> sitk.Image:
+    """Return a binary mask image with voxel-restriction logic applied.
+
+    Migrated from ``imatools.common.itktools`` (straggler, M1.6a).
+
+    The output mask is 1 where ``mask > 0``, additionally set to 1 where
+    ``im > threshold`` (if ``threshold > 0``), and then set to 0 where
+    ``ignore_im > 0`` (if ``ignore_im`` is not None).
+
+    Args:
+        im:         SimpleITK image used to apply the intensity threshold.
+        mask:       Binary mask image (initial foreground).
+        threshold:  Intensity threshold above which image voxels are added to mask.
+        ignore_im:  Optional image; voxels > 0 here are removed from the mask.
+
+    Returns:
+        SimpleITK binary mask image.
+    """
+    mask_array = _itk().get_mask_array_with_restrictions(
+        im, mask, threshold=threshold, ignore_im=ignore_im
+    )
+    new_mask = sitk.GetImageFromArray(mask_array)
+    new_mask.CopyInformation(im)
+    return new_mask
+
+
 def swap_axes(im: sitk.Image, axes: list) -> sitk.Image:
     """
     Swaps the axes of a 3D image according to the given list.
