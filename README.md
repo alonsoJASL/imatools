@@ -71,6 +71,20 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 
 (The segmentation tools have been migrated — use the `imatools-segmentation` CLI below.)
 
+> **Migration notice:** `create_mapping.py` and `compare_fibrosis_overlap.py` have been
+> removed.  Use the `imatools-mesh` subcommands below instead:
+>
+> ```bash
+> # Was: python -m imatools.create_mapping map -in1 left.vtk -in2 right.vtk -map elem
+> imatools-mesh map -in1 left.vtk -in2 right.vtk -map elem
+>
+> # Was: python -m imatools.create_mapping compare -m MAPPING/
+> imatools-mesh map-stats -m MAPPING/
+>
+> # Was: python -m imatools.compare_fibrosis_overlap -d /data -imsh0 msh0 -imsh1 msh1 -t0 0.5 -t1 0.5
+> imatools-mesh fibrosis-overlap -d /data -imsh0 msh0 -imsh1 msh1 -t0 0.5 -t1 0.5
+> ```
+
 ## New CLI (Post-Migration)
 
 The new CLI structure provides:

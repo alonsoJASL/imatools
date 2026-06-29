@@ -152,39 +152,17 @@ def compare_fibres(msh_a, msh_b, f_a, f_b):
 
 
 def create_mapping(msh_left_name, msh_right_name, left_id, right_id, map_type="elem"):
+    """Thin path-loading wrapper around ``core.mesh.create_mapping``.
+
+    Reads both mesh files and delegates all logic to the object-based pure
+    function.  The old path-based signature is preserved so that the deferred
+    ``create_mapping_fibres.py`` (M1.6) can keep importing this symbol unchanged.
     """
-    Create mapping to closest [PTS|ELEMS] from msh_left to msh_right
-    """
-    map_dic = {"pts": 0, "elem": 1}
-    map_id = map_dic[map_type]
-    path_large, path_small, _, tot_small, large_id, small_id = compare_mesh_sizes(
-        msh_left_name, msh_right_name, left_id, right_id, map_id
-    )
+    from imatools.core.mesh import create_mapping as _core_create_mapping  # noqa: PLC0415
 
-    if path_large is None:
-        print("ERROR: Wrong mapping type { elem, pts }")
-        return None
-
-    msh_large = readVtk(path_large)  # 0
-    msh_small = readVtk(path_small)  # 1
-
-    cog_small = global_centre_of_mass(msh_small)
-    cog_large = global_centre_of_mass(msh_large)
-
-    if norm2(cog_small - cog_large) > 1:
-        logger.warning("WARNING: Meshes are not aligned. Translating to (0,0,0)")
-        msh_large = translate_to_point(msh_large)
-        msh_small = translate_to_point(msh_small)
-
-    if map_id == 1:  # elem
-        elem_cog_small = get_cog_per_element(msh_small)
-        mapping_dictionary = map_cells(msh_large, elem_cog_small, tot_small, large_id, small_id)
-    else:
-        elem_cog_small = [msh_small.GetPoint(ix) for ix in range(tot_small)]
-        elem_cog_small = np.asarray(elem_cog_small)
-        mapping_dictionary = map_points(msh_large, msh_small, large_id, small_id)
-
-    return mapping_dictionary
+    msh_left = readVtk(msh_left_name)
+    msh_right = readVtk(msh_right_name)
+    return _core_create_mapping(msh_left, msh_right, left_id, right_id, map_type)
 
 
 def convert_5_to_4(imsh, omsh):

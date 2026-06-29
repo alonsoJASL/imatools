@@ -607,6 +607,64 @@ def verify_cell_indices(msh, test_indices, test_locations):
     return np.sum(diff)
 
 
+def create_mapping(msh_left, msh_right, left_id, right_id, map_type="elem"):
+    """Map closest pts/elems from the larger mesh onto the smaller.
+
+    Pure function: vtk objects in, mapping dict out.  The caller is responsible
+    for reading the mesh files; file-based orchestration lives in the CLI and in
+    the ``common/vtktools.create_mapping`` wrapper.
+
+    Args:
+        msh_left:   VTK mesh object (left / reference mesh).
+        msh_right:  VTK mesh object (right mesh).
+        left_id:    String identifier for the left mesh (used as column name).
+        right_id:   String identifier for the right mesh (used as column name).
+        map_type:   ``"elem"`` (cell-to-cell) or ``"pts"`` (point-to-point).
+
+    Returns:
+        A dict suitable for constructing a pandas DataFrame.
+    """
+    map_dic = {"pts": 0, "elem": 1}
+    if map_type not in map_dic:
+        logger.error("Wrong mapping type — must be 'elem' or 'pts'")
+        return None
+    map_id = map_dic[map_type]
+
+    # Determine large / small inline from the objects (do NOT call
+    # compare_mesh_sizes — it re-reads files and is golden-locked).
+    if map_id == 1:  # elem
+        tot_left = msh_left.GetNumberOfCells()
+        tot_right = msh_right.GetNumberOfCells()
+    else:  # pts
+        tot_left = msh_left.GetNumberOfPoints()
+        tot_right = msh_right.GetNumberOfPoints()
+
+    if tot_left >= tot_right:
+        msh_large, msh_small = msh_left, msh_right
+        large_id, small_id = left_id, right_id
+        tot_small = tot_right
+    else:
+        msh_large, msh_small = msh_right, msh_left
+        large_id, small_id = right_id, left_id
+        tot_small = tot_left
+
+    # Alignment check — translate both to origin if centres of mass diverge.
+    cog_small = global_centre_of_mass(msh_small)
+    cog_large = global_centre_of_mass(msh_large)
+    if np.linalg.norm(cog_small - cog_large) > 1:
+        logger.warning("Meshes are not aligned. Translating both to (0,0,0)")
+        msh_large = translate_to_point(msh_large)
+        msh_small = translate_to_point(msh_small)
+
+    if map_id == 1:  # elem
+        elem_cog_small = get_cog_per_element(msh_small)
+        mapping_dictionary = map_cells(msh_large, elem_cog_small, tot_small, large_id, small_id)
+    else:  # pts
+        mapping_dictionary = map_points(msh_large, msh_small, large_id, small_id)
+
+    return mapping_dictionary
+
+
 # ---------------------------------------------------------------------------
 # Fibrosis scoring
 # ---------------------------------------------------------------------------
