@@ -85,6 +85,20 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 > imatools-mesh fibrosis-overlap -d /data -imsh0 msh0 -imsh1 msh1 -t0 0.5 -t1 0.5
 > ```
 
+> **Migration notice:** `convert_coords_to_index.py` and `create_test_data.py` have been
+> removed.  Use the `imatools-image` subcommands instead:
+>
+> ```bash
+> # Was: python convert_coords_to_index.py -im image.nii -xyz points.mps -o indices.txt
+> imatools-image coords-to-index -im image.nii -xyz points.mps -o indices.txt
+>
+> # Was: python create_test_data.py circle -out circle.nii -r 80 -c 150 150 50
+> imatools-image gen-circle -out circle.nii -r 80 -c 150 150 50
+>
+> # Was: python create_test_data.py cube -out cube.nii -s 80 -c 150 150 50
+> imatools-image gen-cube -out cube.nii -s 80 -c 150 150 50
+> ```
+
 ## New CLI (Post-Migration)
 
 The new CLI structure provides:
