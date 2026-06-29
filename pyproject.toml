@@ -63,6 +63,8 @@ Repository = "https://github.com/alonsoJASL/imatools"
 imatools-volume = "imatools.cli.volume:main"
 imatools-segmentation = "imatools.cli.segmentation:main"
 imatools-mesh = "imatools.cli.mesh:main"
+imatools-image = "imatools.cli.image:main"
+imatools-dicom = "imatools.cli.dicom:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
