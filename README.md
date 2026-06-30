@@ -99,6 +99,49 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 > imatools-mesh fibrosis-overlap -d /data -imsh0 msh0 -imsh1 msh1 -t0 0.5 -t1 0.5
 > ```
 
+> **Migration notice:** `scarq_tools.py`, `vscar_projection.py`, `enhance_debug_scar.py`,
+> `pool_enhance_debug_scar.py`, `scr_check_scar.py`, and `common/scarqtools.py` have been
+> removed.  Use the `imatools-scar` subcommands instead:
+>
+> ```bash
+> # Was: python scarq_tools.py lge --base-dir /data --lge-method iir
+> imatools-scar lge --base-dir /data --lge-method iir
+>
+> # Was: python scarq_tools.py surf --base-dir /data --input PVeinsCroppedImage.nii
+> imatools-scar surf --base-dir /data -i PVeinsCroppedImage.nii
+>
+> # Was: python scarq_tools.py scar_opts --base-dir /data --input options.json
+> imatools-scar scar-opts --base-dir /data -i options.json
+>
+> # Was: python scarq_tools.py scar --base-dir /data --input dcm-LGE.nii --scar-opts options.json
+> imatools-scar scar --base-dir /data -i dcm-LGE.nii --scar-opts options.json
+>
+> # Was: python scarq_tools.py mask --base-dir /data --input lge.nii --mask DebugScar.nii --mask-threshold-file prodStats.txt
+> imatools-scar mask --base-dir /data -i lge.nii --mask DebugScar.nii --mask-threshold-file prodStats.txt
+>
+> # Was: python vscar_projection.py pipeline --input msh.vtk -mirtk /opt/mirtk -moving cine.nii -fixed lge.nii -ref seg.nii -label 3
+> imatools-scar vscar-pipeline --input msh.vtk --path-to-mirtk /opt/mirtk --path-to-moving cine.nii --path-to-fixed lge.nii --reference-image seg.nii --label 3
+>
+> # Was: python vscar_projection.py scale --input msh.vtk --scale 0.001
+> imatools-scar vscar-scale --input msh.vtk --scale 0.001
+>
+> # Was: python vscar_projection.py deform --input msh_mm.vtk -mirtk /opt/mirtk -moving cine.nii -fixed lge.nii
+> imatools-scar vscar-deform --input msh_mm.vtk --path-to-mirtk /opt/mirtk --path-to-moving cine.nii --path-to-fixed lge.nii
+>
+> # Was: python vscar_projection.py cog --input msh_mm_on_LGE.vtk
+> imatools-scar vscar-cog --input msh_mm_on_LGE.vtk
+>
+> # Was: python vscar_projection.py scar --input cog.pts -ref seg.nii -label 3
+> imatools-scar vscar-project --input cog.pts --reference-image seg.nii --label 3
+>
+> # Was: python enhance_debug_scar.py --input lge.nii --scar-corridor-image scar.nii --image-info-file prodStats.txt -m iir --threshold 0.97 1.2 1.32
+> # Was: python pool_enhance_debug_scar.py (same args, parallel)
+> imatools-scar enhance --input lge.nii --scar-corridor-image scar.nii --image-info-file prodStats.txt -m iir --threshold 0.97 1.2 1.32 [--jobs N]
+>
+> # Was: python scr_check_scar.py -d /data -i scar_corridor.csv
+> imatools-scar check -d /data -i scar_corridor.csv
+> ```
+
 > **Migration notice:** `convert_coords_to_index.py` and `create_test_data.py` have been
 > removed.  Use the `imatools-image` subcommands instead:
 >

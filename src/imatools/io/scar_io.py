@@ -1,15 +1,14 @@
-"""Scar-quantification file I/O migrated from ``imatools.common.scarqtools`` (M1.6a).
+"""Scar-quantification file I/O migrated from ``imatools.common.scarqtools`` (M1.6a/c).
 
 Functions here read/write the data formats used by the scar pipeline:
 - ``prodStats.txt`` — blood-pool statistics and threshold scores.
 - ``options.json`` — scar options for CEMRG MitkCemrgScarProjectionOptions.
-
-``save_state`` / ``load_state`` (ScarQuantificationTools internal JSON state) are
-deferred to M1.6c along with the CLI/orchestration layer.
+- ``state.json`` — ScarQuantificationTools persistent state (paths + cmd names).
 """
 
 import json
 import os
+import sys
 
 from imatools.common.config import configure_logging
 
@@ -127,3 +126,46 @@ def create_scar_options_file(
 
     with open(output_path, "w") as f:
         json.dump(dic, f)
+
+
+def save_scar_state(path: str, config_dict: dict) -> None:
+    """Write a ``ScarConfig`` dict to a JSON state file.
+
+    The dict is expected to contain platform-keyed paths under ``"cemrg"`` and
+    ``"mirtk"`` keys plus flat string keys ``"scar_cmd_name"`` and
+    ``"clip_cmd_name"``.
+
+    Args:
+        path:        Full path to the state file (e.g. ``scarq_state.json``).
+        config_dict: Serialisable dict produced by :class:`cli.scar.ScarConfig`.
+
+    Raises:
+        OSError: if the file cannot be written.
+    """
+    logger.info(f"Saving scar state to {path}")
+    with open(path, "w") as f:
+        json.dump(config_dict, f, indent=2)
+
+
+def load_scar_state(path: str) -> dict:
+    """Load a scar state JSON file produced by :func:`save_scar_state`.
+
+    Args:
+        path: Full path to the state file.
+
+    Returns:
+        Dict with keys ``"cemrg"``, ``"mirtk"``, ``"scar_cmd_name"``,
+        ``"clip_cmd_name"``.
+
+    Raises:
+        OSError:           if the file cannot be read.
+        json.JSONDecodeError: if the file is not valid JSON.
+    """
+    with open(path, "r") as f:
+        state = json.load(f)
+    return state
+
+
+def _current_platform() -> str:
+    """Return ``sys.platform`` (thin helper for testability)."""
+    return sys.platform

@@ -1,8 +1,8 @@
-"""Pure scar-quantification logic migrated from ``imatools.common.scarqtools`` (M1.6a).
+"""Pure scar-quantification logic migrated from ``imatools.common.scarqtools`` (M1.6a/c).
 
 All functions here are stateless and accept explicit arguments — no class state, no
-singletons. ``imatools.common.scarqtools.ScarQuantificationTools`` keeps the CLI/state
-layer (M1.6c); this module holds the deterministic numeric core that is golden-backed.
+singletons. ``imatools.cli.scar`` is the CLI/state layer (M1.6c); this module holds
+the deterministic numeric core that is golden-backed.
 
 ``get_threshold_values`` consolidates the byte-identical duplicate that existed in both
 ``enhance_debug_scar.py`` and ``pool_enhance_debug_scar.py``.
@@ -11,8 +11,10 @@ layer (M1.6c); this module holds the deterministic numeric core that is golden-b
 ``enhance_debug_scar.py::main`` into a pure, testable function; the serial/parallel
 dispatch is a M1.6c concern.
 
-``mask_segmentation_above_threshold`` preserves master's arg-order bug in the
-``get_threshold`` call verbatim (documented below).
+``mask_segmentation_above_threshold`` Q3 bug fixed (M1.6c deliberate re-baseline):
+master called ``get_threshold(method, thres_mean, thres_std, thres_value)`` — args
+swapped. Fixed to ``get_threshold(method, thres_value, thres_mean, thres_std)``.
+No golden existed for this function so no re-capture needed.
 """
 
 import numpy as np
@@ -167,11 +169,10 @@ def mask_segmentation_above_threshold(
     Loads the segmentation from ``seg_path``, computes a threshold from the
     blood-pool statistics, derives a restriction mask, and applies it.
 
-    # BUG (M1.6 Q3): master passes get_threshold args in wrong order; preserved
-    # under golden, deliberate re-baseline deferred.
-    # Master call: get_threshold(method, thres_mean, thres_std, thres_value)
-    # Correct call: get_threshold(method, thres_value, thres_mean, thres_std)
-    # The golden locks the buggy behaviour.
+    Q3 bug fixed (M1.6c deliberate re-baseline): master called
+    ``get_threshold(method, thres_mean, thres_std, thres_value)`` (args swapped).
+    Correct call is ``get_threshold(method, thres_value, thres_mean, thres_std)``.
+    No golden existed for this function so no golden re-capture was required.
 
     Args:
         seg_path:    Path to the segmentation image file.
@@ -191,9 +192,8 @@ def mask_segmentation_above_threshold(
     from imatools.core.image import get_mask_with_restrictions, simple_mask  # noqa: PLC0415
 
     method = get_scar_method(scar_method)
-    # BUG preserved verbatim: master passes (method, thres_mean, thres_std, thres_value)
-    # instead of (method, thres_value, thres_mean, thres_std).
-    thres = get_threshold(method, thres_mean, thres_std, thres_value)
+    # Q3 fix: correct arg order is (method, thres_value, thres_mean, thres_std).
+    thres = get_threshold(method, thres_value, thres_mean, thres_std)
     mask_from_im = get_mask_with_restrictions(im, mask, thres, ignore_im=ignore_im)
 
     seg = load_image(seg_path)
