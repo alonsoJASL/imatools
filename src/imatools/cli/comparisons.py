@@ -158,15 +158,18 @@ def handle_compare(args: argparse.Namespace) -> int:
             break
 
         comparison_dir = str(row.comparison_dir)
-        case0 = str(row.case_left)
-        case1 = str(row.case_right)
 
         mapping_files_dir = os.path.join(comparison_dir, "MAPPING")
         map_path = os.path.join(mapping_files_dir, map_name)
 
-        logger.info("[%d/%d] Comparing %s <-> %s", count, n_comparisons, case0, case1)
+        logger.info("[%d/%d] Comparing in %s", count, n_comparisons, comparison_dir)
         df = pd.read_csv(map_path)
 
+        # Case ids come from the MAPPING csv columns, which create_mapping orders
+        # by mesh size (small_id first, large_id second). idx0/idx1 index those
+        # two meshes respectively, so the .dat field arrays MUST be loaded from the
+        # SAME ids — NOT the manifest case_left/case_right, whose order is
+        # independent of size (loading from the wrong one misaligns arr with idx).
         map_case0 = df.columns[0]
         map_case1 = df.columns[1]
         idx0 = df[map_case0]
@@ -176,8 +179,8 @@ def handle_compare(args: argparse.Namespace) -> int:
             idx0 = idx0[df.distance_manual <= max_distance]
             idx1 = idx1[df.distance_manual <= max_distance]
 
-        case0_path = os.path.join(comparison_dir, case0)
-        case1_path = os.path.join(comparison_dir, case1)
+        case0_path = os.path.join(comparison_dir, str(map_case0))
+        case1_path = os.path.join(comparison_dir, str(map_case1))
 
         arr0 = np.loadtxt(os.path.join(case0_path, dat_file), skiprows=rows_to_skip)
         arr1 = np.loadtxt(os.path.join(case1_path, dat_file), skiprows=rows_to_skip)
