@@ -142,6 +142,19 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 > imatools-scar check -d /data -i scar_corridor.csv
 > ```
 
+> **Migration notice:** `create_mapping_fibres.py` and `compare_from_mapping.py` have been
+> removed.  Use the `imatools-comparisons` subcommands instead (both now read a manifest
+> CSV — columns `comparison_dir,case_left,case_right` — instead of the hardcoded
+> `011_comparisons/C0..C49` tree):
+>
+> ```bash
+> # Was: python create_mapping_fibres.py -d /data -n in -map pts
+> imatools-comparisons map-fibres --manifest manifest.csv -n in -map pts
+>
+> # Was: python compare_from_mapping.py -d /data -n lat -f 1
+> imatools-comparisons compare --manifest manifest.csv -n lat -f 1
+> ```
+
 > **Migration notice:** `convert_coords_to_index.py` and `create_test_data.py` have been
 > removed.  Use the `imatools-image` subcommands instead:
 >
