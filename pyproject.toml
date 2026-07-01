@@ -67,6 +67,7 @@ imatools-image = "imatools.cli.image:main"
 imatools-dicom = "imatools.cli.dicom:main"
 imatools-scar = "imatools.cli.scar:main"
 imatools-comparisons = "imatools.cli.comparisons:main"
+imatools-report = "imatools.cli.report:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
