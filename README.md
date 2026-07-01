@@ -155,6 +155,20 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 > imatools-comparisons compare --manifest manifest.csv -n lat -f 1
 > ```
 
+> **Migration notice:** `mesh_report.py` and `vtk2png.py` have been removed.  Use the
+> `imatools-report` subcommands instead:
+>
+> ```bash
+> # Was: python mesh_report.py --sims_folder /data/case1 --report_name report.pdf --print_all
+> imatools-report report --sims-folder /data/case1 --report-name report.pdf --print-all
+>
+> # Was: python vtk2png.py single --base-dir /data/vtks --output grid.png
+> imatools-report render-single --base-dir /data/vtks --output grid.png
+>
+> # Was: python vtk2png.py multi --base-dir /data/vtks --output frame.png
+> imatools-report render-multi --base-dir /data/vtks --output frame.png
+> ```
+
 > **Migration notice:** `convert_coords_to_index.py` and `create_test_data.py` have been
 > removed.  Use the `imatools-image` subcommands instead:
 >

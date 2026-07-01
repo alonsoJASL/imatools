@@ -366,15 +366,13 @@ def visualise_pericardium(
     title=None,
     title_fontsize=44,
     title_position=0.9,
-    pericardium_scale_path=None,
+    pericardium_scale=None,
     dpi=300,
 ):
 
     print(f"Plotting {title}")
 
-    penalty_map_dat = np.genfromtxt(pericardium_scale_path, dtype=float)
-
-    plt_msh["pericardium_scale"] = penalty_map_dat
+    plt_msh["pericardium_scale"] = pericardium_scale
 
     plotter = pv.Plotter(off_screen=True)
     plotter.background_color = "white"

@@ -16,6 +16,7 @@ from imatools.contracts.operations import (
     MorphOperation,
     TransformOperation,
 )
+from imatools.contracts.report import MeshReportInputs, RenderParams
 
 __all__ = [
     "ImageContract",
@@ -26,4 +27,6 @@ __all__ = [
     "LabelOperation",
     "MorphOperation",
     "TransformOperation",
+    "MeshReportInputs",
+    "RenderParams",
 ]
