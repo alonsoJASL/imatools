@@ -1,16 +1,14 @@
 # src/imatools/core/geometry.py
 """Pure geometry functions migrated from ``imatools.common.vtktools`` and
-``imatools.common.utils`` (T2b1).
+``imatools.common.utils`` (T2b1), plus ``mesh_to_image`` (M2a-2, a zero-caller-
+but-KEEP function relocated from ``common.vtktools``).
 
-The 9 public functions here are the authoritative implementations; the old
-``imatools.common.vtktools`` and ``imatools.common.utils`` modules re-export
-them via shims at their bottoms.
+The 10 public functions here are the authoritative implementations.
 
-Functions that remain in ``vtktools`` (``extractPointsAndElemsFromVtk``,
-``mesh_to_image``) are accessed lazily at call time via ``_vtk()`` to avoid
-circular imports: vtktools must finish defining its own helpers before its
-bottom shim imports this module; therefore this module must NOT import from
-``vtktools`` at module-load time.
+``extractPointsAndElemsFromVtk`` lives in ``core.mesh``, which imports this
+module at load time; it is therefore accessed lazily at call time via ``_mesh()``
+to avoid the geometry↔mesh circular import (M2c — previously routed through the
+``common.vtktools`` shim, now gone).
 
 Bug notes
 ---------
@@ -25,6 +23,9 @@ import math
 from typing import List, Set
 
 import numpy as np
+import SimpleITK as sitk  # noqa: N813
+import vtk
+import vtk.util.numpy_support as vtknp
 
 from imatools.common.config import configure_logging
 
@@ -32,13 +33,13 @@ logger = configure_logging(log_name=__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After vtktools finishes loading (including its bottom shim), all helper
-# names are available in sys.modules and these lookups resolve instantly.
+# Lazy-helper accessor — ``extractPointsAndElemsFromVtk`` lives in ``core.mesh``,
+# which imports this module at load time; the lazy call-time import here avoids
+# that circular import (M2c — was routed through the ``common.vtktools`` shim).
 # ---------------------------------------------------------------------------
-def _vtk():
-    """Return the vtktools module (always already loaded when a geometry fn is called)."""
-    import imatools.common.vtktools as _m  # noqa: PLC0415
+def _mesh():
+    """Return the core.mesh module (imported lazily to avoid the geometry↔mesh cycle)."""
+    import imatools.core.mesh as _m  # noqa: PLC0415
 
     return _m
 
@@ -57,7 +58,7 @@ def dot_prod_vec(a, b):
 
 
 def get_cog_per_element(msh) -> np.ndarray:
-    pts, el = _vtk().extractPointsAndElemsFromVtk(msh)
+    pts, el = _mesh().extractPointsAndElemsFromVtk(msh)
     element_coordinates = pts[el]
 
     cog = np.mean(element_coordinates, axis=1)
@@ -145,6 +146,89 @@ def compute_mesh_size(msh) -> tuple:
         total_area += cell.ComputeArea()
 
     return msh.GetNumberOfCells(), total_area
+
+
+def mesh_to_image(mesh, reference_image, inside_value=1, outside_value=0, reverse_stencil=False):
+    """
+    Converts a vtkPolyData surface mesh to a binary segmentation image (SimpleITK)
+    that matches the geometry of the reference image.
+
+    Parameters:
+      mesh             : vtkPolyData representing the surface.
+      reference_image  : A SimpleITK image used as a reference for size, spacing, origin, and direction.
+      inside_value     : The value assigned to voxels inside the mesh (default 1).
+      outside_value    : The value for voxels outside the mesh (default 0).
+
+    Returns:
+      A SimpleITK image with the segmentation mask.
+    """
+    # Get geometry from the reference image
+    spacing = reference_image.GetSpacing()  # e.g., (dx, dy, dz)
+    origin = reference_image.GetOrigin()  # e.g., (ox, oy, oz)
+    size = reference_image.GetSize()  # e.g., (nx, ny, nz)
+    # VTK image extents are specified as (xmin, xmax, ymin, ymax, zmin, zmax)
+    extent = (0, size[0] - 1, 0, size[1] - 1, 0, size[2] - 1)
+
+    bounds = mesh.GetBounds()
+    logger.info(f"Mesh bounds: {bounds}")
+    logger.info(f"Reference image size: {size}, spacing: {spacing}, origin: {origin}")
+
+    # Create an empty vtkImageData with the same geometry as the reference image.
+    white_image = vtk.vtkImageData()
+    white_image.SetOrigin(origin)
+    white_image.SetSpacing(spacing)
+    white_image.SetExtent(extent)
+    white_image.AllocateScalars(vtk.VTK_UNSIGNED_CHAR, 1)
+
+    # Fill the image with the outside value.
+    dims = white_image.GetDimensions()
+    num_points = dims[0] * dims[1] * dims[2]
+    for i in range(num_points):
+        white_image.GetPointData().GetScalars().SetTuple1(i, inside_value)
+
+    # Convert the mesh to an image stencil.
+    poly2stenc = vtk.vtkPolyDataToImageStencil()
+    poly2stenc.SetTolerance(0.5)
+    poly2stenc.SetInputData(mesh)
+    poly2stenc.SetOutputOrigin(origin)
+    poly2stenc.SetOutputSpacing(spacing)
+    poly2stenc.SetOutputWholeExtent(white_image.GetExtent())
+    poly2stenc.Update()
+
+    # Use the stencil to “paint” the inside of the mesh.
+    imgstenc = vtk.vtkImageStencil()
+    imgstenc.SetInputData(white_image)
+    imgstenc.SetStencilConnection(poly2stenc.GetOutputPort())
+    if reverse_stencil:
+        imgstenc.ReverseStencilOn()
+    else:
+        imgstenc.ReverseStencilOff()  # voxels inside the mesh will be changed
+    imgstenc.SetBackgroundValue(outside_value)
+    imgstenc.Update()
+
+    vtk_mask = imgstenc.GetOutput()
+    # The result is a vtkImageData. Convert it to a numpy array.
+    dims = vtk_mask.GetDimensions()  # dims are (nx, ny, nz)
+    vtk_array = vtk_mask.GetPointData().GetScalars()
+    np_mask = vtknp.vtk_to_numpy(vtk_array)
+
+    # vtk images are stored in x-fastest order so reshape as (nz, ny, nx)
+    np_mask = np_mask.reshape(dims[2], dims[1], dims[0])
+    # Now, ensure that the inside region gets the inside_value.
+    # (Depending on the stencil, you may need to threshold the result)
+    np_mask[np_mask != outside_value] = inside_value
+
+    # Convert the result to SimpleITK
+    sitk_mask = sitk.GetImageFromArray(np_mask)
+    sitk_mask.CopyInformation(reference_image)
+    # sitk_mask.SetSpacing(spacing)
+    # sitk_mask.SetOrigin(origin)
+
+    logger.info(
+        f"Converted mesh to image with size: {sitk_mask.GetSize()}, spacing: {sitk_mask.GetSpacing()}, origin: {sitk_mask.GetOrigin()}"
+    )
+
+    return sitk_mask
 
 
 # ---------------------------------------------------------------------------

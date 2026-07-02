@@ -12,7 +12,6 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from imatools.common.ioutils import cout
 from imatools.io.paths import fullfile
 
 
@@ -36,7 +35,7 @@ def plot_dict(mydic, plotname, out_dir, oname, ylims=[]):
         return fig, ax
 
     except AttributeError:
-        cout("Plot function {} does not exist".format(plotname), "ERROR")
+        print(f"[ERROR] Plot function {plotname} does not exist")
         # BUG (pre-existing in master common/plotutils.py): `sys` was never imported —
         # this branch raises NameError instead of exiting. Preserved verbatim (Cat-B
         # latent bug, dead unless `plotname` doesn't resolve to an Axes method); do not

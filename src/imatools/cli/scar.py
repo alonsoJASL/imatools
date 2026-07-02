@@ -259,7 +259,7 @@ def _vtk_version() -> float:
 
 def handle_lge(args: argparse.Namespace) -> int:
     """Create synthetic LGE test image (prism)."""
-    from imatools.common.itktools import save_image  # noqa: PLC0415
+    from imatools.io.image_io import save_image  # noqa: PLC0415
 
     image_size = tuple(args.lge_image_size)
     prism_size = tuple(args.lge_prism_size)
@@ -290,8 +290,8 @@ def handle_lge(args: argparse.Namespace) -> int:
 
     os.makedirs(out_dir, exist_ok=True)
     logger.info(f"Saving LGE image to {out_dir}")
-    save_image(im, out_dir, out_name)
-    save_image(seg, out_dir, "LA.nii")
+    save_image(im, os.path.join(out_dir, out_name), overwrite=True)
+    save_image(seg, os.path.join(out_dir, "LA.nii"), overwrite=True)
     with open(os.path.join(out_dir, "bounds.json"), "w") as f:
         json.dump(boundic, f)
     return 0
@@ -299,20 +299,15 @@ def handle_lge(args: argparse.Namespace) -> int:
 
 def handle_surf(args: argparse.Namespace) -> int:
     """Create segmentation surface mesh via MIRTK."""
-    from imatools.common.itktools import (  # noqa: PLC0415
+    from imatools.core.label import (  # noqa: PLC0415
         check_for_existing_label,
         exchange_labels,
         extract_single_label,
         get_labels,
-        load_image,
-        save_image,
     )
-    from imatools.common.vtktools import (
-        join_vtk,
-        readVtk,
-        set_cell_scalars,
-        writeVtk,
-    )  # noqa: PLC0415
+    from imatools.core.mesh import join_vtk, set_cell_scalars  # noqa: PLC0415
+    from imatools.io.image_io import load_image, save_image  # noqa: PLC0415
+    from imatools.io.mesh_io import readVtk, writeVtk  # noqa: PLC0415
 
     cfg = _resolve_config(args)
 
@@ -337,11 +332,11 @@ def handle_surf(args: argparse.Namespace) -> int:
         logger.error("No input file specified. Exiting.")
         return 1
 
-    seg = load_image(os.path.join(work_dir, pveins_file))
+    seg = load_image(os.path.join(work_dir, pveins_file), return_contract=False)
     if check_for_existing_label(seg, 100):
         logger.info("Fixing segmentation padding values (label 100 → 0) before meshing")
         seg = exchange_labels(seg, 100, 0)
-        save_image(seg, work_dir, pveins_file)
+        save_image(seg, os.path.join(work_dir, pveins_file), overwrite=True)
 
     iterations = args.surf_iterations
     isovalue = args.surf_isovalue
@@ -356,7 +351,7 @@ def handle_surf(args: argparse.Namespace) -> int:
             logger.info(f"Creating mesh for label {label}")
             seg_label = extract_single_label(seg, label)
             label_name = f"segmentation_{label}"
-            save_image(seg_label, work_dir, f"{label_name}.nii")
+            save_image(seg_label, os.path.join(work_dir, f"{label_name}.nii"), overwrite=True)
             _create_segmentation_mesh(
                 cfg.mirtk_dir, work_dir, f"{label_name}.nii", iterations, isovalue, blur, debug
             )
@@ -456,7 +451,7 @@ def handle_scar(args: argparse.Namespace) -> int:
 
 def handle_mask(args: argparse.Namespace) -> int:
     """Mask image/segmentation with blood-pool threshold."""
-    from imatools.common.itktools import load_image, save_image  # noqa: PLC0415
+    from imatools.io.image_io import load_image, save_image  # noqa: PLC0415
 
     if args.base_dir:
         base = args.base_dir
@@ -474,12 +469,12 @@ def handle_mask(args: argparse.Namespace) -> int:
         thres_path = os.path.abspath(args.mask_threshold_file) if args.mask_threshold_file else ""
         output = os.path.abspath(args.output) if args.output else ""
 
-    im = load_image(im_path)
-    mask = load_image(mask_path)
+    im = load_image(im_path, return_contract=False)
+    mask = load_image(mask_path, return_contract=False)
     ignore_im = None
     if args.mask_ignore:
         ignore_path = os.path.join(os.path.dirname(im_path), args.mask_ignore)
-        ignore_im = load_image(ignore_path)
+        ignore_im = load_image(ignore_path, return_contract=False)
 
     meanbp, stdbp = scar_io.get_bloodpool_stats_from_file(thres_path)
 
@@ -516,7 +511,7 @@ def handle_mask(args: argparse.Namespace) -> int:
     out_dir = os.path.dirname(output)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
-    save_image(masked_im, output)
+    save_image(masked_im, output, overwrite=True)
     return 0
 
 
@@ -622,15 +617,16 @@ def execute_vscar_projection(
     input_info: dict, cog_path: str, reference_image: str, label: int
 ) -> str:
     """Project ventricular scar onto mesh."""
-    from imatools.common.itktools import get_indices_from_label, load_image  # noqa: PLC0415
+    from imatools.core.image import get_indices_from_label  # noqa: PLC0415
     from imatools.core.mesh import tag_mesh_elements_by_growing_from_seed_optimized  # noqa: PLC0415
     from imatools.io import mesh_io  # noqa: PLC0415
+    from imatools.io.image_io import load_image  # noqa: PLC0415
 
     msh_path = os.path.join(input_info["dirname"], input_info["base"])
     output_msh_name = f'scar3d_{input_info["base"]}'
 
     cogs = np.loadtxt(cog_path)
-    img = load_image(reference_image)
+    img = load_image(reference_image, return_contract=False)
     _, _, bboxes_dict = get_indices_from_label(img, label, get_voxel_bbox=True)
 
     msh = mesh_io.read_vtk(msh_path, input_type="ugrid")

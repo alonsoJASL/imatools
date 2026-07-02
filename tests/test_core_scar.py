@@ -167,16 +167,10 @@ def test_mask_voxels_above_threshold_smoke():
 
 
 # ---------------------------------------------------------------------------
-# get_mask_with_restrictions — straggler identity + behaviour smoke test
+# get_mask_with_restrictions — behaviour smoke test
+# (the object-identity shim test was removed in M2c — the common.itktools shim
+#  it guarded no longer exists; core.image is now the sole home.)
 # ---------------------------------------------------------------------------
-
-
-def test_get_mask_with_restrictions_identity_shim():
-    """Object-identity shim: itktools.get_mask_with_restrictions IS core.image version."""
-    from imatools.common.itktools import get_mask_with_restrictions as itk_fn
-    from imatools.core.image import get_mask_with_restrictions as core_fn
-
-    assert itk_fn is core_fn
 
 
 def test_get_mask_with_restrictions_smoke():

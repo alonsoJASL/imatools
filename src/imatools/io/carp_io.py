@@ -13,19 +13,22 @@ Cat-B bugs preserved verbatim (per Wave-2 bug policy):
 
 from __future__ import annotations
 
+import sys
+
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Helpers used by the CARP functions that stay in ioutils (getTotal, fullfile)
-# are accessed via a lazy call-time import to avoid circular-import issues
-# (carp_io may be imported before ioutils is fully initialised).
+# ``fullfile`` (a path helper) lives in ``io.paths``; accessed via a lazy
+# call-time import to avoid circular-import issues (M2c — was routed through the
+# ``common.ioutils`` shim, now gone). ``getTotal`` used to be reached the same
+# way but now lives here directly (M2b — a CARP-file header helper).
 # ---------------------------------------------------------------------------
 
 
-def _ioutils():
-    import imatools.common.ioutils as io  # noqa: PLC0415
+def _paths():
+    import imatools.io.paths as _p  # noqa: PLC0415
 
-    return io
+    return _p
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +66,24 @@ def read_lon(filename):
     return np.loadtxt(filename, dtype=float, skiprows=1)
 
 
+def getTotal(fname):  # noqa: N802
+    """Get the total count declared on the first line of a CARP .pts/.elem file.
+
+    Migrated verbatim from ``common.ioutils`` (M2b): its only callers are this
+    module's ``readParsePts``/``readParseElem``. Complementary to ``read_pts``/
+    ``read_elem`` (which read the data rows via ``skiprows=1``) — this reads the
+    declared header count so the parsers can validate it against the data.
+    """
+    try:
+        with open(fname, encoding="utf-8") as f:
+            numNodes = int(f.readline().strip())  # noqa: N806
+    except Exception:
+        print("[getTotal] Error - file not found")
+        sys.exit(-1)
+
+    return numNodes
+
+
 # ---------------------------------------------------------------------------
 # Higher-level parsers
 # ---------------------------------------------------------------------------
@@ -70,7 +91,7 @@ def read_lon(filename):
 
 def readParsePts(ptsFname):  # noqa: N802,N803
     """Read parse CARP point files."""
-    numNodes = _ioutils().getTotal(ptsFname)  # noqa: N806
+    numNodes = getTotal(ptsFname)  # noqa: N806
     nodes = read_pts(ptsFname)
 
     if numNodes != len(nodes):
@@ -86,7 +107,7 @@ def readParseElem(elFname):  # noqa: N802,N803
     Cat-B bug preserved: calls ``read_elem`` with the default ``el_type='Tt'``
     which raises ``ValueError`` on triangle ``.elem`` files.
     """
-    nElem = _ioutils().getTotal(elFname)  # noqa: N806
+    nElem = getTotal(elFname)  # noqa: N806
     el = read_elem(elFname)
 
     if nElem != len(el):
@@ -103,11 +124,11 @@ def loadCarpMesh(mshname, directory=None):  # noqa: N802
     ``read_elem`` with the default ``el_type='Tt'``, raising ``ValueError``
     on triangle meshes.
     """
-    io = _ioutils()
+    paths = _paths()
 
     if directory is not None:
-        ptsname = io.fullfile(directory, mshname + ".pts")
-        elemname = io.fullfile(directory, mshname + ".elem")
+        ptsname = paths.fullfile(directory, mshname + ".pts")
+        elemname = paths.fullfile(directory, mshname + ".elem")
     else:
         ptsname = mshname + ".pts"
         elemname = mshname + ".elem"

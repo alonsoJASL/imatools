@@ -188,14 +188,14 @@ def mask_segmentation_above_threshold(
     Returns:
         Masked segmentation SimpleITK image.
     """
-    from imatools.common.itktools import load_image  # noqa: PLC0415
     from imatools.core.image import get_mask_with_restrictions, simple_mask  # noqa: PLC0415
+    from imatools.io.image_io import load_image  # noqa: PLC0415
 
     method = get_scar_method(scar_method)
     # Q3 fix: correct arg order is (method, thres_value, thres_mean, thres_std).
     thres = get_threshold(method, thres_value, thres_mean, thres_std)
     mask_from_im = get_mask_with_restrictions(im, mask, thres, ignore_im=ignore_im)
 
-    seg = load_image(seg_path)
+    seg = load_image(seg_path, return_contract=False)
     masked_seg = simple_mask(im=seg, mask=mask_from_im, mask_value=mask_value)
     return masked_seg

@@ -37,6 +37,7 @@ from collections import deque
 from typing import List, Optional
 
 import numpy as np
+import pandas as pd
 import vtk
 import vtk.util.numpy_support as vtknp
 
@@ -53,13 +54,13 @@ logger = configure_logging(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy accessor for vtktools — avoids circular import at module-load time.
-# vtktools imports this module at its bottom (shim), so we must NOT import
-# vtktools at our top level.  Use _vtk().<name> for helpers that stay there.
+# Lazy accessor — ``readVtk`` / ``write_vtk`` live in ``io.mesh_io``, imported
+# lazily to keep this module's I/O dependency at call time rather than load time
+# (M2c — was routed through the ``common.vtktools`` shim, now gone).
 # ---------------------------------------------------------------------------
-def _vtk():
-    """Return the vtktools module (already loaded when any mesh fn is called)."""
-    import imatools.common.vtktools as _m  # noqa: PLC0415
+def _mesh_io():
+    """Return the io.mesh_io module (imported lazily; used for readVtk/write_vtk)."""
+    import imatools.io.mesh_io as _m  # noqa: PLC0415
 
     return _m
 
@@ -477,8 +478,8 @@ def translate_to_point(mesh, point=[0, 0, 0]):  # noqa: B006
 
 
 def compare_mesh_sizes(msh_left_name, msh_right_name, left_id, right_id, map_type_id):
-    msh_left = _vtk().readVtk(msh_left_name)
-    msh_right = _vtk().readVtk(msh_right_name)
+    msh_left = _mesh_io().readVtk(msh_left_name)
+    msh_right = _mesh_io().readVtk(msh_right_name)
 
     if map_type_id == 1:  # elem
         tot_left = msh_left.GetNumberOfCells()
@@ -1160,7 +1161,7 @@ def tag_mesh_elements_parallel_regions(
 
 def write_vtk(mesh, directory, outname="output", output_type="polydata"):
     """Thin delegator — authoritative implementation lives in vtktools."""
-    return _vtk().write_vtk(mesh, directory, outname, output_type)
+    return _mesh_io().write_vtk(mesh, directory, outname, output_type)
 
 
 # ---------------------------------------------------------------------------
@@ -1326,3 +1327,68 @@ def project_point_data(msh_source, msh_target):
     omsh.GetPointData().SetScalars(o_scalar)
 
     return omsh
+
+
+# ---------------------------------------------------------------------------
+# Moved from imatools.common.vtktools (M2a-2; zero-caller-but-KEEP functions)
+# ---------------------------------------------------------------------------
+
+
+def get_filtered_array(
+    df: pd.DataFrame,
+    field: str,
+    msh,
+    mesh_scalar_field="scalars",
+    dist_field="distance_manual",
+    max_distance=1.0,
+) -> np.ndarray:
+    """Filter a mapping DataFrame by distance and pull the matching mesh scalar values.
+
+    Adapted (M2a-2): the original ``common.vtktools.get_filtered_array`` took a
+    ``mesh_path: str`` and read it internally via ``readVtk`` — file I/O inside
+    a ``core`` function. Since this function has zero callers, the signature
+    now takes an already-loaded mesh object ``msh`` instead, matching the
+    object-based convention used elsewhere in this module (e.g.
+    ``create_mapping``). The caller is now responsible for loading the mesh.
+    """
+    # filter the DataFrame by distance_manual
+    df_filtered = df[df[dist_field] < max_distance]
+    mesh_indices = df_filtered[field].values
+
+    mesh_array = convertCellDataToNpArray(msh, mesh_scalar_field)
+    mesh_array = mesh_array[mesh_indices]
+
+    return mesh_array, df_filtered
+
+
+def extract_mesh_region_by_label(
+    msh: vtk.vtkPolyData, label: int, scalar_field="elemTag"
+) -> vtk.vtkPolyData:
+    """
+    Extracts a single label from a vtkPolyData object.
+
+    Renamed (M2a-2) from ``extract_single_label`` (its name in
+    ``common.vtktools``) to avoid colliding with the unrelated, already-
+    existing ``core.label.extract_single_label`` (image-domain — thresholds a
+    label image, not a mesh).
+
+    Parameters:
+        msh (vtk.vtkPolyData): The input surface mesh.
+        label (int): The label to extract.
+        scalar_field (str): The scalar field name to use for extraction.
+
+    Returns:
+        vtk.vtkPolyData: A new vtkPolyData containing only the specified label.
+    """
+    threshold = vtk.vtkThreshold()
+    threshold.SetInputData(msh)
+    threshold.ThresholdBetween(label, label)  # Keep only the selected label
+    threshold.SetInputArrayToProcess(0, 0, 0, 1, scalar_field)  # Ensure correct scalar selection
+    threshold.Update()
+
+    # Convert vtkUnstructuredGrid to vtkPolyData
+    geo_filter = vtk.vtkGeometryFilter()
+    geo_filter.SetInputData(threshold.GetOutput())
+    geo_filter.Update()
+
+    return geo_filter.GetOutput()

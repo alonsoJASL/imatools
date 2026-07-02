@@ -1,32 +1,33 @@
 """Image / voxel-array operations migrated from ``imatools.common.itktools`` (T2a2).
 
 The 22 public functions and the ``SegmentationGenerator`` class here are the
-authoritative implementations; ``imatools.common.itktools`` and
-``imatools.common.SegmentationGenerator`` re-export them via shims at their bottoms.
+authoritative implementations.
 
-Helpers that remain in ``itktools`` for now (``imview``,
-``get_mask_array_with_restrictions``, ``get_scarq_boundaries``, etc.) are
-imported lazily inside the functions that need them, via the ``_itk()`` accessor.
-This avoids the circular-import problem: ``itktools`` must finish defining its own
-helpers before its bottom shim imports this module.
+A few label-algebra helpers (``get_labels``, ``extract_single_label``,
+``binarise``) live in ``core.label``; they are imported lazily via the
+``_label()`` accessor to avoid the image↔label circular import (M2c — was
+routed through the ``common.itktools`` shim, now gone).
 """
 
 import numpy as np
 import SimpleITK as sitk  # noqa: N813
+import vtk
 
 from imatools.common.config import configure_logging
+from imatools.core.geometry import get_cog_per_element
 
 logger = configure_logging(log_name=__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After itktools finishes loading (including its bottom shim), all helper
-# names are available in sys.modules and these lookups resolve instantly.
+# Lazy-helper accessor — the label-algebra helpers used below (get_labels,
+# extract_single_label, binarise) live in ``core.label``, imported lazily to
+# avoid the image↔label circular import (M2c — was routed through the
+# ``common.itktools`` shim, now gone).
 # ---------------------------------------------------------------------------
-def _itk():
-    """Return the itktools module (always already loaded when an image fn is called)."""
-    import imatools.common.itktools as _m  # noqa: PLC0415
+def _label():
+    """Return the core.label module (imported lazily to avoid the image↔label cycle)."""
+    import imatools.core.label as _m  # noqa: PLC0415
 
     return _m
 
@@ -180,7 +181,7 @@ def smooth_label_with_distance(image, sigma=1.0, threshold=0.0):
 
 
 def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
-    unique_labels = _itk().get_labels(im)
+    unique_labels = _label().get_labels(im)
     im_size = im.GetSize()
 
     pixel_type = sitk.sitkUInt8
@@ -216,7 +217,7 @@ def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.
     # import itk
 
     # Get all unique labels in the image
-    unique_labels = _itk().get_labels(im)
+    unique_labels = _label().get_labels(im)
     im_size = im.GetSize()
     new_size = [int(im_size[i] * im.GetSpacing()[i] / spacing[i]) for i in range(3)]
 
@@ -328,9 +329,23 @@ def simple_mask(im, mask, mask_value=0) -> sitk.Image:
     return new_im
 
 
+def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> np.ndarray:
+    mask_array = imarray(mask)
+    if threshold > 0:
+        im_array = imview(im)
+        mask_array[im_array > threshold] = 1
+
+    if ignore_im is not None:
+        ignore_im_array = imview(ignore_im)
+        mask_array[ignore_im_array > 0] = 0
+
+    mask_array[mask_array > 0] = 1
+    return mask_array
+
+
 def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
     masked_im_array = imarray(im)
-    mask_array = _itk().get_mask_array_with_restrictions(
+    mask_array = get_mask_array_with_restrictions(
         im, mask, threshold=threshold, ignore_im=ignore_im
     )
 
@@ -360,7 +375,7 @@ def get_mask_with_restrictions(im, mask, threshold=0, ignore_im=None) -> sitk.Im
     Returns:
         SimpleITK binary mask image.
     """
-    mask_array = _itk().get_mask_array_with_restrictions(
+    mask_array = get_mask_array_with_restrictions(
         im, mask, threshold=threshold, ignore_im=ignore_im
     )
     new_mask = sitk.GetImageFromArray(mask_array)
@@ -389,7 +404,7 @@ def regionprops(image: sitk.Image, label=None):
     Returns region properties of a label in the image
     """
     if label is not None:
-        image = _itk().extract_single_label(image, label, binarise=True)
+        image = _label().extract_single_label(image, label, binarise=True)
 
     cc_image = sitk.ConnectedComponent(image)
     label_image = sitk.RelabelComponent(cc_image, sortByObjectSize=True)
@@ -440,7 +455,7 @@ def extract_largest(im: sitk.Image) -> sitk.Image:
     """
     Extract the largest connected component from a multilabel image.
     """
-    itk = _itk()
+    itk = _label()
     image_labels = itk.get_labels(im)  # noqa: F841
     im_binary = itk.binarise(im)
     cc = sitk.ConnectedComponent(im_binary)
@@ -466,6 +481,21 @@ def extract_largest(im: sitk.Image) -> sitk.Image:
     largest_cc = sitk.Cast(largest_cc, im_pixel_type)
 
     return sitk.Multiply(im, largest_cc)
+
+
+def get_scarq_boundaries(mode: str):  #
+
+    iir = mode.lower() == "iir"
+
+    lowthres = 0.9 if iir else 1.1
+    fibrosis = 0.975 if iir else 2.0
+    scar = 1.21 if iir else 2.2
+    ablation = 1.33 if iir else 3.2
+    ceiling = 1.5 if iir else 4.0
+
+    bounds = [(lowthres, fibrosis), (fibrosis, scar), (scar, ablation), (ablation, ceiling)]
+
+    return bounds
 
 
 def generate_scar_image(
@@ -536,7 +566,7 @@ def generate_scar_image(
 
     total_boundary_mask = np.sum(boundary_mask)
 
-    d = _itk().get_scarq_boundaries(mode)
+    d = get_scarq_boundaries(mode)
     percentages = [0.99, 0.01] if simple else [0.6, 0.2, 0.15, 0.05]
     boundic = {
         int(100 * perc): np.round(perc * total_boundary_mask).astype(np.int32)
@@ -755,6 +785,83 @@ def find_neighbours(image, indices):
         neighbours_dict[idx] = neighbours
 
     return neighbours_dict
+
+
+# ---------------------------------------------------------------------------
+# Moved from imatools.common.vtktools / imatools.common.itktools (M2a-2;
+# zero-caller-but-KEEP functions)
+# ---------------------------------------------------------------------------
+
+
+def create_image_with_combined_origin(reference_image, combined_bounds, pixel_value=0):
+    """
+    Creates a SimpleITK image with the same size and spacing as the reference image,
+    but sets its origin to the lower bounds (xmin, ymin, zmin) of the combined_bounds.
+
+    Parameters:
+        reference_image (sitk.Image): The image whose size and spacing will be copied.
+        combined_bounds (tuple): A tuple (xmin, xmax, ymin, ymax, zmin, zmax) from the meshes.
+        pixel_value (int, optional): Fill value for the image (default is 0).
+
+    Returns:
+        sitk.Image: A new SimpleITK image with the updated origin.
+    """
+    # Get size and spacing from the reference image.
+    size = reference_image.GetSize()  # (nx, ny, nz)
+    spacing = reference_image.GetSpacing()  # (dx, dy, dz)
+
+    # Set new origin from the lower bounds (xmin, ymin, zmin).
+    new_origin = (combined_bounds[0], combined_bounds[2], combined_bounds[4])
+
+    # Create a new image with the same size, spacing, and pixel type as the reference.
+    new_img = sitk.Image(size, reference_image.GetPixelID())
+    new_img.SetSpacing(spacing)
+    new_img.SetOrigin(new_origin)
+
+    # Optionally fill the image with a pixel value.
+    new_img = sitk.Add(new_img, pixel_value)
+
+    return new_img
+
+
+def project_surface_onto_segmentation(
+    segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False
+) -> vtk.vtkPolyData:
+    cog = get_cog_per_element(surface)
+    scalars = surface.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(surface.GetNumberOfCells()):
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix)
+        index = segmentation.TransformPhysicalPointToIndex((x, y, z))
+
+        if visited_indices.__contains__(index) and check_visited:
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
+
+
+def project_segmentation_onto_mesh(
+    segmentation: sitk.Image, mesh, check_visited=False
+) -> vtk.vtkPolyData:
+    cog = get_cog_per_element(mesh)
+    scalars = mesh.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(mesh.GetNumberOfCells()):
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix)
+        index = segmentation.TransformPhysicalPointToIndex((x, y, z))
+
+        if visited_indices.__contains__(index) and check_visited:
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
 
 
 # ---------------------------------------------------------------------------
