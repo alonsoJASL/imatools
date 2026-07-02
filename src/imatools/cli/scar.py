@@ -300,7 +300,6 @@ def handle_lge(args: argparse.Namespace) -> int:
 def handle_surf(args: argparse.Namespace) -> int:
     """Create segmentation surface mesh via MIRTK."""
     from imatools.common.itktools import (  # noqa: PLC0415
-        check_for_existing_label,
         exchange_labels,
         extract_single_label,
         get_labels,
@@ -313,6 +312,7 @@ def handle_surf(args: argparse.Namespace) -> int:
         set_cell_scalars,
         writeVtk,
     )  # noqa: PLC0415
+    from imatools.core.label import check_for_existing_label  # noqa: PLC0415
 
     cfg = _resolve_config(args)
 

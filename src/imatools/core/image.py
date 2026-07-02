@@ -4,8 +4,7 @@ The 22 public functions and the ``SegmentationGenerator`` class here are the
 authoritative implementations; ``imatools.common.itktools`` and
 ``imatools.common.SegmentationGenerator`` re-export them via shims at their bottoms.
 
-Helpers that remain in ``itktools`` for now (``imview``,
-``get_mask_array_with_restrictions``, ``get_scarq_boundaries``, etc.) are
+Helpers that remain in ``itktools`` for now (``imview``, etc.) are
 imported lazily inside the functions that need them, via the ``_itk()`` accessor.
 This avoids the circular-import problem: ``itktools`` must finish defining its own
 helpers before its bottom shim imports this module.
@@ -328,9 +327,23 @@ def simple_mask(im, mask, mask_value=0) -> sitk.Image:
     return new_im
 
 
+def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> np.ndarray:
+    mask_array = imarray(mask)
+    if threshold > 0:
+        im_array = imview(im)
+        mask_array[im_array > threshold] = 1
+
+    if ignore_im is not None:
+        ignore_im_array = imview(ignore_im)
+        mask_array[ignore_im_array > 0] = 0
+
+    mask_array[mask_array > 0] = 1
+    return mask_array
+
+
 def mask_image(im, mask, mask_value=0, ignore_im=None, threshold=0):
     masked_im_array = imarray(im)
-    mask_array = _itk().get_mask_array_with_restrictions(
+    mask_array = get_mask_array_with_restrictions(
         im, mask, threshold=threshold, ignore_im=ignore_im
     )
 
@@ -360,7 +373,7 @@ def get_mask_with_restrictions(im, mask, threshold=0, ignore_im=None) -> sitk.Im
     Returns:
         SimpleITK binary mask image.
     """
-    mask_array = _itk().get_mask_array_with_restrictions(
+    mask_array = get_mask_array_with_restrictions(
         im, mask, threshold=threshold, ignore_im=ignore_im
     )
     new_mask = sitk.GetImageFromArray(mask_array)
@@ -468,6 +481,21 @@ def extract_largest(im: sitk.Image) -> sitk.Image:
     return sitk.Multiply(im, largest_cc)
 
 
+def get_scarq_boundaries(mode: str):  #
+
+    iir = mode.lower() == "iir"
+
+    lowthres = 0.9 if iir else 1.1
+    fibrosis = 0.975 if iir else 2.0
+    scar = 1.21 if iir else 2.2
+    ablation = 1.33 if iir else 3.2
+    ceiling = 1.5 if iir else 4.0
+
+    bounds = [(lowthres, fibrosis), (fibrosis, scar), (scar, ablation), (ablation, ceiling)]
+
+    return bounds
+
+
 def generate_scar_image(
     image_size=(300, 300, 100),
     prism_size=(80, 80, 80),
@@ -536,7 +564,7 @@ def generate_scar_image(
 
     total_boundary_mask = np.sum(boundary_mask)
 
-    d = _itk().get_scarq_boundaries(mode)
+    d = get_scarq_boundaries(mode)
     percentages = [0.99, 0.01] if simple else [0.6, 0.2, 0.15, 0.05]
     boundic = {
         int(100 * perc): np.round(perc * total_boundary_mask).astype(np.int32)

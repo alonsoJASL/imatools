@@ -226,6 +226,14 @@ def get_labels(image: sitk.Image) -> list:
     return unique_labels.astype(int).tolist()
 
 
+def check_for_existing_label(im: sitk.Image, label) -> bool:
+    """
+    Check if a particular label exists in an image
+    """
+    labels_in_im = get_labels(im)
+    return label in labels_in_im
+
+
 def combine_segmentations(seg_images, labels=None):
     """
     Combines multiple segmentation images into a single label image.

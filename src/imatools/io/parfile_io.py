@@ -1,22 +1,68 @@
 # src/imatools/io/parfile_io.py
 """File I/O for Meshtools3d parameter files.
 
-Migrated from ``imatools.common.m3dutils`` (T2e).  Legacy callers that import
-from ``imatools.common.m3dutils`` continue to work via the re-export shim at
-the bottom of that module.
-
-``load_from_par`` calls ``get_empty_pot`` which stays in ``m3dutils``; it is
-accessed via a lazy call-time import to avoid circular-import issues at the
-module level (the target may be imported before m3dutils).
+Migrated from ``imatools.common.m3dutils`` (T2e; ``get_empty_pot``,
+``save_to_json``, ``load_from_json`` migrated M2a-1).  Legacy callers that
+import from ``imatools.common.m3dutils`` continue to work via the re-export
+shim at the bottom of that module.
 """
 
 from __future__ import annotations
 
+import json
 
-def _m3d():
-    import imatools.common.m3dutils as m  # noqa: PLC0415
 
-    return m
+def get_empty_pot() -> dict:
+    pot = {
+        "segmentation": {
+            "seg_dir": None,
+            "seg_name": None,
+            "mesh_from_segmentation": True,
+            "boundary_relabeling": False,
+        },  # bad spelling is on purpose
+        "meshing": {
+            "facet_angle": 30,
+            "facet_size": 0.8,
+            "facet_distance": 0.1,
+            "cell_rad_edge_ratio": 2,
+            "cell_size": 0.8,
+            "rescaleFactor": 1000,
+        },
+        "laplacesolver": {
+            "abs_toll": 1e-6,
+            "rel_toll": 1e-6,
+            "itr_max": 700,
+            "dimKrilovSp": 500,
+            "verbose": True,
+        },
+        "others": {"eval_thickness": False},
+        "output": {
+            "outdir": None,
+            "name": None,
+            "out_medit": False,
+            "out_vtk": True,
+            "out_carp": True,
+            "out_vtk_binary": False,
+            "out_carp_binary": False,
+            "out_potential": False,
+        },
+    }
+
+    return pot
+
+
+def save_to_json(pot, out_path):
+    with open(out_path, "w") as f:
+        json.dump(pot, f, indent=4)
+
+    return
+
+
+def load_from_json(in_path):
+    in_path += ".json" if ".json" not in in_path else ""
+    with open(in_path, "r") as f:
+        pot = json.load(f)
+    return pot
 
 
 def load_from_par(filename: str):
@@ -27,7 +73,7 @@ def load_from_par(filename: str):
     with open(filename, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    pot = _m3d().get_empty_pot()
+    pot = get_empty_pot()
     current_section = ""
     for line in lines:
         if "#" in line:  # comment

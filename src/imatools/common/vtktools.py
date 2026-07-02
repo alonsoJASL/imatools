@@ -221,87 +221,6 @@ def verify_cell_indices_from_mesh(msh1, msh_test, test_indices):
     return verify_cell_indices(msh1, test_indices, test_cog)
 
 
-def create_vtk_reader(input_type, filename, centered=False):
-    """Return the appropriate VTK reader for the given input type and file."""
-    if input_type == "ugrid":
-        reader = vtk.vtkUnstructuredGridReader()
-    else:  # 'polydata'
-        reader = vtk.vtkPolyDataReader()
-    reader.SetFileName(filename)
-    reader.Update()
-
-    data = reader.GetOutput()
-    if not data:
-        raise ValueError(f"Failed to read VTK file: {filename}")
-    if not isinstance(data, vtk.vtkDataSet):
-        raise TypeError(f"Expected vtkDataSet, got {type(data)} for file: {filename}")
-
-    # Center the data if requested
-    if centered:
-        data = center_vtk_data(data)
-
-    return data
-
-
-def center_vtk_data(data):
-    """Translate the VTK dataset so that its geometric center is at (0,0,0)."""
-    bounds = data.GetBounds()  # (xmin, xmax, ymin, ymax, zmin, zmax)
-    center = [
-        0.5 * (bounds[0] + bounds[1]),
-        0.5 * (bounds[2] + bounds[3]),
-        0.5 * (bounds[4] + bounds[5]),
-    ]
-
-    transform = vtk.vtkTransform()
-    transform.Translate(-center[0], -center[1], -center[2])
-
-    transform_filter = vtk.vtkTransformFilter()
-    transform_filter.SetTransform(transform)
-    transform_filter.SetInputData(data)
-    transform_filter.Update()
-
-    return transform_filter.GetOutput()
-
-
-def create_vtk_mapper(input_type, data, scalar_name=None):
-    """Return a VTK mapper configured for the given data and scalar coloring (if applicable)."""
-    if input_type == "ugrid":
-        mapper = vtk.vtkDataSetMapper()
-    else:  # 'polydata'
-        mapper = vtk.vtkPolyDataMapper()
-    mapper.SetInputData(data)
-
-    # Optionally handle scalar coloring
-    if scalar_name:
-        cell_data = data.GetCellData()
-        point_data = data.GetPointData()
-        if cell_data.HasArray(scalar_name):
-            scalar_range = cell_data.GetArray(scalar_name).GetRange()
-            mapper.SetScalarModeToUseCellData()
-        elif point_data.HasArray(scalar_name):
-            scalar_range = point_data.GetArray(scalar_name).GetRange()
-            mapper.SetScalarModeToUsePointData()
-        else:
-            scalar_range = None  # Scalar field not found
-
-        if scalar_range:
-            lut = vtk.vtkLookupTable()
-            lut.SetTableRange(scalar_range)
-            lut.Build()
-            mapper.SetLookupTable(lut)
-            mapper.SetScalarRange(scalar_range)
-            mapper.SelectColorArray(scalar_name)
-
-    return mapper
-
-
-def create_vtk_actor(mapper):
-    """Return a VTK actor for the given mapper."""
-    actor = vtk.vtkActor()
-    actor.SetMapper(mapper)
-    return actor
-
-
 def compute_global_bounds(vtk_files, input_type="ugrid"):
     """Compute the global bounding box (min/max for x, y, z) for a list of VTK files."""
     global_bounds = [
@@ -1012,8 +931,16 @@ from imatools.core.mesh import get_mesh_volume  # noqa: E402,F401
 # ---------------------------------------------------------------------------
 # Re-export shim — render_vtk_to_png/render_vtk_to_single_png now live in
 # imatools.render.vtk_png (render-layer extraction, M1.7/8 #1).
+# create_vtk_reader/create_vtk_mapper/create_vtk_actor/center_vtk_data also
+# now live there (M2a-1); re-exported here so that compute_global_bounds
+# (a zero-caller dead function, slated for deletion in M2b) still resolves
+# create_vtk_reader by name at call time.
 # ---------------------------------------------------------------------------
 from imatools.render.vtk_png import (  # noqa: E402,F401
+    center_vtk_data,
+    create_vtk_actor,
+    create_vtk_mapper,
+    create_vtk_reader,
     render_vtk_to_png,
     render_vtk_to_single_png,
 )

@@ -91,30 +91,14 @@ def save_image(image, dir_or_path, name=None, manual_ow=False):
 # pointfile_to_image moved to io.image_io (T2a4); re-exported via shim below.
 
 
-def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> np.ndarray:
-    mask_array = imarray(mask)
-    if threshold > 0:
-        im_array = imview(im)
-        mask_array[im_array > threshold] = 1
-
-    if ignore_im is not None:
-        ignore_im_array = imview(ignore_im)
-        mask_array[ignore_im_array > 0] = 0
-
-    mask_array[mask_array > 0] = 1
-    return mask_array
-
-
+# get_mask_array_with_restrictions migrated to core.image (M2a-1 straggler);
+# no shim (its only caller, core/image.py, now calls it directly, in-module).
 # get_mask_with_restrictions migrated to core.image (M1.6a straggler);
 # re-exported via shim below.
 
 
-def check_for_existing_label(im: sitk.Image, label) -> bool:
-    """
-    Check if a particular label exists in an image
-    """
-    labels_in_im = get_labels(im)
-    return label in labels_in_im
+# check_for_existing_label migrated to core.label (M2a-1 straggler); no shim
+# (its only caller, cli/scar.py, now imports it directly from core.label).
 
 
 # create_normal_vector_for_plane, create_image_at_plane,
@@ -166,25 +150,14 @@ def project_segmentation_onto_mesh(
     return segmentation
 
 
-def get_scarq_boundaries(mode: str):  #
-
-    iir = mode.lower() == "iir"
-
-    lowthres = 0.9 if iir else 1.1
-    fibrosis = 0.975 if iir else 2.0
-    scar = 1.21 if iir else 2.2
-    ablation = 1.33 if iir else 3.2
-    ceiling = 1.5 if iir else 4.0
-
-    bounds = [(lowthres, fibrosis), (fibrosis, scar), (scar, ablation), (ablation, ceiling)]
-
-    return bounds
+# get_scarq_boundaries migrated to core.image (M2a-1 straggler);
+# no shim (its only caller, core/image.py, now calls it directly, in-module).
 
 
 # ---------------------------------------------------------------------------
 # Re-export shims — MUST be at the very bottom of this file so that itktools
-# finishes defining its own helpers (imview, get_mask_array_with_restrictions,
-# get_scarq_boundaries, …) BEFORE core.label / core.image are imported.
+# finishes defining its own helpers (imview, …) BEFORE core.label / core.image
+# are imported.
 # These bindings make the moved names available in the itktools namespace so
 # that any code doing `from imatools.common.itktools import <name>` continues
 # to work, and functions defined above that call them resolve correctly.
