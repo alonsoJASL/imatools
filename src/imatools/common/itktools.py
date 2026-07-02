@@ -1,12 +1,3 @@
-import nrrd
-import numpy as np
-import SimpleITK as sitk  # noqa: N813
-
-from imatools.common.config import configure_logging
-
-logger = configure_logging(log_name=__name__)
-
-
 ## Tools for header correction orientation
 # fix_header_to_axis_aligned moved to core.spatial (T2a3); re-exported via shim below.
 
@@ -21,35 +12,11 @@ logger = configure_logging(log_name=__name__)
 # there for the ImageContract-based API (M2a-1 straggler).
 
 
-def get_nrrd_header(path_to_file):
-    """
-    Reads the NRRD header from a file.
-    """
-    logger.info(f"Reading NRRD header from {path_to_file}")
-    _, header = nrrd.read(path_to_file)
-
-    return header
-
-
-def remove_label(image, label: int):
-    """
-    Removes a label from a label image.
-    """
-    image_array = imarray(image)
-    image_array[np.equal(image_array, label)] = 0
-
-    new_image = sitk.GetImageFromArray(image_array)
-    new_image.CopyInformation(image)
-
-    return new_image
-
-
-def show_labels(image):
-    """
-    Prints all the labels in an image.
-    """
-    labels = get_labels(image)
-    print(f"Labels in image: {*labels,}")
+# get_nrrd_header migrated: superseded by imatools.io.image_io.get_nrrd_header
+# (duplicate; the io.image_io copy is the tested canonical one). Re-exported via
+# the io.image_io shim block below so the legacy name still resolves (M2b).
+# remove_label deleted (M2b — dead: core.label.exchange_labels(im, label, 0) covers it).
+# show_labels deleted (M2b — dead: cli/segmentation `show` / core.label.get_labels covers it).
 
 
 # convert_to_inr and convert_from_inr moved to io.image_io (T2a4);
@@ -158,6 +125,7 @@ from imatools.io.image_io import (  # noqa: E402,F401
     convert_from_inr,
     convert_to_inr,
     fix_header_and_save,
+    get_nrrd_header,
     load_image_as_np,
     load_nrrd_base,
     load_nrrd_image,

@@ -13,12 +13,16 @@ Cat-B bugs preserved verbatim (per Wave-2 bug policy):
 
 from __future__ import annotations
 
+import sys
+
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Helpers used by the CARP functions that stay in ioutils (getTotal, fullfile)
-# are accessed via a lazy call-time import to avoid circular-import issues
-# (carp_io may be imported before ioutils is fully initialised).
+# ``fullfile`` (a path helper shimmed in ioutils → io.paths) is accessed via a
+# lazy call-time import to avoid circular-import issues (carp_io may be imported
+# before ioutils is fully initialised).  ``getTotal`` used to be reached the same
+# way but now lives here directly (M2b — it is a CARP-file header helper with no
+# other caller).
 # ---------------------------------------------------------------------------
 
 
@@ -63,6 +67,24 @@ def read_lon(filename):
     return np.loadtxt(filename, dtype=float, skiprows=1)
 
 
+def getTotal(fname):  # noqa: N802
+    """Get the total count declared on the first line of a CARP .pts/.elem file.
+
+    Migrated verbatim from ``common.ioutils`` (M2b): its only callers are this
+    module's ``readParsePts``/``readParseElem``. Complementary to ``read_pts``/
+    ``read_elem`` (which read the data rows via ``skiprows=1``) — this reads the
+    declared header count so the parsers can validate it against the data.
+    """
+    try:
+        with open(fname, encoding="utf-8") as f:
+            numNodes = int(f.readline().strip())  # noqa: N806
+    except Exception:
+        print("[getTotal] Error - file not found")
+        sys.exit(-1)
+
+    return numNodes
+
+
 # ---------------------------------------------------------------------------
 # Higher-level parsers
 # ---------------------------------------------------------------------------
@@ -70,7 +92,7 @@ def read_lon(filename):
 
 def readParsePts(ptsFname):  # noqa: N802,N803
     """Read parse CARP point files."""
-    numNodes = _ioutils().getTotal(ptsFname)  # noqa: N806
+    numNodes = getTotal(ptsFname)  # noqa: N806
     nodes = read_pts(ptsFname)
 
     if numNodes != len(nodes):
@@ -86,7 +108,7 @@ def readParseElem(elFname):  # noqa: N802,N803
     Cat-B bug preserved: calls ``read_elem`` with the default ``el_type='Tt'``
     which raises ``ValueError`` on triangle ``.elem`` files.
     """
-    nElem = _ioutils().getTotal(elFname)  # noqa: N806
+    nElem = getTotal(elFname)  # noqa: N806
     el = read_elem(elFname)
 
     if nElem != len(el):

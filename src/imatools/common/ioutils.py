@@ -1,111 +1,22 @@
-import os
-import platform as pltf
-import sys
-import logging
+"""Legacy ``common.ioutils`` surface.
 
-import numpy as np
-
-
-def dot_prod_vec(a, b):
-    return np.sum(a * b, axis=1)
+Only ``cout`` remains as a real function (still referenced by the deferred
+top-level scripts ``qulati_downsample_pair.py`` / ``test_submodules.py``);
+everything else was migrated to ``core.metrics`` / ``io.carp_io`` / ``io.paths``
+(re-exported via the shim blocks below) or deleted as dead code (M2b).
+"""
 
 
-def cout(msg, typeMsg="INFO", print2console=True, logger=None):
+def cout(msg, typeMsg="INFO", print2console=True, logger=None):  # noqa: N803
     """
     LOGGING FUNCTION
     """
-    if print2console == True:
+    if print2console == True:  # noqa: E712
         if logger is not None:
 
             logger.info(f"_ {msg}")
         else:
             print(f"[{typeMsg}] {msg}")
-
-
-def getTotal(fname):
-    """
-    Get total number of elements at the top of a file
-    """
-    try:
-        with open(fname, encoding="utf-8") as f:
-            numNodes = int(f.readline().strip())
-
-    except Exception as e:
-        print("[getTotal] Error - file not found")
-        sys.exit(-1)
-
-    return numNodes
-
-
-def getFileContentWithTotal(fname):
-    """
-    Get first line separated from the rest (as long string)
-    """
-    try:
-        with open(fname, encoding="utf-8") as f:
-            numNodes = int(f.readline().strip())
-            restOfFile = f.readlines()
-
-    except Exception as e:
-        print("[getTotal] Error - file not found")
-        sys.exit(-1)
-
-    return numNodes, restOfFile
-
-
-def check_file(file):
-    if not os.path.isfile(file):
-        raise Exception(f"With the options selected, you need to have {file}")
-
-
-def readFileToList(fname, delim=","):
-    """
-    Read File to list. Input is normally a table, like a csv
-    """
-    try:
-        with open(fname, encoding="utf-8") as f:
-            fileContents = f.readlines()
-            fileContentsInList = [(line.strip()).split(sep=delim) for line in fileContents]
-            return fileContentsInList
-
-    except Exception as e:
-        print("[readFileToList] Error - file not found")
-        sys.exit(-1)
-
-
-def chooseplatform():
-    return pltf.platform().split("-")[0]
-
-
-def print_progress_bar(
-    iteration, total, prefix="", suffix="", decimals=1, length=100, fill="=", printEnd="\r"
-):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + "-" * (length - filledLength)
-    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end=printEnd)
-    # Print New Line on Complete
-    if iteration == total:
-        print()
-
-
-def save_json(fname, data):
-    import json
-
-    with open(fname, "w") as f:
-        json.dump(data, f)
 
 
 # ---------------------------------------------------------------------------
