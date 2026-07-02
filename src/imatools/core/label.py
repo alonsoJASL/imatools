@@ -508,6 +508,8 @@ def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0
     """
     Find pointy bits of the segmentation based on distance to smooth version of itself
     """
+    from imatools.io.image_io import save_image  # noqa: PLC0415
+
     itk = _itk()
     segmentation = extract_single_label(mlseg, label, binarise=True)
 
@@ -519,8 +521,8 @@ def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0
     smoothed_segmentation = sitk.Cast(smoothed_segmentation, segmentation.GetPixelID())
 
     distance_map = sitk.Abs(segmentation - smoothed_segmentation)
-    itk.save_image(
-        distance_map, "distance_map.nrrd"
+    save_image(
+        distance_map, "distance_map.nrrd", overwrite=True
     )  # Category-B bug: stray CWD write; preserved as-is
     sharp_regions = sitk.BinaryThreshold(distance_map, lowerThreshold=10, upperThreshold=1000)
 

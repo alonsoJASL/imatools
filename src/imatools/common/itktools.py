@@ -1,5 +1,3 @@
-import os
-
 import nrrd
 import numpy as np
 import SimpleITK as sitk  # noqa: N813
@@ -19,11 +17,9 @@ logger = configure_logging(log_name=__name__)
 # set_direction_as moved to core.spatial (T2a3); re-exported via shim below.
 
 
-def load_image(path_to_file, ext="nii"):
-    """Reads image into SimpleITK object"""
-    logger.info(f"Loading image from {path_to_file}")
-    sitk_t1 = sitk.ReadImage(path_to_file)
-    return sitk_t1
+# load_image migrated: superseded by imatools.io.image_io.load_image(path,
+# return_contract=False) — same sitk.ReadImage passthrough, already existed
+# there for the ImageContract-based API (M2a-1 straggler).
 
 
 def get_nrrd_header(path_to_file):
@@ -75,17 +71,10 @@ def show_labels(image):
 # re-exported via shim below.
 
 
-def save_image(image, dir_or_path, name=None, manual_ow=False):
-    """
-    Saves a SimpleITK image to disk.
-    """
-    output_path = dir_or_path if name is None else os.path.join(dir_or_path, name)
-    logger.info(f"Saving image to [{output_path}]")
-    if manual_ow and os.path.exists(output_path):
-        os.remove(output_path)
-
-    sitk.WriteImage(image, output_path)
-    assert os.path.exists(output_path), f"Saving failed! File not found: {output_path}"
+# save_image migrated: superseded by imatools.io.image_io.save_image(image,
+# output_path, overwrite=True) — already existed there for the ImageContract-
+# based API, and already accepts a plain sitk.Image (M2a-1 straggler). Callers
+# now pre-join dir+name into a single output_path.
 
 
 # pointfile_to_image moved to io.image_io (T2a4); re-exported via shim below.
