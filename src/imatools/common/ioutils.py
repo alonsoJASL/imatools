@@ -77,28 +77,6 @@ def chooseplatform():
     return pltf.platform().split("-")[0]
 
 
-def compareCarpMesh(pts1, el1, pts2, el2):
-    """
-    Compare Carp Mesh
-    Returns: mean(l2_norm(pts)), median(l2_norm(elem)), comparison_code
-            |'COMPARISON_POSSIBLE' : 0
-    CODES = |'DIFF_NPTS'           : 1,
-            |'DIFF_NELEMS'         : 2,
-    """
-    comp_codes = {"DIFF_NPTS": 1, "DIFF_NELEMS": 2, "COMPARISON_POSSIBLE": 0}
-
-    if len(pts1) != len(pts2):
-        return -1, -1, comp_codes["DIFF_NPTS"]
-
-    if len(el1) != len(el2):
-        return -1, -1, comp_codes["DIFF_NELEMS"]
-
-    l2_norm_pts = l2_norm(pts1 - pts2)
-    l2_norm_el = l2_norm(np.array(el1) - np.array(el2))
-
-    return np.mean(l2_norm_pts), np.mean(l2_norm_el), comp_codes["COMPARISON_POSSIBLE"]
-
-
 def print_progress_bar(
     iteration, total, prefix="", suffix="", decimals=1, length=100, fill="=", printEnd="\r"
 ):

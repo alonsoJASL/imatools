@@ -534,3 +534,22 @@ def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0
     )  # Label sharp regions as '2'
 
     return itk.array2im(highlighted_segmentation, mlseg)
+
+
+# ---------------------------------------------------------------------------
+# Moved from imatools.common.itktools (M2a-2; zero-caller-but-KEEP function)
+# ---------------------------------------------------------------------------
+
+
+def explore_labels_to_split(image):
+    """
+    Returns list of labels that can be split into multiple labels
+    """
+    labels = get_labels(image)
+    labels_to_split = []
+    for label in labels:
+        _, _, num_cc_labels = bwlabeln(extract_single_label(image, label, binarise=True))
+        if num_cc_labels > 1:
+            labels_to_split.append(label)
+
+    return labels_to_split

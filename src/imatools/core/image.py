@@ -12,8 +12,10 @@ helpers before its bottom shim imports this module.
 
 import numpy as np
 import SimpleITK as sitk  # noqa: N813
+import vtk
 
 from imatools.common.config import configure_logging
+from imatools.core.geometry import get_cog_per_element
 
 logger = configure_logging(log_name=__name__)
 
@@ -783,6 +785,83 @@ def find_neighbours(image, indices):
         neighbours_dict[idx] = neighbours
 
     return neighbours_dict
+
+
+# ---------------------------------------------------------------------------
+# Moved from imatools.common.vtktools / imatools.common.itktools (M2a-2;
+# zero-caller-but-KEEP functions)
+# ---------------------------------------------------------------------------
+
+
+def create_image_with_combined_origin(reference_image, combined_bounds, pixel_value=0):
+    """
+    Creates a SimpleITK image with the same size and spacing as the reference image,
+    but sets its origin to the lower bounds (xmin, ymin, zmin) of the combined_bounds.
+
+    Parameters:
+        reference_image (sitk.Image): The image whose size and spacing will be copied.
+        combined_bounds (tuple): A tuple (xmin, xmax, ymin, ymax, zmin, zmax) from the meshes.
+        pixel_value (int, optional): Fill value for the image (default is 0).
+
+    Returns:
+        sitk.Image: A new SimpleITK image with the updated origin.
+    """
+    # Get size and spacing from the reference image.
+    size = reference_image.GetSize()  # (nx, ny, nz)
+    spacing = reference_image.GetSpacing()  # (dx, dy, dz)
+
+    # Set new origin from the lower bounds (xmin, ymin, zmin).
+    new_origin = (combined_bounds[0], combined_bounds[2], combined_bounds[4])
+
+    # Create a new image with the same size, spacing, and pixel type as the reference.
+    new_img = sitk.Image(size, reference_image.GetPixelID())
+    new_img.SetSpacing(spacing)
+    new_img.SetOrigin(new_origin)
+
+    # Optionally fill the image with a pixel value.
+    new_img = sitk.Add(new_img, pixel_value)
+
+    return new_img
+
+
+def project_surface_onto_segmentation(
+    segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False
+) -> vtk.vtkPolyData:
+    cog = get_cog_per_element(surface)
+    scalars = surface.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(surface.GetNumberOfCells()):
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix)
+        index = segmentation.TransformPhysicalPointToIndex((x, y, z))
+
+        if visited_indices.__contains__(index) and check_visited:
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
+
+
+def project_segmentation_onto_mesh(
+    segmentation: sitk.Image, mesh, check_visited=False
+) -> vtk.vtkPolyData:
+    cog = get_cog_per_element(mesh)
+    scalars = mesh.GetCellData().GetScalars()
+    visited_indices = set()
+    for ix in range(mesh.GetNumberOfCells()):
+        x, y, z = cog[ix]
+        value = scalars.GetTuple1(ix)
+        index = segmentation.TransformPhysicalPointToIndex((x, y, z))
+
+        if visited_indices.__contains__(index) and check_visited:
+            continue
+
+        visited_indices.add(index)
+        segmentation.SetPixel(index, value)
+
+    return segmentation
 
 
 # ---------------------------------------------------------------------------

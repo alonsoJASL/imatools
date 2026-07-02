@@ -337,3 +337,136 @@ def vtk_from_points_file(file_path: str, mydelim=","):
     polydata.SetPoints(points)
 
     return polydata
+
+
+# ---------------------------------------------------------------------------
+# Moved from imatools.common.vtktools (M2a-2; zero-caller-but-KEEP functions)
+# ---------------------------------------------------------------------------
+
+
+def convert_5_to_4(imsh, omsh):
+    """
+    Input: msh paths
+        imsh (input)
+        omsh (output)
+    """
+    # Read the VTK legacy file in version 5 format
+    reader = vtk.vtkPolyDataReader()
+    reader.SetFileName(imsh)
+    reader.Update()
+    print(reader.GetFileVersion())
+
+    # Convert the file to VTK legacy format
+    writer = vtk.vtkPolyDataWriter()
+    writer.SetInputData(reader.GetOutput())
+    writer.SetFileName(omsh)
+    writer.SetFileTypeToASCII()
+    # writer.SetHeader("vtk version 4.0")
+    writer.SetFileVersion(42)
+    writer.Update()
+
+
+def convertToCarto(vtkpoly_path: str, cell_scalar_field: str, output_file: str) -> None:
+    """
+    Convert a vtkPolyData object to a Carto object
+
+    Adapted (M2a-2): originally called ``normalise_vtk_values`` (DELETE-
+    category, removed from ``common.vtktools`` elsewhere in M2) — its 3-line
+    min-max body is inlined below instead of being preserved as a shared
+    utility (Jose's call, see MIGRATION_M2.md).
+    """
+    from imatools.core.mesh import (  # noqa: PLC0415
+        convertPointDataToNpArray,
+        np_to_vtk_array,
+        set_cell_to_point_data,
+    )
+
+    try:
+        vtkpoly = read_vtk(vtkpoly_path)
+        working_msh = set_cell_to_point_data(vtkpoly, cell_scalar_field)
+
+        # normalise_vtk_values inlined (that shared helper was dropped — trivial, not worth
+        # preserving as a named utility elsewhere; M2 disposition)
+        array = convertPointDataToNpArray(working_msh, cell_scalar_field)
+        array = (array - np.min(array)) / (np.max(array) - np.min(array))
+        scalars = np_to_vtk_array(array, cell_scalar_field)
+        norm_working_msh = vtk.vtkPolyData()
+        norm_working_msh.DeepCopy(working_msh)
+        norm_working_msh.GetPointData().SetScalars(scalars)
+
+        # save
+        odir = os.path.dirname(output_file)
+
+        write_vtk(norm_working_msh, odir, f"normalised_{cell_scalar_field}.vtk")
+
+        ## change lookup table for norm_working_msh
+
+        lut = vtk.vtkColorTransferFunction()
+        lut.SetColorSpaceToRGB()
+        lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
+        lut.AddRGBPoint(0.5, 0.94, 0.47, 0.12)
+        lut.AddRGBPoint(1.0, 0.90, 0.11, 0.14)
+        lut.SetScaleToLinear()
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return
+
+    with open(output_file, "w") as cartoFile:
+        # Header
+        cartoFile.write("# vtk DataFile Version 3.0\n")
+        cartoFile.write("PatientData Anon Anon 00000000\n")
+        cartoFile.write("ASCII\n")
+        cartoFile.write("DATASET POLYDATA\n")
+
+        # Points
+        cartoFile.write(f"POINTS\t{working_msh.GetNumberOfPoints()} float\n")
+        points = working_msh.GetPoints()
+        for ix in range(working_msh.GetNumberOfPoints()):
+            pt = points.GetPoint(ix)
+            cartoFile.write(f"{pt[0]} {pt[1]} {pt[2]}\n")
+
+        cartoFile.write("\n")
+
+        # Cells
+        cartoFile.write(
+            f"POLYGONS\t{working_msh.GetNumberOfCells()}\t{working_msh.GetNumberOfCells()*4}\n"
+        )
+        for ix in range(working_msh.GetNumberOfCells()):
+            cell = working_msh.GetCell(ix)
+            cell_type = cell.GetCellType()
+            num_points = cell.GetNumberOfPoints()
+            cartoFile.write(f"{num_points}\n")
+            for jx in range(num_points):
+                cartoFile.write(f"{cell.GetPointId(jx)}\n")
+
+        cartoFile.write("\n")
+
+        # Scalars
+        cartoFile.write(f"POINT_DATA\tSCALARS {cell_scalar_field} float\n")
+        cartoFile.write("LOOKUP_TABLE lookup_table\n")
+
+        scalars = working_msh.GetPointData().GetScalars()
+        max_scalar = np.max(scalars)
+        min_scalar = np.min(scalars)
+
+        for kx in range(working_msh.GetNumberOfPoints()):
+            value = scalars.GetTuple1(kx)
+            normalized_value = (value - min_scalar) / (max_scalar - min_scalar)
+            # set precision to 2 decimal places
+            cartoFile.write(f"{normalized_value:.2f}\n")
+
+        cartoFile.write("\n")
+
+        # LUT
+        numCols = 256
+        cartoFile.write(f"LOOKUP_TABLE lookup_table {numCols}\n")
+        lut = vtk.vtkColorTransferFunction()
+        lut.SetColorSpaceToRGB()
+        lut.AddRGBPoint(0.0, 0.04, 0.21, 0.25)
+        lut.AddRGBPoint((numCols - 1.0) / 2.0, 0.94, 0.47, 0.12)
+        lut.AddRGBPoint((numCols - 1.0), 0.90, 0.11, 0.14)
+        lut.SetScaleToLinear()
+        for i in range(numCols):
+            color = lut.GetColor(i)
+            cartoFile.write(f"{color[0]} {color[1]} {color[2]} 1.0\n")

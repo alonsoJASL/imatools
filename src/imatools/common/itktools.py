@@ -1,7 +1,6 @@
 import nrrd
 import numpy as np
 import SimpleITK as sitk  # noqa: N813
-import vtk
 
 from imatools.common.config import configure_logging
 
@@ -30,20 +29,6 @@ def get_nrrd_header(path_to_file):
     _, header = nrrd.read(path_to_file)
 
     return header
-
-
-def explore_labels_to_split(image):
-    """
-    Returns list of labels that can be split into multiple labels
-    """
-    labels = get_labels(image)
-    labels_to_split = []
-    for label in labels:
-        _, _, num_cc_labels = bwlabeln(extract_single_label(image, label, binarise=True))
-        if num_cc_labels > 1:
-            labels_to_split.append(label)
-
-    return labels_to_split
 
 
 def remove_label(image, label: int):
@@ -93,50 +78,6 @@ def show_labels(image):
 # create_normal_vector_for_plane, create_image_at_plane,
 # create_image_at_plane_from_vector moved to core.spatial (T2a3);
 # re-exported via shim below.
-
-
-def project_surface_onto_segmentation(
-    segmentation: sitk.Image, surface: vtk.vtkPolyData, check_visited=False
-) -> vtk.vtkPolyData:
-    import imatools.common.vtktools as vtku  # noqa: PLC0415
-
-    cog = vtku.get_cog_per_element(surface)
-    scalars = surface.GetCellData().GetScalars()
-    visited_indices = set()
-    for ix in range(surface.GetNumberOfCells()):
-        x, y, z = cog[ix]
-        value = scalars.GetTuple1(ix)
-        index = segmentation.TransformPhysicalPointToIndex((x, y, z))
-
-        if visited_indices.__contains__(index) and check_visited:
-            continue
-
-        visited_indices.add(index)
-        segmentation.SetPixel(index, value)
-
-    return segmentation
-
-
-def project_segmentation_onto_mesh(
-    segmentation: sitk.Image, mesh, check_visited=False
-) -> vtk.vtkPolyData:
-    import imatools.common.vtktools as vtku  # noqa: PLC0415
-
-    cog = vtku.get_cog_per_element(mesh)
-    scalars = mesh.GetCellData().GetScalars()
-    visited_indices = set()
-    for ix in range(mesh.GetNumberOfCells()):
-        x, y, z = cog[ix]
-        value = scalars.GetTuple1(ix)
-        index = segmentation.TransformPhysicalPointToIndex((x, y, z))
-
-        if visited_indices.__contains__(index) and check_visited:
-            continue
-
-        visited_indices.add(index)
-        segmentation.SetPixel(index, value)
-
-    return segmentation
 
 
 # get_scarq_boundaries migrated to core.image (M2a-1 straggler);
