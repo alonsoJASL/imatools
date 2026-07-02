@@ -29,15 +29,15 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After itktools finishes loading (including its bottom shims for core.*),
-# all helper names (imarray, imview, points_to_image) are available.
+# Lazy-helper accessor — ``imarray`` / ``imview`` / ``points_to_image`` live in
+# ``core.image``, imported lazily to keep the dependency at call time (M2c —
+# was routed through the ``common.itktools`` shim, now gone).
 # ---------------------------------------------------------------------------
 
 
-def _itk():
-    """Return the itktools module (always already loaded when an io fn is called)."""
-    import imatools.common.itktools as _m  # noqa: PLC0415
+def _image():
+    """Return the core.image module (imported lazily; used for imarray/imview/points_to_image)."""
+    import imatools.core.image as _m  # noqa: PLC0415
 
     return _m
 
@@ -269,7 +269,7 @@ def load_image_as_np(path_to_file):
     """
     sitk_t1 = sitk.ReadImage(path_to_file)
 
-    t1 = _itk().imarray(sitk_t1)
+    t1 = _image().imarray(sitk_t1)
     origin = sitk_t1.GetOrigin()
     im_size = sitk_t1.GetSize()
 
@@ -339,7 +339,7 @@ def convert_to_inr(image, out_path):
     """
     print(f"Converting image to {out_path}")
     # Get the image data as a NumPy array
-    data = _itk().imview(image)
+    data = _image().imview(image)
     spacing = image.GetSpacing()
     # make sure elements less than 1 are 0
     dtype = data.dtype
@@ -457,6 +457,6 @@ def pointfile_to_image(path_to_image, path_to_points, label=1, girth=2, points_a
                 # Add the point to the list
                 points.append(point)
 
-    modified_image = _itk().points_to_image(image, points, label, girth, points_are_indices)
+    modified_image = _image().points_to_image(image, points, label, girth, points_are_indices)
 
     return modified_image

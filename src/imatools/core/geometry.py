@@ -3,14 +3,12 @@
 ``imatools.common.utils`` (T2b1), plus ``mesh_to_image`` (M2a-2, a zero-caller-
 but-KEEP function relocated from ``common.vtktools``).
 
-The 10 public functions here are the authoritative implementations; the old
-``imatools.common.vtktools`` and ``imatools.common.utils`` modules re-export
-them via shims at their bottoms.
+The 10 public functions here are the authoritative implementations.
 
-``extractPointsAndElemsFromVtk`` remains in ``vtktools`` and is accessed
-lazily at call time via ``_vtk()`` to avoid circular imports: vtktools must
-finish defining its own helpers before its bottom shim imports this module;
-therefore this module must NOT import from ``vtktools`` at module-load time.
+``extractPointsAndElemsFromVtk`` lives in ``core.mesh``, which imports this
+module at load time; it is therefore accessed lazily at call time via ``_mesh()``
+to avoid the geometry↔mesh circular import (M2c — previously routed through the
+``common.vtktools`` shim, now gone).
 
 Bug notes
 ---------
@@ -35,13 +33,13 @@ logger = configure_logging(log_name=__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After vtktools finishes loading (including its bottom shim), all helper
-# names are available in sys.modules and these lookups resolve instantly.
+# Lazy-helper accessor — ``extractPointsAndElemsFromVtk`` lives in ``core.mesh``,
+# which imports this module at load time; the lazy call-time import here avoids
+# that circular import (M2c — was routed through the ``common.vtktools`` shim).
 # ---------------------------------------------------------------------------
-def _vtk():
-    """Return the vtktools module (always already loaded when a geometry fn is called)."""
-    import imatools.common.vtktools as _m  # noqa: PLC0415
+def _mesh():
+    """Return the core.mesh module (imported lazily to avoid the geometry↔mesh cycle)."""
+    import imatools.core.mesh as _m  # noqa: PLC0415
 
     return _m
 
@@ -60,7 +58,7 @@ def dot_prod_vec(a, b):
 
 
 def get_cog_per_element(msh) -> np.ndarray:
-    pts, el = _vtk().extractPointsAndElemsFromVtk(msh)
+    pts, el = _mesh().extractPointsAndElemsFromVtk(msh)
     element_coordinates = pts[el]
 
     cog = np.mean(element_coordinates, axis=1)

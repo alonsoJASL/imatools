@@ -299,19 +299,15 @@ def handle_lge(args: argparse.Namespace) -> int:
 
 def handle_surf(args: argparse.Namespace) -> int:
     """Create segmentation surface mesh via MIRTK."""
-    from imatools.common.itktools import (  # noqa: PLC0415
+    from imatools.core.label import (  # noqa: PLC0415
+        check_for_existing_label,
         exchange_labels,
         extract_single_label,
         get_labels,
     )
-    from imatools.common.vtktools import (
-        join_vtk,
-        readVtk,
-        set_cell_scalars,
-        writeVtk,
-    )  # noqa: PLC0415
-    from imatools.core.label import check_for_existing_label  # noqa: PLC0415
+    from imatools.core.mesh import join_vtk, set_cell_scalars  # noqa: PLC0415
     from imatools.io.image_io import load_image, save_image  # noqa: PLC0415
+    from imatools.io.mesh_io import readVtk, writeVtk  # noqa: PLC0415
 
     cfg = _resolve_config(args)
 
@@ -621,7 +617,7 @@ def execute_vscar_projection(
     input_info: dict, cog_path: str, reference_image: str, label: int
 ) -> str:
     """Project ventricular scar onto mesh."""
-    from imatools.common.itktools import get_indices_from_label  # noqa: PLC0415
+    from imatools.core.image import get_indices_from_label  # noqa: PLC0415
     from imatools.core.mesh import tag_mesh_elements_by_growing_from_seed_optimized  # noqa: PLC0415
     from imatools.io import mesh_io  # noqa: PLC0415
     from imatools.io.image_io import load_image  # noqa: PLC0415

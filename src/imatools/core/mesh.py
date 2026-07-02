@@ -54,13 +54,13 @@ logger = configure_logging(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy accessor for vtktools — avoids circular import at module-load time.
-# vtktools imports this module at its bottom (shim), so we must NOT import
-# vtktools at our top level.  Use _vtk().<name> for helpers that stay there.
+# Lazy accessor — ``readVtk`` / ``write_vtk`` live in ``io.mesh_io``, imported
+# lazily to keep this module's I/O dependency at call time rather than load time
+# (M2c — was routed through the ``common.vtktools`` shim, now gone).
 # ---------------------------------------------------------------------------
-def _vtk():
-    """Return the vtktools module (already loaded when any mesh fn is called)."""
-    import imatools.common.vtktools as _m  # noqa: PLC0415
+def _mesh_io():
+    """Return the io.mesh_io module (imported lazily; used for readVtk/write_vtk)."""
+    import imatools.io.mesh_io as _m  # noqa: PLC0415
 
     return _m
 
@@ -478,8 +478,8 @@ def translate_to_point(mesh, point=[0, 0, 0]):  # noqa: B006
 
 
 def compare_mesh_sizes(msh_left_name, msh_right_name, left_id, right_id, map_type_id):
-    msh_left = _vtk().readVtk(msh_left_name)
-    msh_right = _vtk().readVtk(msh_right_name)
+    msh_left = _mesh_io().readVtk(msh_left_name)
+    msh_right = _mesh_io().readVtk(msh_right_name)
 
     if map_type_id == 1:  # elem
         tot_left = msh_left.GetNumberOfCells()
@@ -1161,7 +1161,7 @@ def tag_mesh_elements_parallel_regions(
 
 def write_vtk(mesh, directory, outname="output", output_type="polydata"):
     """Thin delegator — authoritative implementation lives in vtktools."""
-    return _vtk().write_vtk(mesh, directory, outname, output_type)
+    return _mesh_io().write_vtk(mesh, directory, outname, output_type)
 
 
 # ---------------------------------------------------------------------------

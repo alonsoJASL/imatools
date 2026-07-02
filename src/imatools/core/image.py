@@ -1,13 +1,12 @@
 """Image / voxel-array operations migrated from ``imatools.common.itktools`` (T2a2).
 
 The 22 public functions and the ``SegmentationGenerator`` class here are the
-authoritative implementations; ``imatools.common.itktools`` and
-``imatools.common.SegmentationGenerator`` re-export them via shims at their bottoms.
+authoritative implementations.
 
-Helpers that remain in ``itktools`` for now (``imview``, etc.) are
-imported lazily inside the functions that need them, via the ``_itk()`` accessor.
-This avoids the circular-import problem: ``itktools`` must finish defining its own
-helpers before its bottom shim imports this module.
+A few label-algebra helpers (``get_labels``, ``extract_single_label``,
+``binarise``) live in ``core.label``; they are imported lazily via the
+``_label()`` accessor to avoid the image↔label circular import (M2c — was
+routed through the ``common.itktools`` shim, now gone).
 """
 
 import numpy as np
@@ -21,13 +20,14 @@ logger = configure_logging(log_name=__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After itktools finishes loading (including its bottom shim), all helper
-# names are available in sys.modules and these lookups resolve instantly.
+# Lazy-helper accessor — the label-algebra helpers used below (get_labels,
+# extract_single_label, binarise) live in ``core.label``, imported lazily to
+# avoid the image↔label circular import (M2c — was routed through the
+# ``common.itktools`` shim, now gone).
 # ---------------------------------------------------------------------------
-def _itk():
-    """Return the itktools module (always already loaded when an image fn is called)."""
-    import imatools.common.itktools as _m  # noqa: PLC0415
+def _label():
+    """Return the core.label module (imported lazily to avoid the image↔label cycle)."""
+    import imatools.core.label as _m  # noqa: PLC0415
 
     return _m
 
@@ -181,7 +181,7 @@ def smooth_label_with_distance(image, sigma=1.0, threshold=0.0):
 
 
 def smooth_labels(im: sitk.Image, sigma=1.0, threshold=0.5, im_close=True):
-    unique_labels = _itk().get_labels(im)
+    unique_labels = _label().get_labels(im)
     im_size = im.GetSize()
 
     pixel_type = sitk.sitkUInt8
@@ -217,7 +217,7 @@ def resample_smooth_label(im: sitk.Image, spacing: list, sigma=3.0, threshold=0.
     # import itk
 
     # Get all unique labels in the image
-    unique_labels = _itk().get_labels(im)
+    unique_labels = _label().get_labels(im)
     im_size = im.GetSize()
     new_size = [int(im_size[i] * im.GetSpacing()[i] / spacing[i]) for i in range(3)]
 
@@ -404,7 +404,7 @@ def regionprops(image: sitk.Image, label=None):
     Returns region properties of a label in the image
     """
     if label is not None:
-        image = _itk().extract_single_label(image, label, binarise=True)
+        image = _label().extract_single_label(image, label, binarise=True)
 
     cc_image = sitk.ConnectedComponent(image)
     label_image = sitk.RelabelComponent(cc_image, sortByObjectSize=True)
@@ -455,7 +455,7 @@ def extract_largest(im: sitk.Image) -> sitk.Image:
     """
     Extract the largest connected component from a multilabel image.
     """
-    itk = _itk()
+    itk = _label()
     image_labels = itk.get_labels(im)  # noqa: F841
     im_binary = itk.binarise(im)
     cc = sitk.ConnectedComponent(im_binary)

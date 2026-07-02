@@ -18,18 +18,17 @@ import sys
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# ``fullfile`` (a path helper shimmed in ioutils → io.paths) is accessed via a
-# lazy call-time import to avoid circular-import issues (carp_io may be imported
-# before ioutils is fully initialised).  ``getTotal`` used to be reached the same
-# way but now lives here directly (M2b — it is a CARP-file header helper with no
-# other caller).
+# ``fullfile`` (a path helper) lives in ``io.paths``; accessed via a lazy
+# call-time import to avoid circular-import issues (M2c — was routed through the
+# ``common.ioutils`` shim, now gone). ``getTotal`` used to be reached the same
+# way but now lives here directly (M2b — a CARP-file header helper).
 # ---------------------------------------------------------------------------
 
 
-def _ioutils():
-    import imatools.common.ioutils as io  # noqa: PLC0415
+def _paths():
+    import imatools.io.paths as _p  # noqa: PLC0415
 
-    return io
+    return _p
 
 
 # ---------------------------------------------------------------------------
@@ -125,11 +124,11 @@ def loadCarpMesh(mshname, directory=None):  # noqa: N802
     ``read_elem`` with the default ``el_type='Tt'``, raising ``ValueError``
     on triangle meshes.
     """
-    io = _ioutils()
+    paths = _paths()
 
     if directory is not None:
-        ptsname = io.fullfile(directory, mshname + ".pts")
-        elemname = io.fullfile(directory, mshname + ".elem")
+        ptsname = paths.fullfile(directory, mshname + ".pts")
+        elemname = paths.fullfile(directory, mshname + ".elem")
     else:
         ptsname = mshname + ".pts"
         elemname = mshname + ".elem"

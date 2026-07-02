@@ -1,11 +1,11 @@
 # src/imatools/core/spatial.py
 """Plane / orientation functions migrated from ``imatools.common.itktools`` (T2a3).
 
-The 5 public functions here are the authoritative implementations; the old
-``imatools.common.itktools`` module re-exports them via a shim at its bottom.
+The 5 public functions here are the authoritative implementations.
 
-Functions imported lazily at call time via ``_itk()`` to avoid circular imports:
-``imview`` remains in itktools and is accessed as ``_itk().imview(...)``.
+``imview`` lives in ``core.image`` and is accessed lazily as ``_image().imview(...)``
+to keep the dependency at call time (M2c — was routed through the
+``common.itktools`` shim, now gone).
 
 Bug notes
 ---------
@@ -36,13 +36,13 @@ logger = configure_logging(log_name=__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After itktools finishes loading (including its bottom shim), all helper
-# names are available in sys.modules and these lookups resolve instantly.
+# Lazy-helper accessor — ``imview`` lives in ``core.image``, imported lazily to
+# keep spatial's dependency at call time (M2c — was routed through the
+# ``common.itktools`` shim, now gone).
 # ---------------------------------------------------------------------------
-def _itk():
-    """Return the itktools module (always already loaded when a spatial fn is called)."""
-    import imatools.common.itktools as _m  # noqa: PLC0415
+def _image():
+    """Return the core.image module (imported lazily; used for imview)."""
+    import imatools.core.image as _m  # noqa: PLC0415
 
     return _m
 
@@ -183,7 +183,7 @@ def create_image_at_plane_from_vector(
     resampled_im = resampler.Execute(image)
 
     # Convert the 3D image to a 2D array
-    array = _itk().imview(resampled_im)
+    array = _image().imview(resampled_im)
 
     # Select the middle slice along the third dimension
     slice_index = array.shape[2] // 2

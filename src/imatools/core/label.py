@@ -1,14 +1,13 @@
 # src/imatools/core/label.py
 """Label-algebra functions migrated from ``imatools.common.itktools`` (T2a1).
 
-The 18 public functions here are the authoritative implementation; the old
-``imatools.common.itktools`` module re-exports them via a shim at its bottom.
+The 18 public functions here are the authoritative implementation.
 
-Helpers that remain in ``itktools`` for now (they migrate to ``core/image`` in
-T2a2 and ``io/image_io`` in T2a4) are imported lazily inside the functions that
-need them.  This avoids the circular-import problem: ``itktools`` must finish
-defining its own helpers before its bottom shim imports this module; therefore
-this module must NOT import from ``itktools`` at module-load time.
+The voxel-array helpers used below (``imarray``, ``imview``, ``array2im``,
+``cp_image``, ``morph_operations``, ``image_operation``, ``find_neighbours``)
+live in ``core.image``; they are imported lazily via the ``_image()`` accessor
+to avoid the label↔image circular import (M2c — was routed through the
+``common.itktools`` shim, now gone).
 """
 
 import json
@@ -22,13 +21,13 @@ logger = configure_logging(log_name=__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy-helper accessor — avoids circular import at module load time.
-# After itktools finishes loading (including its bottom shim), all helper
-# names are available in sys.modules and these lookups resolve instantly.
+# Lazy-helper accessor — core.image imports nothing from core.label at load
+# time, but keeping this lazy matches the rest of the layer and is robust to
+# future edits (M2c — was routed through the ``common.itktools`` shim, now gone).
 # ---------------------------------------------------------------------------
-def _itk():
-    """Return the itktools module (always already loaded when a label fn is called)."""
-    import imatools.common.itktools as _m  # noqa: PLC0415
+def _image():
+    """Return the core.image module (imported lazily to avoid the label↔image cycle)."""
+    import imatools.core.image as _m  # noqa: PLC0415
 
     return _m
 
@@ -42,7 +41,7 @@ def binarise(image, background=0):
     """
     Returns an image with only 0s and 1s.
     """
-    itk = _itk()
+    itk = _image()
     image_array = itk.imarray(image)
     bin_array = np.zeros(image_array.shape, dtype=np.uint8)
     bin_array[np.greater(image_array, background)] = 1
@@ -56,7 +55,7 @@ def extract_single_label(image, label, binarise=False) -> sitk.Image:
     """
     Extracts a single label from a label map image.
     """
-    itk = _itk()
+    itk = _image()
     image_array = itk.imview(image)
     label = np.array(label, dtype=image_array.dtype).item()
 
@@ -105,7 +104,7 @@ def relabel_image(input_image, new_label):
 
 
 def exchange_labels(input_image, old_label, new_label):
-    itk = _itk()
+    itk = _image()
     input_array = itk.imarray(input_image)
 
     # Ensure it's an int type with enough bits for your labels
@@ -201,7 +200,7 @@ def swap_labels(im, old_label: int, new_label=1):
     """
     Swaps all instances of old_label with new_label in a label image.
     """
-    itk = _itk()
+    itk = _image()
     im_array = itk.imarray(im)
     im_array[np.equal(im_array, old_label)] = new_label
 
@@ -218,7 +217,7 @@ def get_labels(image: sitk.Image) -> list:
     """
     Returns a list of labels in an image.
     """
-    itk = _itk()
+    itk = _image()
     image_array_view = itk.imview(image)
     unique_labels = np.unique(image_array_view)
     unique_labels = unique_labels[unique_labels != 0]
@@ -280,7 +279,7 @@ def gaps(image, multilabel=False):
     """
     Show gaps in a binary or a multilabel segmentation
     """
-    itk = _itk()
+    itk = _image()
     bin_im = binarise(image) if multilabel else image
     bin_full = itk.morph_operations(bin_im, "fill")
 
@@ -293,7 +292,7 @@ def fill_gaps(image1, image2=None, multilabel_images=False):
     Fill gaps in a binary or a multilabel segmentation
         - Filling gaps in image1 ignoring gaps in image2
     """
-    itk = _itk()
+    itk = _image()
     # if image2 is None :
     #     gaps_im = gaps(image1, multilabel=multilabel_images)
     # else :
@@ -338,7 +337,7 @@ def fill_gaps(image1, image2=None, multilabel_images=False):
 
 
 def dice_score(true, pred):
-    itk = _itk()
+    itk = _image()
     true = itk.imview(true)
     pred = itk.imview(pred)
     intersection = (true * pred).sum()
@@ -366,7 +365,7 @@ def compare_images(im1: sitk.Image, im2: sitk.Image, return_comparison=False):
     scores = {}
     # sort common_labels to ensure consistent results
     common_labels = sorted(list(common_labels))
-    
+
     for label in common_labels:
         im1_label = extract_single_label(im1, label, binarise=True)
         im2_label = extract_single_label(im2, label, binarise=True)
@@ -384,7 +383,7 @@ def multilabel_comparison(
         - 2 if the label is present in im1 but not in im2
         - 3 if the label is present in im2 but not in im1
     """
-    itk = _itk()
+    itk = _image()
     if l1 is None:
         l1 = get_labels(im1)
     if l2 is None:
@@ -418,7 +417,7 @@ def split_label_into_components(image, label: int, open_image=False, open_radius
 
     Migrated verbatim from itktools.split_labels_on_repeats (renamed for clarity).
     """
-    itk = _itk()
+    itk = _image()
     forbidden_labels = get_labels(image)
     forbidden_labels.remove(label)
 
@@ -458,7 +457,7 @@ def exchange_many_labels(input_image, old_labels: list, new_labels: list):
     labels_in_image = get_labels(input_image)
 
     swap_ops = get_labels_to_exchange(old_labels, new_labels, labels_in_image)
-    new_image = _itk().cp_image(input_image)
+    new_image = _image().cp_image(input_image)
     for old_label, new_label in swap_ops:
         logger.info(f"Exchanging label {old_label} with {new_label}")
         new_image = exchange_labels(new_image, old_label, new_label)
@@ -510,7 +509,7 @@ def distance_based_outlier_detection(mlseg: sitk.Image, label=1, gauss_sigma=2.0
     """
     from imatools.io.image_io import save_image  # noqa: PLC0415
 
-    itk = _itk()
+    itk = _image()
     segmentation = extract_single_label(mlseg, label, binarise=True)
 
     gaussian_filter = sitk.SmoothingRecursiveGaussianImageFilter()

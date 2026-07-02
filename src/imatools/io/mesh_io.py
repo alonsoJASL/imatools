@@ -21,18 +21,6 @@ from imatools.contracts import MeshContract, MeshType
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Lazy accessor — used by callers that may import before vtktools is ready.
-# ---------------------------------------------------------------------------
-
-
-def _vtk():  # noqa: ANN201
-    """Return the imatools.common.vtktools module (lazy, avoids circular import)."""
-    import imatools.common.vtktools as _vtkmod
-
-    return _vtkmod
-
-
 def load_mesh(
     path: Union[str, Path], mesh_type: MeshType = "polydata", return_contract: bool = True
 ) -> Union[MeshContract, vtk.vtkPolyData, vtk.vtkUnstructuredGrid]:
