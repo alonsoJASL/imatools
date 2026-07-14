@@ -1,8 +1,7 @@
 """CARP mesh I/O functions.
 
-Migrated from ``imatools.common.ioutils`` (T2c2).  Legacy callers that import
-from ``imatools.common.ioutils`` continue to work via the re-export shim at
-the bottom of that module.
+Migrated from ``imatools.common.ioutils`` (T2c2); that shim module was deleted
+in M2 — this is now the sole home.
 
 Cat-B bugs preserved verbatim (per Wave-2 bug policy):
   - ``readParseElem`` / ``loadCarpMesh`` call ``read_elem`` with the default

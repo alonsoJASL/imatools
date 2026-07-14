@@ -1,10 +1,8 @@
 # src/imatools/core/mesh.py
 """Mesh transform functions migrated from ``imatools.common.vtktools`` and
-``imatools.common.utils`` (T2b2).
+``imatools.common.utils`` (T2b2; those shim modules were deleted in M2).
 
-The public functions here are the authoritative implementations.  The old
-modules re-export them via bottom-of-file shims so all existing import paths
-keep working unchanged.
+The public functions here are the authoritative implementations.
 
 Cat-A fixes applied (not validated against master output because master crashes
 in the installed VTK / numpy environment):
@@ -1160,7 +1158,7 @@ def tag_mesh_elements_parallel_regions(
 
 
 def write_vtk(mesh, directory, outname="output", output_type="polydata"):
-    """Thin delegator — authoritative implementation lives in vtktools."""
+    """Thin delegator — authoritative implementation lives in ``io.mesh_io``."""
     return _mesh_io().write_vtk(mesh, directory, outname, output_type)
 
 

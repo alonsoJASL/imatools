@@ -37,14 +37,19 @@ def _image():
 # ---------------------------------------------------------------------------
 
 
-def binarise(image, background=0):
-    """
-    Returns an image with only 0s and 1s.
+def binarise(image, background=0, foreground=1):
+    """Return an image with ``foreground`` where ``image > background``, else 0.
+
+    The default (``background=0, foreground=1``) is a plain 0/1 binarisation.
+    The output dtype is the smallest unsigned-int type that holds ``foreground``
+    (uint8 for the default), widened as needed so a large ``foreground`` never
+    overflows — this is what ``relabel_image`` (now an alias) relies on.
     """
     itk = _image()
     image_array = itk.imarray(image)
-    bin_array = np.zeros(image_array.shape, dtype=np.uint8)
-    bin_array[np.greater(image_array, background)] = 1
+    out_dtype = np.promote_types(np.uint8, np.min_scalar_type(int(foreground)))
+    bin_array = np.zeros(image_array.shape, dtype=out_dtype)
+    bin_array[np.greater(image_array, background)] = foreground
     binim = sitk.GetImageFromArray(bin_array)
     binim.CopyInformation(image)
 
@@ -93,14 +98,13 @@ def bwlabeln(image):
 
 
 def relabel_image(input_image, new_label):
-    """Assumes input_image is a binary image, every value>0 is set to new_label"""
-    input_array = sitk.GetArrayFromImage(input_image)
-    input_array[np.greater(input_array, 0)] = new_label
+    """Deprecated alias for ``binarise(image, background=0, foreground=new_label)``.
 
-    new_image = sitk.GetImageFromArray(input_array)
-    new_image.CopyInformation(input_image)
-
-    return new_image
+    Despite the name this never remapped labels — it thresholds ``> 0`` and sets
+    the whole foreground to ``new_label`` (i.e. binarise with a custom foreground
+    value). Use ``binarise`` directly; ``exchange_labels`` is the real label remap.
+    """
+    return binarise(input_image, background=0, foreground=new_label)
 
 
 def exchange_labels(input_image, old_label, new_label):

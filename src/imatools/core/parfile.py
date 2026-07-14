@@ -1,9 +1,8 @@
 # src/imatools/core/parfile.py
 """Pure dict-manipulation functions for Meshtools3d parameter files.
 
-Migrated from ``imatools.common.m3dutils`` (T2e).  Legacy callers that import
-from ``imatools.common.m3dutils`` continue to work via the re-export shim at
-the bottom of that module.
+Migrated from ``imatools.common.m3dutils`` (T2e); that shim module was deleted
+in M2 — this is now the sole home.
 
 Cat-B bug preserved verbatim (per Wave-2 bug policy):
   - ``update_pot`` does a **shallow** ``dict.copy()`` of the base pot, so

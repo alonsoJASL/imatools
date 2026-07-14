@@ -2,9 +2,9 @@
 
 Migrated from ``imatools.common.ioutils`` (functions: ext, get_subfolders,
 find_file, slot_in_path_hrchy, fullfile, mkdirplus, searchFileByType,
-num2padstr) and from ``imatools.core.io`` (check_file_exists) as part of
-T2c3.  Legacy callers that import from either of those modules continue to
-work via the re-export shims added at the bottom of each source module.
+num2padstr; that shim module was deleted in M2) and from ``imatools.core.io``
+(check_file_exists) as part of T2c3.  ``imatools.core.io`` still re-exports
+``check_file_exists`` from here for legacy callers.
 
 Note: ``slot_in_path_hrchy`` is moved verbatim but has no characterization
 test (T1j did not cover it); it is included here as a clear path helper.
