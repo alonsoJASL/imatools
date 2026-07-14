@@ -181,6 +181,17 @@ def test_update_pot_identity(golden):
             ), f"section={section!r} key={key!r}: got {res_val!r}, expected {exp_val!r}"
 
 
+def test_update_pot_does_not_mutate_input():
+    """M3-C3: update_pot deep-copies its base, so the caller's pot is untouched
+    (master's shallow copy mutated the input's sub-dicts in place)."""
+    from imatools.core.parfile import update_pot
+
+    base = copy.deepcopy(_BASE_POT)
+    base_before = copy.deepcopy(base)
+    _ = update_pot(base, copy.deepcopy(_UPDATE_PATCH))
+    assert base == base_before
+
+
 # ---------------------------------------------------------------------------
 # load_from_par — target: imatools.io.parfile_io
 # ---------------------------------------------------------------------------

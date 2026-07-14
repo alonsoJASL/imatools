@@ -110,12 +110,12 @@ def set_direction_as(im: sitk.Image, ref: sitk.Image):
 
 def create_normal_vector_for_plane(axis, angle):
     """
-    Returns a normal vector for a plane rotated around the given axis by the given angle
+    Returns a normal vector for a plane rotated around the given axis by ``angle``.
 
-    NOTE (Cat-B preserved bug): ``angle_rad = np.radians(angle)`` is computed
-    but the raw ``angle`` value (not ``angle_rad``) is used in the cos/sin calls
-    below.  This mismatch is intentional — the golden files lock this behaviour
-    and it must NOT be corrected.
+    ``angle`` is in **radians** — it is passed directly to ``np.cos``/``np.sin``
+    below. (M3-C4: removed a dead, misleading ``angle_rad = np.radians(angle)``
+    line that was computed but never used; the 4 ``normal_vector`` goldens, which
+    pass radian angles, are unchanged.)
     """
     AXES = ["x", "y", "z"]  # noqa: N806
     if axis not in AXES:
@@ -123,8 +123,6 @@ def create_normal_vector_for_plane(axis, angle):
 
     vector = np.zeros(3)
     vector[AXES.index(axis)] = 1
-
-    angle_rad = np.radians(angle)  # noqa: F841  (computed but unused — Cat-B preserved bug)
 
     if axis == "x":
         rotation_matrix = np.array(
