@@ -1,18 +1,15 @@
 # src/imatools/core/metrics.py
 """Metric and comparison functions migrated from ``imatools.common.ioutils``
-and copied from ``imatools.compare_from_mapping`` (T2c1).
+(T2c1; that shim module was deleted in M2) plus the ``getSurfacesJaccard`` /
+``compare_fibres`` / Hausdorff family relocated from ``common.vtktools`` and
+``compareCarpMesh`` from ``common.ioutils`` in M2a-2.
 
-The 7 functions moved from ``ioutils`` are the authoritative implementations;
-the old ``imatools.common.ioutils`` module re-exports them via a shim at its
-bottom.
+``compare_vector_field`` / ``compare_scalar_field`` were copied here (T2c1) from
+the old ``compare_from_mapping.py`` batch driver (since deleted in M1.7); this is
+their canonical home.
 
-The 2 functions copied from ``compare_from_mapping`` (``compare_vector_field``,
-``compare_scalar_field``) live here as the canonical target-layer copies.
-``compare_from_mapping.py`` is a deferred CLI script that keeps its own copies;
-it is NOT shimmed.
-
-No lazy accessor needed — all function bodies use only ``numpy`` and
-``scipy.spatial.distance``, with no calls back into ``ioutils``.
+All function bodies use only ``numpy`` / ``scipy.spatial.distance`` / ``vtk`` /
+``pyvista`` — no cross-layer accessor needed.
 
 M2a-2 additions: ``getHausdorffDistance``/``getHausdorffDistanceFilter``/
 ``getSurfacesJaccard``/``compare_fibres`` (from ``common/vtktools.py``) and

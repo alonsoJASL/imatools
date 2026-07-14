@@ -33,9 +33,14 @@ pip install -e ".[dev]"
 
 ```bash
 # Check CLI tools are available
-imatools-volume --help
 imatools-segmentation --help
 imatools-mesh --help
+imatools-volume --help
+imatools-image --help
+imatools-dicom --help
+imatools-scar --help
+imatools-comparisons --help
+imatools-report --help
 
 # Run tests
 pytest

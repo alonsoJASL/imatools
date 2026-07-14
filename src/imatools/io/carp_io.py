@@ -1,13 +1,12 @@
 """CARP mesh I/O functions.
 
-Migrated from ``imatools.common.ioutils`` (T2c2).  Legacy callers that import
-from ``imatools.common.ioutils`` continue to work via the re-export shim at
-the bottom of that module.
+Migrated from ``imatools.common.ioutils`` (T2c2); that shim module was deleted
+in M2 — this is now the sole home.
 
-Cat-B bugs preserved verbatim (per Wave-2 bug policy):
-  - ``readParseElem`` / ``loadCarpMesh`` call ``read_elem`` with the default
-    ``el_type='Tt'`` which requests column index 5 on triangle ``.elem`` files
-    (only 5 columns, 0-4) → raises ``ValueError`` for triangle meshes.
+M3-C1 fix: ``readParseElem`` / ``loadCarpMesh`` now detect the element type from
+the ``.elem`` file (master hardcoded ``el_type='Tt'``, which broke triangle meshes).
+
+Cat-B bug still preserved (per Wave-2 bug policy; fix deferred to future_work):
   - ``saveToCarpTxt`` hardcodes ``fmt='Tr %d %d %d 1'`` (element tag always 1).
 """
 
@@ -66,6 +65,19 @@ def read_lon(filename):
     return np.loadtxt(filename, dtype=float, skiprows=1)
 
 
+def _detect_elem_type(elFname):  # noqa: N803
+    """Return the element type (``Tr``/``Tt``/``Ln``) from a CARP ``.elem`` file.
+
+    Reads the first token of the first data row (after the count header). Falls
+    back to ``Tt`` if the row has no recognised type token.
+    """
+    with open(elFname, encoding="utf-8") as f:
+        f.readline()  # skip the count header
+        first = f.readline().split()
+    token = first[0] if first else "Tt"
+    return token if token in ELEM_TYPES else "Tt"
+
+
 def getTotal(fname):  # noqa: N802
     """Get the total count declared on the first line of a CARP .pts/.elem file.
 
@@ -104,11 +116,13 @@ def readParsePts(ptsFname):  # noqa: N802,N803
 def readParseElem(elFname):  # noqa: N802,N803
     """Read and parse CARP element file.
 
-    Cat-B bug preserved: calls ``read_elem`` with the default ``el_type='Tt'``
-    which raises ``ValueError`` on triangle ``.elem`` files.
+    Detects the element type (``Tr``/``Tt``/``Ln``) from the file's first data
+    row so triangle ``.elem`` files parse correctly (M3-C1 fix — master hardcoded
+    ``el_type='Tt'``, which requested a non-existent tet column on triangle files
+    and raised ``ValueError``).
     """
     nElem = getTotal(elFname)  # noqa: N806
-    el = read_elem(elFname)
+    el = read_elem(elFname, el_type=_detect_elem_type(elFname))
 
     if nElem != len(el):
         print("Error in file")
@@ -118,11 +132,12 @@ def readParseElem(elFname):  # noqa: N802,N803
 
 
 def loadCarpMesh(mshname, directory=None):  # noqa: N802
-    """Load CARP mesh. Supports for triangle (Tr) and tetrahedral (Tt) meshes.
+    """Load a CARP mesh — supports triangle (``Tr``) and tetrahedral (``Tt``) elements.
 
-    Cat-B bug preserved: calls ``readParseElem`` which in turn calls
-    ``read_elem`` with the default ``el_type='Tt'``, raising ``ValueError``
-    on triangle meshes.
+    Returns ``(pts, elem, region)``: ``pts`` an ``(N, 3)`` float array, ``elem`` a
+    list of per-element connectivity lists, ``region`` an int array of element tags.
+    (M3-C1 fix — the element type is detected from the file, and the parse works on
+    ``read_elem``'s integer connectivity+tag output.)
     """
     paths = _paths()
 
@@ -136,16 +151,13 @@ def loadCarpMesh(mshname, directory=None):  # noqa: N802
     pts, nPts = readParsePts(ptsname)  # noqa: F841,N806
     el, nElem = readParseElem(elemname)  # noqa: F841,N806
 
-    elem = list()
-    for e in el:
-        nel = 4 if e[0] == "Tr" else 5
-        elem_before = e[1:nel]
-        elem.append([int(ex.strip()) for ex in elem_before])
+    # read_elem returns rows of ``[n0, n1, ..., tag]`` (int); the last column is
+    # the element/region tag, the rest is connectivity.
+    el = np.atleast_2d(el)
+    elem = [row[:-1].tolist() for row in el]
+    region = np.asarray([row[-1] for row in el], dtype=int)
 
-    region_before = [e[-1] for e in el]
-    region = [int(x.strip()) for x in region_before]
-
-    return pts, elem, np.asarray(region, dtype=int)
+    return pts, elem, region
 
 
 def saveToCarpTxt(pts, el, mshname):  # noqa: N802

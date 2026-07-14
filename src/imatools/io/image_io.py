@@ -10,8 +10,8 @@ Master itktools file-I/O functions added by T2a4 (7 functions):
     load_image_as_np, load_nrrd_base, load_nrrd_image, convert_to_inr,
     convert_from_inr, pointfile_to_image, fix_header_and_save.
 These are verbatim from master except for the Cat-A fix in load_nrrd_image
-(see that function's docstring).  ``imatools.common.itktools`` re-exports
-all 7 via a bottom shim.
+(see that function's docstring).  (The old ``imatools.common.itktools`` shim
+that re-exported them was deleted in M2.)
 """
 
 import json
@@ -238,7 +238,7 @@ def fix_nrrd_header_and_save(
 # ---------------------------------------------------------------------------
 # Master itktools file-I/O functions (added by T2a4, verbatim from master
 # except load_nrrd_image which has a Cat-A SetSpacing fix).
-# imatools.common.itktools re-exports all 7 via a bottom shim.
+# (The old imatools.common.itktools shim re-exporting these was deleted in M2.)
 # ---------------------------------------------------------------------------
 
 
@@ -247,8 +247,8 @@ def fix_header_and_save(path_to_file, out_path):
     Reads a NRRD file, modifies its header to make space directions axis-aligned,
     and saves the modified header back to a new NRRD file.
 
-    Authoritative implementation (T2a4 migration from ``imatools.common.itktools``).
-    ``imatools.common.itktools.fix_header_and_save`` is a re-export shim for this.
+    Authoritative implementation (T2a4 migration from ``imatools.common.itktools``,
+    whose re-export shim was deleted in M2).
     """
     logger.info(f"Fixing header for {path_to_file} and saving to {out_path}")
     data, hdr = nrrd.read(path_to_file)

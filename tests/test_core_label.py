@@ -55,14 +55,12 @@ def _to_arr(im: sitk.Image) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-
 def test_binarise_multilabel(golden):
     from imatools.core.label import binarise
 
     result = _to_arr(binarise(fx.label_image()))
     expected = golden("label/binarise_multilabel")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_binarise_binary_noop(golden):
@@ -78,14 +76,12 @@ def test_binarise_binary_noop(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_extract_single_label_keep_value(golden):
     from imatools.core.label import extract_single_label
 
     result = _to_arr(extract_single_label(fx.label_image(), 2, False))
     expected = golden("label/extract_single_label_keep_value")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_extract_single_label_binarise(golden):
@@ -101,7 +97,6 @@ def test_extract_single_label_binarise(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_merge_label_images(golden):
     from imatools.core.label import merge_label_images
 
@@ -114,7 +109,6 @@ def test_merge_label_images(golden):
 # ---------------------------------------------------------------------------
 # bwlabeln
 # ---------------------------------------------------------------------------
-
 
 
 def test_bwlabeln_binary(golden):
@@ -135,7 +129,6 @@ def test_bwlabeln_binary(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_relabel_image(golden):
     from imatools.core.label import relabel_image
 
@@ -144,10 +137,28 @@ def test_relabel_image(golden):
     np.testing.assert_array_equal(result, expected)
 
 
+def test_relabel_image_is_binarise_alias():
+    """relabel_image(im, L) == binarise(im, foreground=L) (M3 B1 unification)."""
+    from imatools.core.label import binarise, relabel_image
+
+    im = fx.binary_image()
+    np.testing.assert_array_equal(
+        _to_arr(relabel_image(im, 7)), _to_arr(binarise(im, foreground=7))
+    )
+
+
+def test_binarise_large_foreground_no_overflow():
+    """B1 dtype-widening: a foreground > 255 on a uint8 input must NOT overflow
+    (the old relabel_image preserved input dtype and would wrap 300 -> 44)."""
+    from imatools.core.label import binarise
+
+    result = _to_arr(binarise(fx.binary_image(), foreground=300))
+    assert set(np.unique(result).tolist()) == {0, 300}
+
+
 # ---------------------------------------------------------------------------
 # exchange_labels
 # ---------------------------------------------------------------------------
-
 
 
 def test_exchange_labels(golden):
@@ -163,7 +174,6 @@ def test_exchange_labels(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_get_labels_to_exchange_no_conflict(golden):
     from imatools.core.label import get_labels_to_exchange
 
@@ -171,7 +181,6 @@ def test_get_labels_to_exchange_no_conflict(golden):
     expected = golden("label/get_labels_to_exchange_no_conflict")
     # JSON round-trip: tuples become lists; compare as nested lists
     assert [list(op) for op in result] == expected
-
 
 
 def test_get_labels_to_exchange_conflict(golden):
@@ -186,7 +195,6 @@ def test_get_labels_to_exchange_conflict(golden):
 # ---------------------------------------------------------------------------
 # exchange_labels_form_json
 # ---------------------------------------------------------------------------
-
 
 
 def test_exchange_labels_form_json(golden):
@@ -211,14 +219,12 @@ def test_exchange_labels_form_json(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_swap_labels(golden):
     from imatools.core.label import swap_labels
 
     result = _to_arr(swap_labels(fx.label_image(), 2, 99))
     expected = golden("label/swap_labels")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_swap_labels_default_new(golden):
@@ -234,14 +240,12 @@ def test_swap_labels_default_new(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_get_labels_multilabel(golden):
     from imatools.core.label import get_labels
 
     result = get_labels(fx.label_image())
     expected = golden("label/get_labels_multilabel")
     assert result == expected
-
 
 
 def test_get_labels_binary(golden):
@@ -260,7 +264,6 @@ def test_get_labels_binary(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_combine_segmentations_auto_labels(golden):
     from imatools.core.label import combine_segmentations
 
@@ -268,7 +271,6 @@ def test_combine_segmentations_auto_labels(golden):
     result = _to_arr(combine_segmentations([_bin_u16, _bin_u16]))
     expected = golden("label/combine_segmentations_auto_labels")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_combine_segmentations_explicit_labels(golden):
@@ -285,14 +287,12 @@ def test_combine_segmentations_explicit_labels(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_gaps_binary(golden):
     from imatools.core.label import gaps
 
     result = _to_arr(gaps(fx.binary_image()))
     expected = golden("label/gaps_binary")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_gaps_multilabel(golden):
@@ -308,14 +308,12 @@ def test_gaps_multilabel(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_fill_gaps_single(golden):
     from imatools.core.label import fill_gaps
 
     result = _to_arr(fill_gaps(fx.binary_image()))
     expected = golden("label/fill_gaps_single")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_fill_gaps_two_images(golden):
@@ -332,7 +330,6 @@ def test_fill_gaps_two_images(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_dice_score(golden):
     from imatools.core.label import dice_score
 
@@ -340,7 +337,6 @@ def test_dice_score(golden):
     result = float(dice_score(im0, im1))
     expected = golden("label/dice_score")
     assert result == pytest.approx(float(expected), rel=1e-7)
-
 
 
 def test_dice_score_identical(golden):
@@ -356,7 +352,6 @@ def test_dice_score_identical(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_compare_images(golden):
     from imatools.core.label import compare_images
 
@@ -368,7 +363,6 @@ def test_compare_images(golden):
     }
     assert sorted(unique["im1"]) == expected["unique_im1"]
     assert sorted(unique["im2"]) == expected["unique_im2"]
-
 
 
 def test_compare_images_identical(golden):
@@ -388,7 +382,6 @@ def test_compare_images_identical(golden):
 # ---------------------------------------------------------------------------
 
 
-
 def test_multilabel_comparison(golden):
     from imatools.core.label import multilabel_comparison
 
@@ -396,7 +389,6 @@ def test_multilabel_comparison(golden):
     result = _to_arr(multilabel_comparison(im0, im1))
     expected = golden("label/multilabel_comparison")
     np.testing.assert_array_equal(result, expected)
-
 
 
 def test_multilabel_comparison_explicit_labels(golden):
@@ -411,7 +403,6 @@ def test_multilabel_comparison_explicit_labels(golden):
 # ---------------------------------------------------------------------------
 # get_labels_volumes
 # ---------------------------------------------------------------------------
-
 
 
 def test_get_labels_volumes(golden):
@@ -430,7 +421,6 @@ def test_get_labels_volumes(golden):
 # NOTE: master bug — this function writes 'distance_map.nrrd' to the CWD.
 # T2a1 must remove or guard that save_image call.
 # ---------------------------------------------------------------------------
-
 
 
 def test_distance_based_outlier_detection(golden, tmp_path, monkeypatch):
