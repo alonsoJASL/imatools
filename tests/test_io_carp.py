@@ -1,9 +1,6 @@
 """Characterization tests for ``imatools.io.carp_io`` (T1j).
 
-All tests import from the TARGET location ``imatools.io.carp_io``.  That module
-does not exist yet — it will be created by migration task T2c2.  Until then
-every test is marked ``xfail(strict=False)`` so it is collected but does not
-block CI.
+All tests import from the TARGET location ``imatools.io.carp_io``.
 
 Golden values were captured from master via::
 
@@ -13,12 +10,9 @@ Golden values were captured from master via::
 
 where ``M = ~/dev/python/imatools.worktrees/master``.
 
-Master bugs noted (no golden, intent tests only):
-  - ``readParseElem`` — calls ``read_elem`` with default ``el_type='Tt'`` on a
-    triangle-format ``.elem`` file → numpy column-out-of-bounds error at runtime.
-  - ``loadCarpMesh``  — same root cause; always broken for triangle meshes.
-  These are flagged as ``xfail`` intent tests so T2c2 must decide whether to fix
-  or preserve the broken behaviour.
+``readParseElem`` / ``loadCarpMesh`` were formerly xfail intent tests (master
+broke on triangle meshes by hardcoding ``el_type='Tt'``); M3-C1 fixed the loader
+to detect the element type, so they are now regular passing tests.
 """
 
 from __future__ import annotations
@@ -28,7 +22,6 @@ import tempfile
 
 import _fixtures as fx
 import numpy as np
-import pytest
 
 # ---------------------------------------------------------------------------
 # read_pts
@@ -130,20 +123,11 @@ def test_read_parse_pts_count(golden, carp_mesh_files):
 
 
 # ---------------------------------------------------------------------------
-# readParseElem — intent test only (master bug: broken for triangle meshes)
-#
-# Master's ``readParseElem`` calls ``read_elem`` with default ``el_type='Tt'``
-# which tries to read column index 5 on a file that only has 5 columns
-# (Tr n0 n1 n2 tag = cols 0-4).  This raises a numpy ValueError at runtime.
-# The intent test captures that this function SHOULD exist and be callable; the
-# migration task T2c2 must decide whether to fix or preserve the behaviour.
+# readParseElem — triangle-mesh loading (M3-C1: was xfail; master hardcoded
+# el_type='Tt', which broke triangle .elem files — now type is detected).
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="Cat-B preserved: readParseElem/loadCarpMesh default el_type='Tt' breaks triangle meshes (fix deferred to future_work)",
-    strict=False,
-)
 def test_read_parse_elem_intent(carp_mesh_files):
     from imatools.io.carp_io import readParseElem
 
@@ -153,16 +137,10 @@ def test_read_parse_elem_intent(carp_mesh_files):
 
 
 # ---------------------------------------------------------------------------
-# loadCarpMesh — intent test only (master bug: broken for triangle meshes)
-#
-# ``loadCarpMesh`` calls ``readParseElem`` which has the same bug as above.
+# loadCarpMesh — triangle-mesh loading (M3-C1: was xfail; same root cause).
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="Cat-B preserved: readParseElem/loadCarpMesh default el_type='Tt' breaks triangle meshes (fix deferred to future_work)",
-    strict=False,
-)
 def test_load_carp_mesh_intent(carp_mesh_files):
     from imatools.io.carp_io import loadCarpMesh
 
