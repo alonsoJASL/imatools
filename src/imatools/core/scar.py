@@ -23,6 +23,11 @@ from imatools.common.config import configure_logging
 
 logger = configure_logging(log_name=__name__)
 
+# Scalar label the CEMRG app writes for cells that must be excluded from scar
+# scoring (originates in external CEMRG-app code). Used as the denominator
+# exclusion value in the ``imatools-scar score`` subcommand.
+CEMRGAPP_IGNORE = 3
+
 
 def get_scar_method(scar_method: str) -> int:
     """Return the integer method code for a scar-method string.

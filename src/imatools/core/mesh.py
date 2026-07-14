@@ -669,8 +669,13 @@ def create_mapping(msh_left, msh_right, left_id, right_id, map_type="elem"):
 # ---------------------------------------------------------------------------
 
 
-def fibrosis_score(msh, th, type="cell"):  # noqa: A002
-    """Assumes the scalars in msh have been normalised."""
+def fibrosis_score(msh, th, type="cell", exclude_value=0):  # noqa: A002
+    """Assumes the scalars in msh have been normalised.
+
+    ``exclude_value`` is the scalar value dropped from the denominator (default 0,
+    matching the historical behaviour). ``imatools-scar score`` passes
+    ``core.scar.CEMRGAPP_IGNORE`` (== 3) instead.
+    """
     assert type in ["cell", "point"], 'Argument "type" expected to be "cell" or "point"'
     if type == "cell":
         scalars = msh.GetCellData().GetScalars()
@@ -682,7 +687,7 @@ def fibrosis_score(msh, th, type="cell"):  # noqa: A002
     countfib = 0.0
 
     for ix in range(total_values):
-        if scalars.GetTuple1(ix) == 0:
+        if scalars.GetTuple1(ix) == exclude_value:
             countt -= 1.0
 
         elif scalars.GetTuple1(ix) >= th:

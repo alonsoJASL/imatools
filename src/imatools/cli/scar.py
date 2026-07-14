@@ -14,6 +14,7 @@ Subcommands:
   vscar-project     Project ventricular scar onto a mesh.
   enhance           Enhance scar corridor labels by LGE intensity thresholds.
   check             Convert a scar-corridor CSV to a VTK vector field.
+  score             Report scar score(s) for a mesh using custom blood-pool stats.
 
 Consolidates: scarq_tools.py, vscar_projection.py, enhance_debug_scar.py,
 pool_enhance_debug_scar.py, scr_check_scar.py, common/scarqtools.py.
@@ -946,6 +947,41 @@ def handle_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_score(args: argparse.Namespace) -> int:
+    """Report scar score(s) for a surface mesh using custom blood-pool stats.
+
+    For each ``--value`` multiplier the threshold is derived from the method and
+    the supplied blood-pool statistics, then the score is
+    ``count(cell scalar >= threshold) / count(cell scalar != CEMRGAPP_IGNORE)``.
+    Prints a ``value | threshold | score`` table (one row per ``--value``).
+    """
+    from imatools.core import mesh as core_mesh  # noqa: PLC0415
+    from imatools.io import mesh_io  # noqa: PLC0415
+
+    method = core_scar.get_scar_method(args.method)
+
+    msh = mesh_io.read_vtk(args.mesh)
+    cell_data = msh.GetCellData()
+
+    if args.field:
+        if cell_data.SetActiveScalars(args.field) < 0:
+            logger.error("Cell array %r not found in %s", args.field, args.mesh)
+            return 1
+    elif cell_data.GetScalars() is None:
+        logger.error("Mesh %s has no active cell scalars; pass --field", args.mesh)
+        return 1
+
+    print("value\tthreshold\tscore")
+    for value in args.value:
+        threshold = core_scar.get_threshold(method, value, args.mean_bp, args.stdev_bp)
+        score = core_mesh.fibrosis_score(
+            msh, threshold, type=args.scalar_type, exclude_value=core_scar.CEMRGAPP_IGNORE
+        )
+        print(f"{value:3.2f}\t{threshold:3.2f}\t{score:3.5f}")
+
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Argument-parser construction
 # ---------------------------------------------------------------------------
@@ -1173,6 +1209,40 @@ def _build_parser() -> argparse.ArgumentParser:
     p_chk.add_argument("-o", "--output", type=str, default="", help="Output filename")
     p_chk.add_argument("-v", "--verbose", action="store_true", help="Render arrow glyphs")
     p_chk.set_defaults(func=handle_check)
+
+    # --- score ---
+    p_score = sub.add_parser(
+        "score",
+        help="Report scar score(s) for a mesh using custom blood-pool stats",
+    )
+    p_score.add_argument("--mesh", type=str, required=True, help="Surface mesh (.vtk) path")
+    p_score.add_argument(
+        "--method", type=str, required=True, choices=["iir", "msd"], help="Threshold method"
+    )
+    p_score.add_argument(
+        "--value",
+        type=float,
+        nargs="+",
+        required=True,
+        help="Threshold multiplier(s); one score per value",
+    )
+    p_score.add_argument("--mean-bp", type=float, required=True, help="Blood-pool mean intensity")
+    p_score.add_argument(
+        "--stdev-bp", type=float, required=True, help="Blood-pool standard deviation"
+    )
+    p_score.add_argument(
+        "--field",
+        type=str,
+        default=None,
+        help="Named cell array to score (default: active cell scalars)",
+    )
+    p_score.add_argument(
+        '--scalar-type', 
+        choices=['cell', 'point'], 
+        default='cell', 
+        help="Type of scalar data to score (default: cell)",
+    )
+    p_score.set_defaults(func=handle_score)
 
     return p
 
