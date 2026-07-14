@@ -111,7 +111,7 @@ def test_score_iir_single_value(tmp_path, capsys):
     assert ret == 0
     out = capsys.readouterr().out
     assert "value\tthreshold\tscore" in out
-    assert "0.5\t0.5\t0.75" in out
+    assert "0.50\t0.50\t0.75000" in out
 
 
 def test_score_msd_multiple_values(tmp_path, capsys):
@@ -137,8 +137,8 @@ def test_score_msd_multiple_values(tmp_path, capsys):
     )
     assert ret == 0
     out = capsys.readouterr().out
-    assert "0.5\t0.5\t0.75" in out
-    assert "1.2\t1.2\t0.0" in out
+    assert "0.50\t0.50\t0.75000" in out
+    assert "1.20\t1.20\t0.00000" in out
 
 
 def test_score_named_field(tmp_path, capsys):
@@ -161,7 +161,7 @@ def test_score_named_field(tmp_path, capsys):
         ]
     )
     assert ret == 0
-    assert "0.5\t0.5\t0.75" in capsys.readouterr().out
+    assert "0.50\t0.50\t0.75000" in capsys.readouterr().out
 
 
 def test_score_missing_field_errors(tmp_path):
