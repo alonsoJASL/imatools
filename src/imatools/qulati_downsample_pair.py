@@ -1,3 +1,9 @@
+raise ImportError(
+    "imatools.qulati_downsample_pair is parked as quLATi is not yet "
+    "packaged as an optional dependency. See future_work.md."
+)
+
+
 import sys, os
 QULATI_DIR=os.getcwd()+'/../quLATi'
 sys.path.insert(1, QULATI_DIR)

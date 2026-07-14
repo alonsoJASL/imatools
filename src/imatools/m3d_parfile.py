@@ -1,3 +1,9 @@
+raise ImportError(
+    "imatools.m3d_parfile is parked: duplicates pycemrg-meshing and is not yet "
+    "packaged as an optional dependency. See future_work.md."
+)
+
+
 import os
 import sys
 import json
