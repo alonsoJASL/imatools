@@ -136,8 +136,8 @@ def loadCarpMesh(mshname: Union[str, Path], directory: Union[str, Path, None] = 
     ptsname = f"{base}.pts"
     elemname = f"{base}.elem"
 
-    pts, nPts = readParsePts(ptsname)  # noqa: F841,N806
-    el, nElem = readParseElem(elemname)  # noqa: F841,N806
+    pts, _ = readParsePts(ptsname)  # noqa: F841,N806
+    el, _ = readParseElem(elemname)  # noqa: F841,N806
 
     # read_elem returns rows of ``[n0, n1, ..., tag]`` (int); the last column is
     # the element/region tag, the rest is connectivity.
