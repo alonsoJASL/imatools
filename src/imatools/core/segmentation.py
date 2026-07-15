@@ -69,5 +69,7 @@ def ignore_small_labels(image, labels, min_voxel_size) -> sitk.Image:
 
     Renamed from label_connectivity.ignore_labels_with_voxel_size_less_than.
     """
-    to_ignore = [ll for ll in labels if core_image.get_num_nonzero_voxels(image == ll) < min_voxel_size]
+    to_ignore = [
+        ll for ll in labels if core_image.get_num_nonzero_voxels(image == ll) < min_voxel_size
+    ]
     return core_label.exchange_many_labels(image, to_ignore, [0] * len(to_ignore))

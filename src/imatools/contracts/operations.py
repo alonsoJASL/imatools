@@ -11,6 +11,7 @@ from enum import Enum
 
 class MorphOperationType(str, Enum):
     """Morphological operation types."""
+
     DILATE = "dilate"
     ERODE = "erode"
     OPEN = "open"
@@ -21,6 +22,7 @@ class MorphOperationType(str, Enum):
 
 class KernelType(str, Enum):
     """Morphological kernel types."""
+
     BALL = "ball"
     BOX = "box"
     CROSS = "cross"
@@ -30,18 +32,19 @@ class KernelType(str, Enum):
 class MorphOperation:
     """
     Contract for morphological operations.
-    
+
     Attributes:
         operation: Type of morphological operation
         kernel: Structuring element shape
         radius: Kernel radius in voxels
         iterations: Number of times to apply operation
     """
+
     operation: MorphOperationType
     kernel: KernelType = KernelType.BALL
     radius: int = 3
     iterations: int = 1
-    
+
     def validate(self) -> bool:
         """Validate operation parameters."""
         if self.radius <= 0:
@@ -55,7 +58,7 @@ class MorphOperation:
 class LabelOperation:
     """
     Contract for label manipulation operations.
-    
+
     Attributes:
         operation: Type of label operation (extract, merge, remove, etc.)
         labels: Label values to operate on
@@ -63,12 +66,13 @@ class LabelOperation:
         background_value: Value to use for background
         output_label: Label value for result (if applicable)
     """
+
     operation: Literal["extract", "merge", "remove", "relabel", "exchange"]
     labels: list[int]
     binarise: bool = False
     background_value: int = 0
     output_label: Optional[int] = None
-    
+
     def validate(self) -> bool:
         """Validate operation parameters."""
         if not self.labels:
@@ -82,21 +86,22 @@ class LabelOperation:
 class TransformOperation:
     """
     Contract for spatial transformations.
-    
+
     Attributes:
         operation: Type of transform (resample, flip, rotate, etc.)
         reference_metadata: Target image metadata for resampling
         interpolation: Interpolation method
         parameters: Additional operation-specific parameters
     """
+
     operation: Literal["resample", "flip", "rotate", "translate", "crop"]
     interpolation: Literal["nearest", "linear", "bspline"] = "linear"
     parameters: dict[str, Any] = None
-    
+
     def __post_init__(self):
         if self.parameters is None:
             self.parameters = {}
-    
+
     def validate(self) -> bool:
         """Validate operation parameters."""
         if self.operation not in ["resample", "flip", "rotate", "translate", "crop"]:

@@ -1237,9 +1237,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Named cell array to score (default: active cell scalars)",
     )
     p_score.add_argument(
-        '--scalar-type', 
-        choices=['cell', 'point'], 
-        default='cell', 
+        "--scalar-type",
+        choices=["cell", "point"],
+        default="cell",
         help="Type of scalar data to score (default: cell)",
     )
     p_score.set_defaults(func=handle_score)
