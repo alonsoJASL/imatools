@@ -1,7 +1,8 @@
 # imatools
 
 Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats.
-Maintained by the [Cardiac Electromechanics Research Group (CEMRG)](https://www.cemrg.com/) at Imperial College London.
+Maintained by the [José Alonso Solís-Lemus](https://alonsojasl.github.io/), 
+used by the [CEMRG](www.cemrg.com).
 
 ---
 
