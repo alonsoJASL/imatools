@@ -1,0 +1,75 @@
+# Runs the project gate in CI: the golden-master characterization suite + format/lint.
+# Mirrors the local gate documented in CLAUDE.md.
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (golden-master gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      # VTK / pyvista need libGL present just to import, even though no test
+      # opens a render window (the render paths are mocked).
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1
+
+      - name: Install package
+        run: pip install -e ".[dev]"
+
+      # -p no:cacheprovider matches the local gate: never trust a cached run.
+      - name: Run test suite
+        env:
+          MPLBACKEND: Agg
+          PYVISTA_OFF_SCREEN: "true"
+        run: pytest tests/ -q -p no:cacheprovider
+
+  lint:
+    name: black + ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      # black is pinned exactly: its stable style changes between releases, and
+      # an unpinned black silently reformats the whole tree on upgrade.
+      # Keep this version in sync with the `dev` extra in pyproject.toml.
+      - name: Install linters
+        run: pip install "black==26.5.1" ruff
+
+      - name: Check formatting
+        run: black --check src/ tests/
+
+      # Advisory, not blocking. The tree carries a pre-existing ruff baseline
+      # (~89 findings, mostly N806/N816/N802 scientific-naming and E402 in the
+      # parked scripts). The project gate has always been "0 NEW ruff", which a
+      # bare `ruff check` cannot express. Blocking here would pin CI red on debt
+      # that predates this workflow. Burn the baseline down, then drop this flag.
+      - name: Lint (advisory)
+        continue-on-error: true
+        run: ruff check src/ tests/
