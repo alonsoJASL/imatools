@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from pathlib import Path
 
 import _fixtures as fx
 import numpy as np
@@ -148,3 +149,35 @@ def test_load_carp_mesh_intent(carp_mesh_files):
     assert pts.shape == (5, 3)
     assert len(elem) == 4
     assert len(region) == 4
+
+
+# The ``directory is not None`` branch builds the .pts/.elem paths itself. It had
+# no coverage, so these pin its behaviour: passing (mshname, directory=...) must
+# be equivalent to passing a single joined path, and a trailing separator on the
+# directory must not change the result.
+
+
+def test_load_carp_mesh_directory_arg_matches_joined_path(carp_mesh_files):
+    from imatools.io.carp_io import loadCarpMesh
+
+    base = Path(str(carp_mesh_files))
+
+    joined_pts, joined_elem, joined_region = loadCarpMesh(str(base))
+    split_pts, split_elem, split_region = loadCarpMesh(base.name, directory=str(base.parent))
+
+    np.testing.assert_array_equal(split_pts, joined_pts)
+    assert split_elem == joined_elem
+    np.testing.assert_array_equal(split_region, joined_region)
+
+
+def test_load_carp_mesh_directory_tolerates_trailing_separator(carp_mesh_files):
+    from imatools.io.carp_io import loadCarpMesh
+
+    base = Path(str(carp_mesh_files))
+
+    expected_pts, expected_elem, expected_region = loadCarpMesh(str(base))
+    pts, elem, region = loadCarpMesh(base.name, directory=str(base.parent) + os.sep)
+
+    np.testing.assert_array_equal(pts, expected_pts)
+    assert elem == expected_elem
+    np.testing.assert_array_equal(region, expected_region)
