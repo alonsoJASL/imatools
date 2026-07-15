@@ -102,6 +102,23 @@ def test_save_to_carp_txt_elem_lines(golden):
     assert result == expected
 
 
+# saveToCarpTxt takes a Union[str, Path] basename. It builds the extensions by
+# concatenation, so a Path argument used to raise TypeError; it now normalises.
+
+
+def test_save_to_carp_txt_accepts_path_basename():
+    from imatools.io.carp_io import loadCarpMesh, saveToCarpTxt
+
+    pts, elem, _region, _lon = fx.carp_mesh()
+    out_dir = Path(tempfile.mkdtemp())
+
+    saveToCarpTxt(pts, elem, out_dir / "out")  # Path, not str
+
+    back_pts, back_elem, _back_region = loadCarpMesh(str(out_dir / "out"))
+    np.testing.assert_allclose(back_pts, pts, rtol=1e-7)
+    assert len(back_elem) == len(elem)
+
+
 # ---------------------------------------------------------------------------
 # readParsePts
 # ---------------------------------------------------------------------------
@@ -149,6 +166,28 @@ def test_load_carp_mesh_intent(carp_mesh_files):
     assert pts.shape == (5, 3)
     assert len(elem) == 4
     assert len(region) == 4
+
+
+# get_total on a missing file RAISES rather than calling sys.exit(-1) (deliberate
+# change: the migrated version killed the caller's process, so importers had no
+# chance to handle it). Pinned here because no golden covers the error path.
+
+
+def test_get_total_missing_file_raises(tmp_path):
+    import pytest
+
+    from imatools.io.carp_io import get_total
+
+    with pytest.raises(FileNotFoundError):
+        get_total(str(tmp_path / "does_not_exist.pts"))
+
+
+def test_get_total_accepts_str_and_path(carp_mesh_files):
+    from imatools.io.carp_io import get_total
+
+    as_str = get_total(str(carp_mesh_files) + ".pts")
+    as_path = get_total(Path(str(carp_mesh_files) + ".pts"))
+    assert as_str == as_path == 5
 
 
 # The ``directory is not None`` branch builds the .pts/.elem paths itself. It had

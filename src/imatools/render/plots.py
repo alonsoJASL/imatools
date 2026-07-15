@@ -8,14 +8,14 @@ no new I/O added).
 """
 
 import os
+import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from imatools.io.paths import fullfile
 
-
-def plot_dict(mydic, plotname, out_dir, oname, ylims=[]):
+def plot_dict(mydic, plotname, out_dir: Path, oname, ylims=[]):
     """
     Plot dictionary.
     plot_params can be:
@@ -31,7 +31,8 @@ def plot_dict(mydic, plotname, out_dir, oname, ylims=[]):
             ax.set_ylim(ylims[0], ylims[1])
 
         fig.suptitle(oname)
-        fig.savefig(fullfile(out_dir, "{}_{}.pdf".format(oname, plotname)))
+        fig.savefig(out_dir / f"{oname}_{plotname}.pdf")
+
         return fig, ax
 
     except AttributeError:
