@@ -51,6 +51,7 @@ def l2_norm(a):
 def near(value1, value2, tol=1e-8):
     return np.abs(value1 - value2) <= tol
 
+
 def performance_metrics(tp, tn, fp, fn):
     den_jaccard = tp + fn + fp
     den_precision = tp + fp
@@ -73,6 +74,7 @@ def performance_metrics(tp, tn, fp, fn):
     }
 
     return out_dic
+
 
 def performanceMetrics(tp, tn, fp, fn):  # noqa: N802
     """Legacy alias for performance_metrics (T2c1)."""
@@ -182,6 +184,7 @@ def compareCarpMesh(pts1, el1, pts2, el2):  # noqa: N802
 # Moved from imatools.common.vtktools (verbatim unless noted; M2a-2)
 # ---------------------------------------------------------------------------
 
+
 def get_hausdorff_distance_filter(input_mesh0, input_mesh1, label=0):
     """
     Get vtkHausdorffDistancePointSetFilter output between 2 surface meshes
@@ -214,17 +217,21 @@ def get_hausdorff_distance(input_mesh0, input_mesh1, label=0):
 
     return hd.GetOutput()
 
-def getHausdorffDistance(input_mesh0, input_mesh1, label=0): # noqa: N802
+
+def getHausdorffDistance(input_mesh0, input_mesh1, label=0):  # noqa: N802
     logger.warning("getHausdorffDistance is deprecated; use get_hausdorff_distance instead")
     return get_hausdorff_distance(input_mesh0, input_mesh1, label)
 
 
-def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0): # noqa: N802
+def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0):  # noqa: N802
     """
     Get vtkHausdorffDistancePointSetFilter output between 2 surface meshes
     """
-    logger.warning("getHausdorffDistanceFilter is deprecated; use get_hausdorff_distance_filter instead")
+    logger.warning(
+        "getHausdorffDistanceFilter is deprecated; use get_hausdorff_distance_filter instead"
+    )
     return get_hausdorff_distance_filter(input_mesh0, input_mesh1, label)
+
 
 def get_surfaces_jaccard(pd1, pd2):
     """Jaccard = surface_area(intersection) / surface_area(union), via pyvista's
@@ -236,7 +243,8 @@ def get_surfaces_jaccard(pd1, pd2):
     intersection = pv1.boolean_intersection(pv2)
     return getSurfaceArea(intersection) / getSurfaceArea(union)
 
-def getSurfacesJaccard(pd1, pd2): # noqa: N802
+
+def getSurfacesJaccard(pd1, pd2):  # noqa: N802
     logger.warning("getSurfacesJaccard is deprecated; use get_surfaces_jaccard instead")
     return get_surfaces_jaccard(pd1, pd2)
 

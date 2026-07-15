@@ -283,9 +283,10 @@ def export_as(input_mesh, output_file: str, export_as="ply") -> None:
     writer.Write()
 
 
-def saveCarpAsVtk(pts, el, dir, name, dat=None): # noqa: N802
+def saveCarpAsVtk(pts, el, dir, name, dat=None):  # noqa: N802
     logger.warning("This function is deprecated. Please use save_carp_as_vtk instead.")
     return save_carp_as_vtk(pts, el, dir, name, dat)
+
 
 def save_carp_as_vtk(pts, el, dir, name, dat=None):
     nodes = vtk.vtkPoints()
@@ -358,9 +359,12 @@ def convert_5_to_4(imsh, omsh):
     writer.Update()
 
 
-def convertToCarto(vtkpoly_path: str, cell_scalar_field: str, output_file: str) -> None: # noqa: N802
+def convertToCarto(  # noqa: N802
+    vtkpoly_path: str, cell_scalar_field: str, output_file: str
+) -> None:
     logger.warning("This function is deprecated. Please use convert_to_carto instead.")
     return convert_to_carto(vtkpoly_path, cell_scalar_field, output_file)
+
 
 def convert_to_carto(vtkpoly_path: str, cell_scalar_field: str, output_file: str) -> None:
     """
