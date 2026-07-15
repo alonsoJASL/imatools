@@ -45,6 +45,15 @@ jobs:
           PYVISTA_OFF_SCREEN: "true"
         run: pytest tests/ -q -p no:cacheprovider
 
+      # Tutorial notebooks are executed, not just linted. They are self-contained
+      # (they generate their own data), so a failure here means the API drifted
+      # away from what the docs teach.
+      - name: Execute tutorial notebooks
+        env:
+          MPLBACKEND: Agg
+          PYVISTA_OFF_SCREEN: "true"
+        run: pytest --nbmake ipynb/ -q -p no:cacheprovider
+
   lint:
     name: black + ruff
     runs-on: ubuntu-latest

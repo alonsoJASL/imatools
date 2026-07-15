@@ -37,6 +37,17 @@ theme:
 
 plugins:
   - search
+  # Renders the tutorial notebooks as docs pages. The notebooks live in ipynb/
+  # (outside docs_dir), reached via the docs/tutorials -> ../ipynb symlink, so
+  # there is one copy of each notebook and no build-time duplication.
+  #
+  # execute: false — notebook outputs are stripped in git, and correctness is
+  # already guaranteed by `pytest --nbmake ipynb/` in tests.yml. Executing here
+  # would need the full package (vtk/itk) installed in the docs job. Flip to true
+  # and add `pip install -e .` to docs.yml if rendered outputs are wanted.
+  - mkdocs-jupyter:
+      execute: false
+      include_source: true
   # Optional: auto-generate API reference from docstrings. Uncomment and add
   # `mkdocstrings[python]` to the docs install step in .github/workflows/docs.yml.
   # - mkdocstrings:
@@ -67,6 +78,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started/index.md
+  - Tutorials:
+    - Mesh I/O: tutorials/01_mesh_io.ipynb
   - Architecture: api/overview.md
   - API Reference:
     - api/index.md

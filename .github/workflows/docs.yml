@@ -30,7 +30,7 @@ jobs:
       - name: Install MkDocs and theme
         # If you enabled the mkdocstrings plugin in mkdocs.yml, append
         # "mkdocstrings[python]" to this line.
-        run: pip install mkdocs-material
+        run: pip install mkdocs-material mkdocs-jupyter
 
       - name: Build site
         # --strict fails the build on broken internal links. Keep it on.
