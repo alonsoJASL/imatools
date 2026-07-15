@@ -235,7 +235,7 @@ def handle_fibrosis_overlap(args: argparse.Namespace) -> int:
 
     if verbose:
         logger.info("Calculating performance metrics for msh1 (%s)", msh_input1)
-    perf = core_metrics.performanceMetrics(
+    perf = core_metrics.performance_metrics(
         tp=counts["overlap"], tn=counts["none"], fp=counts["msh1"], fn=counts["msh0"]
     )
 

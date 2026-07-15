@@ -308,7 +308,7 @@ def handle_surf(args: argparse.Namespace) -> int:
     )
     from imatools.core.mesh import join_vtk, set_cell_scalars  # noqa: PLC0415
     from imatools.io.image_io import load_image, save_image  # noqa: PLC0415
-    from imatools.io.mesh_io import readVtk, writeVtk  # noqa: PLC0415
+    from imatools.io.mesh_io import read_vtk, write_vtk  # noqa: PLC0415
 
     cfg = _resolve_config(args)
 
@@ -360,15 +360,15 @@ def handle_surf(args: argparse.Namespace) -> int:
                 os.path.join(work_dir, "segmentation.vtk"),
                 os.path.join(work_dir, f"{label_name}.vtk"),
             )
-            vtklabel = readVtk(os.path.join(work_dir, f"{label_name}.vtk"))
+            vtklabel = read_vtk(os.path.join(work_dir, f"{label_name}.vtk"))
             vtklabel = set_cell_scalars(vtklabel, label)
-            writeVtk(vtklabel, work_dir, f"{label_name}.vtk")
+            write_vtk(vtklabel, work_dir, f"{label_name}.vtk")
             if vtkout is None:
-                vtkout = readVtk(os.path.join(work_dir, f"{label_name}.vtk"))
+                vtkout = read_vtk(os.path.join(work_dir, f"{label_name}.vtk"))
             else:
-                vtkout = join_vtk(vtkout, readVtk(os.path.join(work_dir, f"{label_name}.vtk")))
+                vtkout = join_vtk(vtkout, read_vtk(os.path.join(work_dir, f"{label_name}.vtk")))
         if vtkout is not None:
-            writeVtk(vtkout, work_dir, "segmentation.vtk")
+            write_vtk(vtkout, work_dir, "segmentation.vtk")
     else:
         _create_segmentation_mesh(
             cfg.mirtk_dir, work_dir, pveins_file, iterations, isovalue, blur, debug

@@ -312,7 +312,7 @@ def save_carp_as_vtk(pts, el, dir, name, dat=None):
     else:
         outpd = pd
 
-    writeVtk(outpd, dir, name)
+    write_vtk(outpd, dir, name)
 
 
 def vtk_from_points_file(file_path: str, mydelim=","):

@@ -52,12 +52,12 @@ logger = configure_logging(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Lazy accessor — ``readVtk`` / ``write_vtk`` live in ``io.mesh_io``, imported
+# Lazy accessor — ``read_vtk`` / ``write_vtk`` live in ``io.mesh_io``, imported
 # lazily to keep this module's I/O dependency at call time rather than load time
 # (M2c — was routed through the ``common.vtktools`` shim, now gone).
 # ---------------------------------------------------------------------------
 def _mesh_io():
-    """Return the io.mesh_io module (imported lazily; used for readVtk/write_vtk)."""
+    """Return the io.mesh_io module (imported lazily; used for read_vtk/write_vtk)."""
     import imatools.io.mesh_io as _m  # noqa: PLC0415
 
     return _m
@@ -476,8 +476,8 @@ def translate_to_point(mesh, point=[0, 0, 0]):  # noqa: B006
 
 
 def compare_mesh_sizes(msh_left_name, msh_right_name, left_id, right_id, map_type_id):
-    msh_left = _mesh_io().readVtk(msh_left_name)
-    msh_right = _mesh_io().readVtk(msh_right_name)
+    msh_left = _mesh_io().read_vtk(msh_left_name)
+    msh_right = _mesh_io().read_vtk(msh_right_name)
 
     if map_type_id == 1:  # elem
         tot_left = msh_left.GetNumberOfCells()
@@ -1348,7 +1348,7 @@ def get_filtered_array(
     """Filter a mapping DataFrame by distance and pull the matching mesh scalar values.
 
     Adapted (M2a-2): the original ``common.vtktools.get_filtered_array`` took a
-    ``mesh_path: str`` and read it internally via ``readVtk`` — file I/O inside
+    ``mesh_path: str`` and read it internally via ``read_vtk`` — file I/O inside
     a ``core`` function. Since this function has zero callers, the signature
     now takes an already-loaded mesh object ``msh`` instead, matching the
     object-based convention used elsewhere in this module (e.g.
