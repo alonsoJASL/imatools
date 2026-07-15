@@ -1,0 +1,73 @@
+site_name: imatools
+site_description: Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats — CEMRG, Imperial College London
+site_url: https://alonsojasl.github.io/imatools/
+repo_url: https://github.com/alonsoJASL/imatools
+repo_name: alonsoJASL/imatools
+
+theme:
+  name: material
+  palette:
+    # Give each library its own primary/accent colour so they are visually
+    # distinct but clearly part of one suite. (image-analysis uses red.)
+    - scheme: default
+      primary: green
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: green
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.tracking
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+
+plugins:
+  - search
+  # Optional: auto-generate API reference from docstrings. Uncomment and add
+  # `mkdocstrings[python]` to the docs install step in .github/workflows/docs.yml.
+  # - mkdocstrings:
+  #     handlers:
+  #       python:
+  #         options:
+  #           show_source: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+# Standard suite nav spine. Delete sections a given library does not have;
+# keep the ordering so the suite feels consistent.
+nav:
+  - Home: index.md
+  - Getting Started: getting-started/index.md
+  - Architecture: api/overview.md
+  - API Reference:
+    - api/index.md
+  - CLI: cli/index.md

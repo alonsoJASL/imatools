@@ -2,15 +2,18 @@
 
 Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats.
 
-## ⚠️ Migration Notice
+## What's new in 0.2.0
 
-**Version 0.2.0** introduces breaking changes as we modernize the codebase:
-- New `src/` layout structure
-- Migration from Poetry to standard `pip install -e .`
-- CLI tools now use proper entry points
-- Active refactoring to improve architecture
+**Version 0.2.0** is a full modernization of the codebase, now complete:
+- New `src/` layout with a layered `core/ io/ contracts/ cli/` architecture
+- Standard `pip install -e .` (no more Poetry)
+- Eight `imatools-*` CLI entry points replacing the old flat scripts
+- Behaviour verified against the 0.1.x code by a golden-master characterization test net
 
-If you need the stable version, use v0.1.x from the `main` branch.
+Breaking change: the old top-level scripts (`python -m imatools.<script>`) have been
+removed and replaced by the `imatools-*` CLIs. The script-to-CLI mapping is documented
+under [Upgrading from 0.1.x](#upgrading-from-01x-script--cli-mapping) below. If you still
+need the pre-migration code, use v0.1.x.
 
 ## Quick Install (Development)
 
@@ -46,35 +49,22 @@ imatools-report --help
 pytest
 ```
 
-## Migration Status
+## Architecture
 
-### ✅ Completed
-- Modern `pyproject.toml` with setuptools
-- `src/` layout structure
-- CLI entry point framework
-- Test infrastructure skeleton
+The package is organized in layers (see the documentation site for the full map):
 
-### 🚧 In Progress
-- Migrating existing scripts to new CLI structure
-- Extracting pure logic from utilities
-- Creating data contracts
-- Building I/O layer
+- **`cli/`** — argument parsing, file I/O, and path construction for the `imatools-*` tools
+- **`io/`** — load/save for VTK, CARP, DICOM, NIfTI, and parfiles (returns typed contracts)
+- **`core/`** — pure, stateless workflows (mesh, scar, label, segmentation, spatial, ...)
+- **`contracts/`** — the data contracts passed between layers
 
-### 📋 Planned
-- Full architecture refactor (see development branch)
-- Comprehensive test coverage
-- API documentation
+Every `core`/`io` function is characterized by golden-master tests captured from the 0.1.x
+code, so behaviour is preserved across the refactor.
 
-## Usage (Legacy Scripts)
+## Upgrading from 0.1.x (script → CLI mapping)
 
-During migration, legacy scripts in the old structure remain functional:
-
-```bash
-# Example: Calculate volume of a mesh
-python -m imatools.calculate_volume /path/to/mesh.vtk
-```
-
-(The segmentation tools have been migrated — use the `imatools-segmentation` CLI below.)
+The old flat scripts have been **removed**. Use the `imatools-*` CLIs instead — the
+equivalences are listed below.
 
 > **Migration notice:** `patient_table_from_dicom.py` and `stack_individual_dicoms.py`
 > have been removed.  Use the `imatools-dicom` subcommands instead:
@@ -188,21 +178,28 @@ python -m imatools.calculate_volume /path/to/mesh.vtk
 > imatools-image gen-cube -out cube.nii -s 80 -c 150 150 50
 > ```
 
-## New CLI (Post-Migration)
+## CLI overview
 
-The new CLI structure provides:
+Each tool is a subcommand group; run `imatools-<tool> --help` for the full list.
 
 ```bash
-# Volume calculations
-imatools-volume /path/to/mesh.vtk
+# Volume / area
+imatools-volume mesh-props /path/to/mesh.vtk         # surface area + volume of a mesh
+imatools-volume label-volumes -in seg.nii            # per-label volumes of a segmentation
 
-# Segmentation operations
+# Segmentation (extract-label, mask, combine, morph-label, cc-extract, ... — see --help)
 imatools-segmentation extract-label -in image.nii -l 1 -out label1.nii
 imatools-segmentation mask -in image.nii -mask mask.nii
 
-# Mesh operations
-imatools-mesh convert input.mesh -o output.vtk
-imatools-mesh report mesh.vtk
+# Mesh (export, flip-xy, from-dotmesh, points-to-image, project-scalars, map, map-stats, fibrosis-overlap)
+imatools-mesh export input.vtk -o output.vtp
+imatools-mesh from-dotmesh input.mesh -o output          # -> CARP .pts/.elem
+
+# Scar (lge, surf, scar-opts, scar, mask, vscar-*, enhance, check, score)
+imatools-scar score --mesh mesh.vtk --mean-bp 120 --stdev-bp 15 --method iir --value 0.97 1.2 1.32
+
+# Reports / rendering
+imatools-report report --sims-folder /data/case1 --report-name report.pdf
 ```
 
 ## Development Setup
@@ -246,8 +243,6 @@ This project follows the **Developer's Manifest** principles:
 3. Stateless engine design
 4. No global state or singletons
 5. Explicit dependency injection
-
-See `developers_manifest.md` for details.
 
 ## License
 

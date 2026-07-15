@@ -1,0 +1,58 @@
+# Copy to .github/workflows/docs.yml in the target repo. Generic — no edits needed.
+# Requires: repo Settings → Pages → Source = "GitHub Actions".
+name: Deploy docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+  workflow_dispatch:
+
+# Allow only one concurrent deployment, skipping runs queued between the
+# run in-progress and latest queued. Do not cancel in-progress runs.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install MkDocs and theme
+        # If you enabled the mkdocstrings plugin in mkdocs.yml, append
+        # "mkdocstrings[python]" to this line.
+        run: pip install mkdocs-material
+
+      - name: Build site
+        # --strict fails the build on broken internal links. Keep it on.
+        run: mkdocs build --strict --site-dir _site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    # Grant GITHUB_TOKEN the permissions required to deploy to Pages.
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
