@@ -12,8 +12,10 @@ Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats
 
 Breaking change: the old top-level scripts (`python -m imatools.<script>`) have been
 removed and replaced by the `imatools-*` CLIs. The script-to-CLI mapping is documented
-under [Upgrading from 0.1.x](#upgrading-from-01x-script--cli-mapping) below. If you still
-need the pre-migration code, use v0.1.x.
+under [Upgrading from 0.1.x](#upgrading-from-01x-script--cli-mapping) below.
+
+If you still need the pre-refactor code, it is preserved on the **`legacy`** branch
+(formerly `master`) and pinned by the **`v0.1.x-final`** tag.
 
 ## Quick Install (Development)
 
