@@ -5,8 +5,8 @@ Defines structured interfaces for image/mesh processing operations.
 """
 
 from dataclasses import dataclass
-from typing import Literal, Any, Optional
 from enum import Enum
+from typing import Any, Literal, Optional
 
 
 class MorphOperationType(str, Enum):

@@ -20,7 +20,7 @@ import vtk
 
 
 def poly2nx(msh: vtk.vtkPolyData) -> nx.Graph:
-    G = nx.Graph()
+    graph_output = nx.Graph()
 
     # Get the points (nodes)
     points = msh.GetPoints()
@@ -32,7 +32,7 @@ def poly2nx(msh: vtk.vtkPolyData) -> nx.Graph:
     # Add nodes with positions
     for i in range(num_points):
         coord = points.GetPoint(i)  # Get (x, y, z) coordinates
-        G.add_node(i, pos=np.array(coord))  # Store coordinates as node attribute
+        graph_output.add_node(i, pos=np.array(coord))  # Store coordinates as node attribute
 
     # Get the cells (edges)
     for i in range(msh.GetNumberOfCells()):
@@ -41,13 +41,13 @@ def poly2nx(msh: vtk.vtkPolyData) -> nx.Graph:
 
         # Add edges based on cell connectivity
         for j in range(len(point_ids) - 1):  # Connect sequential points
-            G.add_edge(point_ids[j], point_ids[j + 1])
+            graph_output.add_edge(point_ids[j], point_ids[j + 1])
 
         # If the cell is a polygon, close the loop
         if cell.GetNumberOfPoints() > 2:
-            G.add_edge(point_ids[-1], point_ids[0])
+            graph_output.add_edge(point_ids[-1], point_ids[0])
 
-    return G
+    return graph_output
 
 
 def compute_cell_neighbor_count(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
@@ -60,44 +60,44 @@ def compute_cell_neighbor_count(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
       polydata: vtk.vtkPolyData representing a surface mesh.
 
     Returns:
-      neighborCountArray: vtkIntArray with one component per cell, containing the number
+      neighbour_count_arr: vtkIntArray with one component per cell, containing the number
                           of immediate neighbors.
     """
-    numCells = polydata.GetNumberOfCells()
+    num_cells = polydata.GetNumberOfCells()
 
     # Build a dictionary mapping vertex IDs to the set of cell IDs that include that vertex.
     vertex2cells = {}
-    for cellId in range(numCells):
-        cell = polydata.GetCell(cellId)
-        ptIds = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
-        for pt in ptIds:
+    for cell_id in range(num_cells):
+        cell = polydata.GetCell(cell_id)
+        pt_ids = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
+        for pt in pt_ids:
             if pt not in vertex2cells:
                 vertex2cells[pt] = set()
-            vertex2cells[pt].add(cellId)
+            vertex2cells[pt].add(cell_id)
 
     # Create an undirected graph where each node represents a cell.
-    G = nx.Graph()
-    G.add_nodes_from(range(numCells))
+    u_graph = nx.Graph()
+    u_graph.add_nodes_from(range(num_cells))
 
     # For every vertex, connect all cells that share that vertex.
     for pt, cells in vertex2cells.items():
         cells_list = list(cells)
         for i in range(len(cells_list)):
             for j in range(i + 1, len(cells_list)):
-                G.add_edge(cells_list[i], cells_list[j])
+                u_graph.add_edge(cells_list[i], cells_list[j])
 
     # Create a vtkIntArray to store the number of immediate neighbors for each cell.
-    neighborCountArray = vtk.vtkIntArray()
-    neighborCountArray.SetName("CellNeighborCount")
-    neighborCountArray.SetNumberOfComponents(1)
-    neighborCountArray.SetNumberOfTuples(numCells)
+    neighbour_count_arr = vtk.vtkIntArray()
+    neighbour_count_arr.SetName("CellNeighborCount")
+    neighbour_count_arr.SetNumberOfComponents(1)
+    neighbour_count_arr.SetNumberOfTuples(num_cells)
 
     # For each cell, the degree in the graph is the number of immediate neighbors.
-    for cellId in range(numCells):
-        count = G.degree(cellId)
-        neighborCountArray.SetTuple1(cellId, count)
+    for cell_id in range(num_cells):
+        count = u_graph.degree(cell_id)
+        neighbour_count_arr.SetTuple1(cell_id, count)
 
-    return neighborCountArray
+    return neighbour_count_arr
 
 
 def detect_bridges_with_graph_vertex(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
@@ -113,70 +113,70 @@ def detect_bridges_with_graph_vertex(polydata: vtk.vtkPolyData) -> vtk.vtkIntArr
       bridgeArray: vtkIntArray with 1 for cells that are flagged as being part of a bridge,
                    and 0 otherwise.
     """
-    numCells = polydata.GetNumberOfCells()
+    num_cells = polydata.GetNumberOfCells()
     edge2cells = (
         {}
     )  # Maps edges (sorted tuples of point IDs) to the list of cell IDs that share them.
     vertex2cells = {}  # Maps vertices (point IDs) to the list of cell IDs that contain them.
 
     # Step 1: Populate edge and vertex connectivity
-    for cellId in range(numCells):
-        cell = polydata.GetCell(cellId)
-        ptIds = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
-        if len(ptIds) != 3:
+    for cell_id in range(num_cells):
+        cell = polydata.GetCell(cell_id)
+        pt_id = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
+        if len(pt_id) != 3:
             continue
 
         # Store edges (ensuring they are sorted to prevent duplicates)
         edges = [
-            tuple(sorted((ptIds[0], ptIds[1]))),
-            tuple(sorted((ptIds[1], ptIds[2]))),
-            tuple(sorted((ptIds[2], ptIds[0]))),
+            tuple(sorted((pt_id[0], pt_id[1]))),
+            tuple(sorted((pt_id[1], pt_id[2]))),
+            tuple(sorted((pt_id[2], pt_id[0]))),
         ]
         for edge in edges:
             if edge not in edge2cells:
                 edge2cells[edge] = []
-            edge2cells[edge].append(cellId)
+            edge2cells[edge].append(cell_id)
 
         # Store vertex-based connectivity
-        for pt in ptIds:
+        for pt in pt_id:
             if pt not in vertex2cells:
                 vertex2cells[pt] = []
-            vertex2cells[pt].append(cellId)
+            vertex2cells[pt].append(cell_id)
 
     # Step 2: Build the connectivity graph (G)
-    G = nx.Graph()
-    G.add_nodes_from(range(numCells))
+    conn_graph = nx.Graph()
+    conn_graph.add_nodes_from(range(num_cells))
 
     # Edge-based connectivity: Connect triangles that share an edge
     for edge, cells in edge2cells.items():
         if len(cells) == 2:  # Only consider edges shared by exactly 2 triangles
-            G.add_edge(cells[0], cells[1])
+            conn_graph.add_edge(cells[0], cells[1])
 
     # Vertex-based connectivity: Connect triangles that share at least one vertex
     for pt, cells in vertex2cells.items():
         for i in range(len(cells)):
             for j in range(i + 1, len(cells)):  # Connect all triangles that share this vertex
-                G.add_edge(cells[i], cells[j])
+                conn_graph.add_edge(cells[i], cells[j])
 
     # Step 3: Detect bridges (edges whose removal would disconnect the graph)
-    bridges = list(nx.bridges(G))
+    bridges = list(nx.bridges(conn_graph))
 
     # Step 4: Create an array to flag cells that are part of any bridge
-    bridgeFlag = vtk.vtkIntArray()
-    bridgeFlag.SetName("BridgeFlag")
-    bridgeFlag.SetNumberOfComponents(1)
-    bridgeFlag.SetNumberOfTuples(numCells)
+    bridge_flag = vtk.vtkIntArray()
+    bridge_flag.SetName("BridgeFlag")
+    bridge_flag.SetNumberOfComponents(1)
+    bridge_flag.SetNumberOfTuples(num_cells)
 
     # Initialize all cells to 0 (not part of a bridge)
-    for i in range(numCells):
-        bridgeFlag.SetTuple1(i, 0)
+    for i in range(num_cells):
+        bridge_flag.SetTuple1(i, 0)
 
     # Mark cells that are part of a bridge
-    for cellA, cellB in bridges:
-        bridgeFlag.SetTuple1(cellA, 1)
-        bridgeFlag.SetTuple1(cellB, 1)
+    for cell_a, cell_b in bridges:
+        bridge_flag.SetTuple1(cell_a, 1)
+        bridge_flag.SetTuple1(cell_b, 1)
 
-    return bridgeFlag
+    return bridge_flag
 
 
 def detect_bridges_with_graph(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
@@ -185,50 +185,50 @@ def detect_bridges_with_graph(polydata: vtk.vtkPolyData) -> vtk.vtkIntArray:
     and detecting bridges. A bridge is an edge whose removal disconnects the graph.
     Returns a vtkIntArray (with one entry per cell) that flags cells involved in at least one bridge.
     """
-    numCells = polydata.GetNumberOfCells()
+    num_cells = polydata.GetNumberOfCells()
     # Map each edge (as a sorted tuple of point IDs) to the list of cell IDs that share it.
     edge2cells = {}
-    for cellId in range(numCells):
-        cell = polydata.GetCell(cellId)
+    for cell_id in range(num_cells):
+        cell = polydata.GetCell(cell_id)
         # Assuming triangles. Get the point IDs.
-        ptIds = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
-        if len(ptIds) != 3:
+        pt_id = [cell.GetPointId(i) for i in range(cell.GetNumberOfPoints())]
+        if len(pt_id) != 3:
             continue
         # For each edge (3 per triangle)
         edges = [
-            tuple(sorted((ptIds[0], ptIds[1]))),
-            tuple(sorted((ptIds[1], ptIds[2]))),
-            tuple(sorted((ptIds[2], ptIds[0]))),
+            tuple(sorted((pt_id[0], pt_id[1]))),
+            tuple(sorted((pt_id[1], pt_id[2]))),
+            tuple(sorted((pt_id[2], pt_id[0]))),
         ]
         for edge in edges:
             if edge not in edge2cells:
                 edge2cells[edge] = []
-            edge2cells[edge].append(cellId)
+            edge2cells[edge].append(cell_id)
 
     # Build a graph where each node is a cell (triangle) and an edge exists if two cells share an edge.
-    G = nx.Graph()
-    G.add_nodes_from(range(numCells))
+    mesh_graph = nx.Graph()
+    mesh_graph.add_nodes_from(range(num_cells))
     for edge, cells in edge2cells.items():
         if len(cells) == 2:
-            G.add_edge(cells[0], cells[1])
+            mesh_graph.add_edge(cells[0], cells[1])
 
     # Identify bridge edges using networkx.
-    bridges = list(nx.bridges(G))
+    bridges = list(nx.bridges(mesh_graph))
 
     # Create an array to flag cells that are part of any bridge edge.
-    bridgeFlag = vtk.vtkIntArray()
-    bridgeFlag.SetName("BridgeFlag")
-    bridgeFlag.SetNumberOfComponents(1)
-    bridgeFlag.SetNumberOfTuples(numCells)
-    for i in range(numCells):
-        bridgeFlag.SetTuple1(i, 0)
+    bridge_flag = vtk.vtkIntArray()
+    bridge_flag.SetName("BridgeFlag")
+    bridge_flag.SetNumberOfComponents(1)
+    bridge_flag.SetNumberOfTuples(num_cells)
+    for i in range(num_cells):
+        bridge_flag.SetTuple1(i, 0)
 
     # Mark both cells for each bridge edge.
-    for cellA, cellB in bridges:
-        bridgeFlag.SetTuple1(cellA, 1)
-        bridgeFlag.SetTuple1(cellB, 1)
+    for cell_a, cell_b in bridges:
+        bridge_flag.SetTuple1(cell_a, 1)
+        bridge_flag.SetTuple1(cell_b, 1)
 
-    return bridgeFlag
+    return bridge_flag
 
 
 def detect_bridges_with_thickness(
@@ -244,34 +244,34 @@ def detect_bridges_with_thickness(
       thickness_threshold: If the computed local thickness is below this threshold, the vertex is flagged.
 
     Returns:
-      thicknessFlag: vtkIntArray (one entry per cell) with 1 for cells that are likely part of a narrow bridge.
+      thickness_flag: vtkIntArray (one entry per cell) with 1 for cells that are likely part of a narrow bridge.
     """
     # Ensure that normals exist. If not, compute them.
     if not polydata.GetPointData().GetNormals():
-        normalsFilter = vtk.vtkPolyDataNormals()
-        normalsFilter.SetInputData(polydata)
-        normalsFilter.ComputePointNormalsOn()
-        normalsFilter.ComputeCellNormalsOff()
-        normalsFilter.Update()
-        polydata = normalsFilter.GetOutput()
+        normals_filter = vtk.vtkPolyDataNormals()
+        normals_filter.SetInputData(polydata)
+        normals_filter.ComputePointNormalsOn()
+        normals_filter.ComputeCellNormalsOff()
+        normals_filter.Update()
+        polydata = normals_filter.GetOutput()
 
-    numPoints = polydata.GetNumberOfPoints()
+    num_points = polydata.GetNumberOfPoints()
 
     # Build a locator for fast intersection queries.
-    cellLocator = vtk.vtkCellLocator()
-    cellLocator.SetDataSet(polydata)
-    cellLocator.BuildLocator()
+    cell_locator = vtk.vtkCellLocator()
+    cell_locator.SetDataSet(polydata)
+    cell_locator.BuildLocator()
 
     # Create an array to store local thickness for each vertex.
-    thicknessArray = vtk.vtkDoubleArray()
-    thicknessArray.SetName("LocalThickness")
-    thicknessArray.SetNumberOfComponents(1)
-    thicknessArray.SetNumberOfTuples(numPoints)
+    thickness_array = vtk.vtkDoubleArray()
+    thickness_array.SetName("LocalThickness")
+    thickness_array.SetNumberOfComponents(1)
+    thickness_array.SetNumberOfTuples(num_points)
 
     # For each vertex, cast a ray opposite to the normal and measure distance to the next intersection.
     # We use a small epsilon to avoid detecting the originating cell.
     epsilon = 1e-6
-    for i in range(numPoints):
+    for i in range(num_points):
         point = polydata.GetPoint(i)
         normal = polydata.GetPointData().GetNormals().GetTuple(i)
         # Create a ray: from the point to (point - normal * max_distance)
@@ -284,37 +284,37 @@ def detect_bridges_with_thickness(
         t = vtk.mutable(0.0)
         x = [0.0, 0.0, 0.0]
         pcoords = [0.0, 0.0, 0.0]
-        subId = vtk.mutable(0)
+        sub_id = vtk.mutable(0)
         # IntersectWithLine returns 1 if an intersection is found.
-        if cellLocator.IntersectWithLine(start, end, epsilon, t, x, pcoords, subId):
+        if cell_locator.IntersectWithLine(start, end, epsilon, t, x, pcoords, sub_id):
             # t is a normalized parameter along the line. Multiply by max_distance.
             distance = t * max_distance
         else:
             # No intersection found: set thickness to max_distance.
             distance = max_distance
-        thicknessArray.SetTuple1(i, distance)
+        thickness_array.SetTuple1(i, distance)
 
     # Now, flag cells that have any vertex with thickness below the threshold.
-    numCells = polydata.GetNumberOfCells()
-    thicknessFlag = vtk.vtkDoubleArray()
-    thicknessFlag.SetName("BridgeByThickness")
-    thicknessFlag.SetNumberOfComponents(1)
-    thicknessFlag.SetNumberOfTuples(numCells)
-    for cellId in range(numCells):
-        cell = polydata.GetCell(cellId)
+    num_cells = polydata.GetNumberOfCells()
+    thickness_flag = vtk.vtkDoubleArray()
+    thickness_flag.SetName("BridgeByThickness")
+    thickness_flag.SetNumberOfComponents(1)
+    thickness_flag.SetNumberOfTuples(num_cells)
+    for cell_id in range(num_cells):
+        cell = polydata.GetCell(cell_id)
         flag = 0
         raw_flag = 0
         for j in range(cell.GetNumberOfPoints()):
-            ptId = cell.GetPointId(j)
-            raw_flag += thicknessArray.GetTuple1(ptId)
-            if thicknessArray.GetTuple1(ptId) > thickness_threshold:
+            pt_id = cell.GetPointId(j)
+            raw_flag += thickness_array.GetTuple1(pt_id)
+            if thickness_array.GetTuple1(pt_id) > thickness_threshold:
                 flag = 1
                 break
         raw_flag /= cell.GetNumberOfPoints()
 
         if output_raw_thickness:
-            thicknessFlag.SetTuple1(cellId, raw_flag)
+            thickness_flag.SetTuple1(cell_id, raw_flag)
         else:
-            thicknessFlag.SetTuple1(cellId, flag)
+            thickness_flag.SetTuple1(cell_id, flag)
 
-    return thicknessFlag
+    return thickness_flag

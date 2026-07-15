@@ -1,4 +1,5 @@
 import SimpleITK as sitk
+
 from imatools.core import segmentation as core_seg
 
 

@@ -11,13 +11,12 @@ Core logic should NEVER import from this module.
 """
 
 from .image_io import (
-    load_image,
-    save_image,
-    load_nrrd,
-    save_nrrd,
     get_nrrd_header,
+    load_image,
+    load_nrrd,
+    save_image,
+    save_nrrd,
 )
-
 from .mesh_io import (
     load_mesh,
     save_mesh,

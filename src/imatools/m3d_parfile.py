@@ -4,10 +4,8 @@ raise ImportError(
 )
 
 
-import os
-import sys
-import json
 import argparse
+import os
 
 from common import m3dutils as m3d
 
@@ -76,7 +74,7 @@ def main(args):
 
     args_pot = fill_with_args(args)
 
-    myhelp = args.help
+    # myhelp = args.help
 
     if args.mode == "new":
         final_pot = new_parfile(args_pot)

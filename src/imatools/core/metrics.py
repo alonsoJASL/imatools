@@ -22,6 +22,8 @@ category and being removed elsewhere in M2).
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
 import pyvista as pv
@@ -35,6 +37,8 @@ from imatools.core.mesh import (
     ugrid2polydata,
 )
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Moved from imatools.common.ioutils (verbatim)
 # ---------------------------------------------------------------------------
@@ -47,8 +51,7 @@ def l2_norm(a):
 def near(value1, value2, tol=1e-8):
     return np.abs(value1 - value2) <= tol
 
-
-def performanceMetrics(tp, tn, fp, fn):  # noqa: N802
+def performance_metrics(tp, tn, fp, fn):
     den_jaccard = tp + fn + fp
     den_precision = tp + fp
     den_recall = tp + fn
@@ -70,6 +73,11 @@ def performanceMetrics(tp, tn, fp, fn):  # noqa: N802
     }
 
     return out_dic
+
+def performanceMetrics(tp, tn, fp, fn):  # noqa: N802
+    """Legacy alias for performance_metrics (T2c1)."""
+    logger.warning("performanceMetrics is deprecated; use performance_metrics instead")
+    return performance_metrics(tp, tn, fp, fn)
 
 
 def get_boxplot_values(data, whisker=1.5):
@@ -174,17 +182,7 @@ def compareCarpMesh(pts1, el1, pts2, el2):  # noqa: N802
 # Moved from imatools.common.vtktools (verbatim unless noted; M2a-2)
 # ---------------------------------------------------------------------------
 
-
-def getHausdorffDistance(input_mesh0, input_mesh1, label=0):
-    """
-    Get Hausdorf Distance between 2 surface meshes
-    """
-    hd = getHausdorffDistanceFilter(input_mesh0, input_mesh1, label)
-
-    return hd.GetOutput()
-
-
-def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0):
+def get_hausdorff_distance_filter(input_mesh0, input_mesh1, label=0):
     """
     Get vtkHausdorffDistancePointSetFilter output between 2 surface meshes
     """
@@ -208,7 +206,27 @@ def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0):
     return hd
 
 
-def getSurfacesJaccard(pd1, pd2):
+def get_hausdorff_distance(input_mesh0, input_mesh1, label=0):
+    """
+    Get Hausdorf Distance between 2 surface meshes
+    """
+    hd = get_hausdorff_distance_filter(input_mesh0, input_mesh1, label)
+
+    return hd.GetOutput()
+
+def getHausdorffDistance(input_mesh0, input_mesh1, label=0): # noqa: N802
+    logger.warning("getHausdorffDistance is deprecated; use get_hausdorff_distance instead")
+    return get_hausdorff_distance(input_mesh0, input_mesh1, label)
+
+
+def getHausdorffDistanceFilter(input_mesh0, input_mesh1, label=0): # noqa: N802
+    """
+    Get vtkHausdorffDistancePointSetFilter output between 2 surface meshes
+    """
+    logger.warning("getHausdorffDistanceFilter is deprecated; use get_hausdorff_distance_filter instead")
+    return get_hausdorff_distance_filter(input_mesh0, input_mesh1, label)
+
+def get_surfaces_jaccard(pd1, pd2):
     """Jaccard = surface_area(intersection) / surface_area(union), via pyvista's
     boolean ops (rebuilt M2a-2; the old getBooleanOperation* VTK wrapper is
     superseded by pyvista.PolyData.boolean_union/_intersection)."""
@@ -217,6 +235,10 @@ def getSurfacesJaccard(pd1, pd2):
     union = pv1.boolean_union(pv2)
     intersection = pv1.boolean_intersection(pv2)
     return getSurfaceArea(intersection) / getSurfaceArea(union)
+
+def getSurfacesJaccard(pd1, pd2): # noqa: N802
+    logger.warning("getSurfacesJaccard is deprecated; use get_surfaces_jaccard instead")
+    return get_surfaces_jaccard(pd1, pd2)
 
 
 def compare_fibres(msh_a, msh_b, f_a, f_b):
@@ -254,14 +276,14 @@ def compare_fibres(msh_a, msh_b, f_a, f_b):
     region1 = convertCellDataToNpArray(msh1, "elemTag")
 
     for jx in range(num_elements1):
-        cellId = vtk.reference(0)
+        cell_id = vtk.reference(0)
         c = [0.0, 0.0, 0.0]
-        subId = vtk.reference(0)
+        sub_id = vtk.reference(0)
         d = vtk.reference(0.0)
 
-        cell_loc.FindClosestPoint(cog1[jx], c, cellId, subId, d)
+        cell_loc.FindClosestPoint(cog1[jx], c, cell_id, sub_id, d)
         centres[jx] = c
-        a = norm_vec_f0[cellId.get()]
+        a = norm_vec_f0[cell_id.get()]
         b = norm_vec_f1[jx]
         f0v1_dot[jx] = np.dot(a, b)
 

@@ -5,8 +5,9 @@ Defines structured interfaces for 3D mesh data (VTK polydata, unstructured grids
 """
 
 from dataclasses import dataclass
-from typing import Optional, Literal
 from pathlib import Path
+from typing import Literal, Optional
+
 import numpy as np
 import vtk
 

@@ -19,7 +19,6 @@ from pathlib import Path
 
 import numpy as np
 from _capture_golden import CaptureCase
-
 from imatools.common.scarqtools import ScarQuantificationTools
 
 # ---------------------------------------------------------------------------

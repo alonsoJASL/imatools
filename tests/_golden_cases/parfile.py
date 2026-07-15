@@ -30,7 +30,6 @@ import os
 import tempfile
 
 from _capture_golden import CaptureCase
-
 from imatools.common.m3dutils import load_from_par, save_pot, update_pot
 
 # ---------------------------------------------------------------------------

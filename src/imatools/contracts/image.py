@@ -5,8 +5,9 @@ Defines structured interfaces for medical image data (NIfTI, NRRD, DICOM).
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
 from pathlib import Path
+from typing import Optional, Tuple
+
 import numpy as np
 import SimpleITK as sitk
 
