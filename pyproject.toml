@@ -91,6 +91,10 @@ target-version = ['py39']
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+# Ruff lints .ipynb natively. Tutorial notebooks are teaching material, not
+# library code: exploratory naming and mid-notebook imports are fine there, and
+# linting them drowns the package's own findings in noise.
+extend-exclude = ["ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
