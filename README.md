@@ -140,11 +140,11 @@ MIT License - see `LICENSE` file for details.
 
 ## Contributing
 
-Contributions welcome. Please:
-1. Branch from `development`; `main` is the released code and `legacy` is the frozen 0.1.x oracle
-2. Follow the layering above — `cli/` owns I/O and paths, `core/` stays pure and stateless
-3. Add tests for new functionality, and hold the gate before pushing
-4. Never re-baseline a golden to make a test pass
+Contributions welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
+The short version: branch from `development`, hold the gate before pushing, and **never
+re-capture a golden master to make a test pass** — the `legacy` branch is the behaviour
+oracle, and a failing golden means your change altered behaviour.
 
 ## Support
 
