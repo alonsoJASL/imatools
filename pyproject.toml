@@ -51,11 +51,8 @@ dev = [
     "pytest>=7.0",
     "pytest-cov",
     # nbmake executes the tutorial notebooks as tests. The pre-0.2.0 notebooks
-    # rotted silently because nothing ever ran them; this stops that recurring.
     "nbmake",
-    # black is pinned exactly: its stable style changes between releases, so an
-    # unpinned black reformats the whole tree on upgrade and breaks the gate.
-    # Keep in sync with the lint job in .github/workflows/tests.yml.
+    # black is pinned exactly: Keep in sync with the lint job in .github/workflows/tests.yml.
     "black==26.5.1",
     "ruff",
     "mypy",
