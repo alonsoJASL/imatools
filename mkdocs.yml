@@ -77,7 +77,9 @@ markdown_extensions:
 # keep the ordering so the suite feels consistent.
 nav:
   - Home: index.md
-  - Getting Started: getting-started/index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Upgrading from 0.1.x: getting-started/upgrading.md
   - Tutorials:
     - Mesh I/O: tutorials/01_mesh_io.ipynb
     - Scalar fields: tutorials/02_scalar_fields.ipynb
