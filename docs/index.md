@@ -2,7 +2,7 @@
 
 Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats.
 Maintained by the [José Alonso Solís-Lemus](https://alonsojasl.github.io/), 
-used by the [CEMRG](www.cemrg.com).
+used by the [CEMRG](https://www.cemrg.com).
 
 ---
 

@@ -80,6 +80,10 @@ nav:
   - Getting Started: getting-started/index.md
   - Tutorials:
     - Mesh I/O: tutorials/01_mesh_io.ipynb
+    - Scalar fields: tutorials/02_scalar_fields.ipynb
+    - Scar and fibrosis: tutorials/03_scar_and_fibrosis.ipynb
+    - Segmentation labels: tutorials/04_segmentation_labels.ipynb
+    - Mapping and comparison: tutorials/05_mapping_comparison.ipynb
   - Architecture: api/overview.md
   - API Reference:
     - api/index.md
