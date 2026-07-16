@@ -347,6 +347,34 @@ def test_dice_score_identical(golden):
     assert result == pytest.approx(float(expected), rel=1e-7)
 
 
+def test_dice_score_does_not_depend_on_caller_holding_refs():
+    """dice_score must give the same answer for temporary and held arguments.
+
+    ``imview`` returns a view that does not own the image's buffer, so the image
+    must outlive the view. dice_score used to rebind its parameters over that view
+    (``true = itk.imview(true)``), which dropped the last reference when the caller
+    passed a temporary — the buffer could then be freed mid-call and the sums read
+    freed memory.
+
+    Asserting a fixed value would not catch this reliably: the freed buffer is often
+    still intact (it reproduces on 3.12, not on 3.10) and the wrong answer can even be
+    stable within a run. Comparing the temporary-argument path against the
+    held-reference path tests the actual property, and fails on the old code.
+    """
+    import gc
+
+    from imatools.core.label import dice_score
+
+    true_im, pred_im = fx.label_image(), fx.label_image()
+    held = float(dice_score(true_im, pred_im))  # refs alive for the whole call
+    gc.collect()
+
+    temporary = float(dice_score(fx.label_image(), fx.label_image()))
+    gc.collect()
+
+    assert temporary == pytest.approx(held, rel=1e-12)
+
+
 # ---------------------------------------------------------------------------
 # compare_images
 # ---------------------------------------------------------------------------
