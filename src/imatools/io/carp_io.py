@@ -149,6 +149,10 @@ def loadCarpMesh(mshname: Union[str, Path], directory: Union[str, Path, None] = 
 
 
 def saveToCarpTxt(pts, el, mshname: Union[str, Path]):  # noqa: N802
+    logger.warning("saveToCarpTxt() is deprecated; use save_to_carp_txt() instead")
+    save_to_carp_txt(pts, el, mshname)
+
+def save_to_carp_txt(pts, el, mshname: Union[str, Path]):
     """Save CARP mesh to text files.
 
     ``mshname`` is a basename with no extension; ``.pts``/``.elem`` are appended.

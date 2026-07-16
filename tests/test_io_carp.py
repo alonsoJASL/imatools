@@ -77,12 +77,12 @@ def test_read_lon(golden, carp_mesh_files):
 
 
 def test_save_to_carp_txt_pts_lines(golden):
-    from imatools.io.carp_io import saveToCarpTxt
+    from imatools.io.carp_io import save_to_carp_txt
 
     pts, elem, _region, _lon = fx.carp_mesh()
     out_dir = tempfile.mkdtemp()
     mshname = os.path.join(out_dir, "out")
-    saveToCarpTxt(pts, elem, mshname)
+    save_to_carp_txt(pts, elem, mshname)
     with open(mshname + ".pts", encoding="utf-8") as fh:
         result = [line.rstrip("\n") for line in fh.readlines()]
     expected = golden("carp/saveToCarpTxt_pts_lines")
@@ -90,12 +90,12 @@ def test_save_to_carp_txt_pts_lines(golden):
 
 
 def test_save_to_carp_txt_elem_lines(golden):
-    from imatools.io.carp_io import saveToCarpTxt
+    from imatools.io.carp_io import save_to_carp_txt
 
     pts, elem, _region, _lon = fx.carp_mesh()
     out_dir = tempfile.mkdtemp()
     mshname = os.path.join(out_dir, "out")
-    saveToCarpTxt(pts, elem, mshname)
+    save_to_carp_txt(pts, elem, mshname)
     with open(mshname + ".elem", encoding="utf-8") as fh:
         result = [line.rstrip("\n") for line in fh.readlines()]
     expected = golden("carp/saveToCarpTxt_elem_lines")
@@ -107,12 +107,12 @@ def test_save_to_carp_txt_elem_lines(golden):
 
 
 def test_save_to_carp_txt_accepts_path_basename():
-    from imatools.io.carp_io import loadCarpMesh, saveToCarpTxt
+    from imatools.io.carp_io import loadCarpMesh, save_to_carp_txt
 
     pts, elem, _region, _lon = fx.carp_mesh()
     out_dir = Path(tempfile.mkdtemp())
 
-    saveToCarpTxt(pts, elem, out_dir / "out")  # Path, not str
+    save_to_carp_txt(pts, elem, out_dir / "out")  # Path, not str
 
     back_pts, back_elem, _back_region = loadCarpMesh(str(out_dir / "out"))
     np.testing.assert_allclose(back_pts, pts, rtol=1e-7)

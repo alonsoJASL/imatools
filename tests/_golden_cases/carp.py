@@ -6,7 +6,7 @@ Functions characterised:
   - ``read_pts``          — loadtxt float array from ``.pts`` file
   - ``read_elem``         — loadtxt int array from ``.elem`` file (Tr type, with/without tags)
   - ``read_lon``          — loadtxt float array from ``.lon`` file
-  - ``saveToCarpTxt``     — write pts + elem, captured via read-back of written text
+  - ``save_to_carp_txt``     — write pts + elem, captured via read-back of written text
   - ``readParsePts``      — validated read of ``.pts``, returns (nodes, numNodes)
 
 Intentionally SKIPPED (master bugs, no golden):
@@ -35,28 +35,28 @@ _BASE = str(fx.write_carp_mesh(_TMPDIR, "testmesh"))
 
 
 # ---------------------------------------------------------------------------
-# saveToCarpTxt helpers
+# save_to_carp_txt helpers
 # The function writes two files: <mshname>.pts and <mshname>.elem.
 # Capture their text content (list of lines) so the golden is stable.
 # ---------------------------------------------------------------------------
 
 
 def _capture_save_to_carp_txt_pts():
-    """Write pts+elem via saveToCarpTxt, read back the .pts file as a list of lines."""
+    """Write pts+elem via save_to_carp_txt, read back the .pts file as a list of lines."""
     pts, elem, _region, _lon = fx.carp_mesh()
     out_dir = tempfile.mkdtemp()
     mshname = os.path.join(out_dir, "out")
-    ioutils.saveToCarpTxt(pts, elem, mshname)
+    ioutils.save_to_carp_txt(pts, elem, mshname)
     with open(mshname + ".pts", encoding="utf-8") as fh:
         return [line.rstrip("\n") for line in fh.readlines()]
 
 
 def _capture_save_to_carp_txt_elem():
-    """Write pts+elem via saveToCarpTxt, read back the .elem file as a list of lines."""
+    """Write pts+elem via save_to_carp_txt, read back the .elem file as a list of lines."""
     pts, elem, _region, _lon = fx.carp_mesh()
     out_dir = tempfile.mkdtemp()
     mshname = os.path.join(out_dir, "out")
-    ioutils.saveToCarpTxt(pts, elem, mshname)
+    ioutils.save_to_carp_txt(pts, elem, mshname)
     with open(mshname + ".elem", encoding="utf-8") as fh:
         return [line.rstrip("\n") for line in fh.readlines()]
 
