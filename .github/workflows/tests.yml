@@ -22,11 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # pyproject declares requires-python = ">=3.9", so test the range we claim.
+      # pyproject declares requires-python = ">=3.10", so test the whole range we claim.
       # Testing only one version hid a use-after-free in dice_score: it read a freed
       # SimpleITK buffer, which happened to survive on 3.10 and not on 3.11+.
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
 

@@ -13,9 +13,12 @@ cd imatools
 pip install -e ".[dev]"
 ```
 
-Python 3.9+ is supported; CI runs on 3.10. The dependencies are heavy (VTK, ITK, SimpleITK,
-PyVista) but all install from wheels — no system packages needed beyond `libgl1` on headless
-Linux.
+Python 3.10+ is supported, and CI tests **every** supported version (3.10, 3.11, 3.12) —
+not just one. That matters more than it sounds: a use-after-free in `dice_score` survived
+undetected because it happened to read intact memory on 3.10 and only misbehaved on 3.11+.
+
+The dependencies are heavy (VTK, ITK, SimpleITK, PyVista) but all install from wheels — no
+system packages needed beyond `libgl1` on headless Linux.
 
 ## The gate
 

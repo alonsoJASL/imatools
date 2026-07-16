@@ -18,7 +18,7 @@ Medical image analysis and mesh handling tools for NIfTI, DICOM, and VTK formats
 ## Quick Install (Development)
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.10+
 - Git
 
 ### Installation
