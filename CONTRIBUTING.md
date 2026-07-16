@@ -1,7 +1,7 @@
 # Contributing to imatools
 
-Thanks for helping out. This file covers the things you could not guess from reading the
-code. Everything else — be reasonable, write tests, keep it readable — goes without saying.
+Thanks for helping out. This file covers the things you could not guess from reading the code. 
+Everything else, please be reasonable, write tests, keep it readable.
 
 **If you read only one section, read [The golden-master rule](#the-golden-master-rule).**
 
@@ -9,15 +9,16 @@ code. Everything else — be reasonable, write tests, keep it readable — goes 
 
 ```bash
 git clone https://github.com/alonsoJASL/imatools
+
 cd imatools
+conda create -n imatools python=3.10 -y 
+conda activate imatools 
+
 pip install -e ".[dev]"
 ```
 
-Python 3.10+ is supported, and CI tests **every** supported version (3.10, 3.11, 3.12) —
-not just one. That matters more than it sounds: a use-after-free in `dice_score` survived
-undetected because it happened to read intact memory on 3.10 and only misbehaved on 3.11+.
-
-The dependencies are heavy (VTK, ITK, SimpleITK, PyVista) but all install from wheels — no
+Python 3.10+ is supported, and CI tests **every** supported version (3.10, 3.11, 3.12). 
+The dependencies are heavy (VTK, ITK, SimpleITK, PyVista) but all install from wheels, no
 system packages needed beyond `libgl1` on headless Linux.
 
 ## The gate
@@ -26,14 +27,13 @@ Run this before you push. CI runs the same thing on every push to `main`/`develo
 on PRs to `main`:
 
 ```bash
-pytest tests/ -q -p no:cacheprovider   # the characterization suite
+pytest tests/ -q -p no:cacheprovider   # the characterisation suite
 pytest --nbmake ipynb/                 # tutorial notebooks are executed, not just collected
 black --check src/ tests/              # must be clean — blocking in CI
 ruff check src/ tests/                 # advisory — see below
 ```
 
-`-p no:cacheprovider` is deliberate: never trust a cached run when the whole point of the
-suite is detecting drift.
+`-p no:cacheprovider` is deliberate: never trust a cached run.
 
 ## The golden-master rule
 
