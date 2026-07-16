@@ -341,11 +341,20 @@ def fill_gaps(image1, image2=None, multilabel_images=False):
 
 
 def dice_score(true, pred):
+    """Dice score between two label images.
+
+    ``imview`` returns a *view* that does not own the image's buffer, so the
+    ``sitk.Image`` must outlive it. The view is bound to a new name (rather than
+    over the parameter) so the parameter keeps the image alive for the whole
+    call — rebinding dropped the caller's last reference when the argument was a
+    temporary, freeing the buffer while the view still pointed at it, and the sum
+    then read whatever landed in that memory.
+    """
     itk = _image()
-    true = itk.imview(true)
-    pred = itk.imview(pred)
-    intersection = (true * pred).sum()
-    return (2.0 * intersection) / (true.sum() + pred.sum())
+    true_view = itk.imview(true)
+    pred_view = itk.imview(pred)
+    intersection = (true_view * pred_view).sum()
+    return (2.0 * intersection) / (true_view.sum() + pred_view.sum())
 
 
 def compare_images(im1: sitk.Image, im2: sitk.Image, return_comparison=False):

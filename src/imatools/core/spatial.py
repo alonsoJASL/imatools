@@ -180,11 +180,13 @@ def create_image_at_plane_from_vector(
 
     resampled_im = resampler.Execute(image)
 
-    # Convert the 3D image to a 2D array
+    # Convert the 3D image to a 2D array. imview returns a view that does not own
+    # ``resampled_im``'s buffer, and that image is a local — it dies at return, so
+    # a view of it would dangle in the caller's hands. Copy the slice out.
     array = _image().imview(resampled_im)
 
     # Select the middle slice along the third dimension
     slice_index = array.shape[2] // 2
-    slice_2d = array[:, :, slice_index]
+    slice_2d = np.array(array[:, :, slice_index])
 
     return slice_2d
