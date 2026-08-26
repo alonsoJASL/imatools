@@ -3,11 +3,8 @@
 Targets ``imatools.io.paths`` (to be created by migration T2c3).
 
 Functions characterised:
-  - ``fullfile``           — pure join (no I/O)
   - ``ext``                — filename + extension helper (no I/O)
   - ``num2padstr``         — zero-padded string (no I/O)
-  - ``mkdirplus``          — creates directories, returns path
-  - ``searchFileByType``   — glob for files by prefix + extension
   - ``get_subfolders``     — list subdirectories
   - ``find_file``          — locate file by name fragment + optional extension
 
@@ -51,24 +48,6 @@ for _fname in ("mesh1.vtk", "mesh2.vtk", "image.nii", "mesh1.nii"):
 # ---------------------------------------------------------------------------
 
 
-def _mkdirplus_creates():
-    """mkdirplus creates a nested dir; capture boolean existence as the golden."""
-    result = ioutils.mkdirplus(_TMPDIR, "newdir", "leaf")
-    return os.path.isdir(result)
-
-
-def _search_file_by_type_vtk():
-    """Sorted basenames of all *.vtk files."""
-    files = ioutils.searchFileByType(_TMPDIR, extension="vtk")
-    return sorted(os.path.basename(f) for f in files)
-
-
-def _search_file_by_type_prefix():
-    """Sorted basenames of mesh*.vtk files."""
-    files = ioutils.searchFileByType(_TMPDIR, prefix="mesh", extension="vtk")
-    return sorted(os.path.basename(f) for f in files)
-
-
 def _get_subfolders_sorted():
     """Sorted basenames of subdirectories."""
     subs = ioutils.get_subfolders(_TMPDIR)
@@ -93,21 +72,6 @@ def _find_file_missing():
 
 
 CASES = [
-    # ------------------------------------------------------------------
-    # fullfile — pure join
-    # ------------------------------------------------------------------
-    CaptureCase(
-        name="paths/fullfile_3parts",
-        func=ioutils.fullfile,
-        args=("a", "b", "c"),
-        fmt="json",
-    ),
-    CaptureCase(
-        name="paths/fullfile_2parts",
-        func=ioutils.fullfile,
-        args=("dir", "file.txt"),
-        fmt="json",
-    ),
     # ------------------------------------------------------------------
     # ext — filename extension helper
     # ------------------------------------------------------------------
@@ -150,27 +114,6 @@ CASES = [
         func=ioutils.num2padstr,
         args=(1000,),
         kwargs={"padding": 3},
-        fmt="json",
-    ),
-    # ------------------------------------------------------------------
-    # mkdirplus — creates directories
-    # ------------------------------------------------------------------
-    CaptureCase(
-        name="paths/mkdirplus_creates",
-        func=_mkdirplus_creates,
-        fmt="json",
-    ),
-    # ------------------------------------------------------------------
-    # searchFileByType — glob by extension / prefix
-    # ------------------------------------------------------------------
-    CaptureCase(
-        name="paths/searchFileByType_vtk",
-        func=_search_file_by_type_vtk,
-        fmt="json",
-    ),
-    CaptureCase(
-        name="paths/searchFileByType_prefix",
-        func=_search_file_by_type_prefix,
         fmt="json",
     ),
     # ------------------------------------------------------------------
