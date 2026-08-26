@@ -91,6 +91,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     pmsk.set_defaults(func=handle_mask)
 
+    pmski = sub.add_parser(
+        "mask-inverse",
+        help="Keep voxels inside a binary mask, zero everything outside",
+        parents=[parent_parser],
+    )
+    pmski.add_argument("-mask", "--mask-image", type=Path, required=True, help="Mask image path")
+    pmski.add_argument(
+        "-outside-value",
+        "--outside-value",
+        type=int,
+        default=0,
+        help="Value to write outside the mask (default 0)",
+    )
+    pmski.set_defaults(func=handle_mask_inverse)
+
     pdel = sub.add_parser(
         "delete-labels",
         aliases=["remove-labels", "remove"],
@@ -379,6 +394,13 @@ def handle_mask(args):  # WORKFLOW: delegates to core/image
         _load(args.input), _load(args.mask_image), args.mask_value, ignore_im=ignore
     )
     return _write_output(out, args, "masked", args.mask_value)
+
+
+def handle_mask_inverse(args):  # WORKFLOW: delegates to core/image
+    out = core_image.simple_mask_inverse(
+        _load(args.input), _load(args.mask_image), args.outside_value
+    )
+    return _write_output(out, args, "mask_inverse", args.outside_value)
 
 
 def handle_delete_labels(args):  # THIN: replace each given label with 0

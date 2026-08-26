@@ -23,12 +23,13 @@ Operations on segmentation label maps.
 
 `add` · `cc-extract` · `cc-identify` · `cc-regionprops` · `chain` · `combine` ·
 `compare` · `extract-label` · `fill` · `gaps` · `inr` · `largest` · `mask` ·
-`merge-labels` · `morph-label` · `op` · `resample` · `sharp-regions` · `show` ·
-`show-voxels` · `split-label` · `swap`
+`mask-inverse` · `merge-labels` · `morph-label` · `op` · `resample` ·
+`sharp-regions` · `show` · `show-voxels` · `split-label` · `swap`
 
 ```bash
 imatools-segmentation extract-label -in image.nii -l 1 -out label1.nii
 imatools-segmentation mask -in image.nii -mask mask.nii
+imatools-segmentation mask-inverse -in image.nii -mask mask.nii
 ```
 
 ---

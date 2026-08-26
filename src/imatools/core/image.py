@@ -329,6 +329,24 @@ def simple_mask(im, mask, mask_value=0) -> sitk.Image:
     return new_im
 
 
+def simple_mask_inverse(im, mask, outside_value=0) -> sitk.Image:
+    """Keep voxels where ``mask > 0``; set everything else to ``outside_value``.
+
+    The inverse of :func:`simple_mask`, which overwrites the masked region and
+    keeps the rest.
+    """
+    logger.info(f"Inverse-masking image with outside value {outside_value}")
+    masked_im_array = imarray(im)
+    mask_array = imview(mask)
+
+    masked_im_array[mask_array == 0] = outside_value
+
+    new_im = sitk.GetImageFromArray(masked_im_array)
+    new_im.CopyInformation(im)
+
+    return new_im
+
+
 def get_mask_array_with_restrictions(im, mask, threshold=0, ignore_im=None) -> np.ndarray:
     mask_array = imarray(mask)
     if threshold > 0:

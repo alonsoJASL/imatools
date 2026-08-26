@@ -283,6 +283,77 @@ def test_mask_image(golden):
 
 
 # ---------------------------------------------------------------------------
+# simple_mask_inverse
+#
+# No golden: this function is new in the layered package and has no legacy
+# counterpart to capture from, so these are hand-written assertions.
+#
+# _bin is exactly the foreground of _lbl, so masking _lbl with it is a no-op
+# and would not discriminate. These tests use a half-volume slab mask instead,
+# which cuts across the fixture's labels: it covers label 1 (z 2:6) and label 3
+# (z 3:5) but excludes label 2 (z 6:10).
+# ---------------------------------------------------------------------------
+
+
+def _slab_mask():
+    """Binary mask covering z < 6, sharing _lbl's geometry."""
+    import SimpleITK as sitk  # noqa: N813
+
+    arr = np.zeros((12, 12, 12), dtype=np.uint8)
+    arr[:6, :, :] = 1
+    mask = sitk.GetImageFromArray(arr)
+    mask.CopyInformation(_lbl)
+    return mask
+
+
+_SLAB = _slab_mask()
+
+
+def test_simple_mask_inverse_keeps_mask_region():
+    from imatools.core.image import simple_mask_inverse
+
+    result = _im_arr(simple_mask_inverse(_lbl, _SLAB))
+    source, mask = _im_arr(_lbl), _im_arr(_SLAB)
+
+    np.testing.assert_array_equal(result[mask > 0], source[mask > 0])
+    np.testing.assert_array_equal(result[mask == 0], 0)
+    # the mask must actually cut something, else the test proves nothing
+    assert (source[mask == 0] > 0).any()
+
+
+def test_simple_mask_inverse_outside_value():
+    from imatools.core.image import simple_mask_inverse
+
+    result = _im_arr(simple_mask_inverse(_lbl, _SLAB, outside_value=7))
+    source, mask = _im_arr(_lbl), _im_arr(_SLAB)
+
+    np.testing.assert_array_equal(result[mask > 0], source[mask > 0])
+    np.testing.assert_array_equal(result[mask == 0], 7)
+
+
+def test_simple_mask_inverse_preserves_geometry():
+    from imatools.core.image import simple_mask_inverse
+
+    result = simple_mask_inverse(_lbl, _SLAB)
+
+    assert result.GetSize() == _lbl.GetSize()
+    assert result.GetSpacing() == _lbl.GetSpacing()
+    assert result.GetOrigin() == _lbl.GetOrigin()
+    assert result.GetDirection() == _lbl.GetDirection()
+
+
+def test_simple_mask_inverse_is_inverse_of_simple_mask():
+    from imatools.core.image import simple_mask, simple_mask_inverse
+
+    kept = _im_arr(simple_mask_inverse(_lbl, _SLAB))
+    dropped = _im_arr(simple_mask(_lbl, _SLAB))
+
+    # each zeroes what the other keeps, so the two partition the input
+    assert not ((kept != 0) & (dropped != 0)).any()
+    np.testing.assert_array_equal(kept + dropped, _im_arr(_lbl))
+
+
+# ---------------------------------------------------------------------------
 # swap_axes
 # ---------------------------------------------------------------------------
 
