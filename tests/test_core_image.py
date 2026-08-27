@@ -75,6 +75,82 @@ def test_get_num_nonzero_voxels(golden):
 
 
 # ---------------------------------------------------------------------------
+# count_voxels_with_value
+#
+# No golden: new function, nothing in the legacy package to capture from.
+# The fixture below is the real use case — a greyscale image with genuine zeros
+# INSIDE the region of interest, plus a matching voxel outside it.
+# ---------------------------------------------------------------------------
+
+
+def _grey_and_roi():
+    """Greyscale image with zeros inside the ROI, and a stray 7 outside it."""
+    import SimpleITK as sitk  # noqa: N813
+
+    grey = np.zeros((6, 6, 6), dtype=np.uint8)
+    grey[1:5, 1:5, 1:5] = 7  # the ROI block
+    grey[2, 2, 2] = 0  # genuine zero inside the ROI
+    grey[3, 3, 3] = 0  # another
+    grey[0, 0, 0] = 7  # a 7 OUTSIDE the ROI, must never be counted
+
+    roi = np.zeros((6, 6, 6), dtype=np.uint8)
+    roi[1:5, 1:5, 1:5] = 1
+
+    return sitk.GetImageFromArray(grey), sitk.GetImageFromArray(roi), grey, roi
+
+
+def test_count_voxels_with_value_zero_inside_mask():
+    """The motivating case: zeros inside an ROI must not be confused with the
+    background that masking writes outside it."""
+    from imatools.core.image import count_voxels_with_value
+
+    im, mask, grey, roi = _grey_and_roi()
+
+    result = count_voxels_with_value(im, 0, mask=mask)
+    assert result == int(((grey == 0) & (roi > 0)).sum())
+    assert result == 2
+
+
+def test_count_voxels_with_value_excludes_outside_mask():
+    """A matching voxel outside the mask is not counted."""
+    from imatools.core.image import count_voxels_with_value
+
+    im, mask, grey, roi = _grey_and_roi()
+
+    inside = count_voxels_with_value(im, 7, mask=mask)
+    whole = count_voxels_with_value(im, 7)
+
+    assert inside == int(((grey == 7) & (roi > 0)).sum())
+    assert whole == int((grey == 7).sum())
+    assert whole == inside + 1  # exactly the stray voxel at (0, 0, 0)
+
+
+def test_count_voxels_with_value_no_mask_counts_whole_image():
+    from imatools.core.image import count_voxels_with_value
+
+    im, _, grey, _ = _grey_and_roi()
+
+    assert count_voxels_with_value(im, 0) == int((grey == 0).sum())
+
+
+def test_count_voxels_with_value_matches_manual_composition():
+    """Pins the binarise-then-mask ordering the docstring warns about."""
+    from imatools.core.image import (
+        count_voxels_with_value,
+        get_num_nonzero_voxels,
+        simple_mask_inverse,
+    )
+    from imatools.core.label import extract_single_label
+
+    im, mask, _, _ = _grey_and_roi()
+
+    manual = get_num_nonzero_voxels(
+        simple_mask_inverse(extract_single_label(im, 0, binarise=True), mask)
+    )
+    assert count_voxels_with_value(im, 0, mask=mask) == manual
+
+
+# ---------------------------------------------------------------------------
 # zeros_like
 # ---------------------------------------------------------------------------
 

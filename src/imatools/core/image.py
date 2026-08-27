@@ -105,6 +105,24 @@ def get_num_nonzero_voxels(image: sitk.Image) -> int:
     return np.count_nonzero(image_array)
 
 
+def count_voxels_with_value(im, value, mask=None) -> int:
+    """Count voxels equal to ``value``, optionally only inside ``mask > 0``.
+
+    Binarisation happens BEFORE masking, deliberately. Masking the source image
+    first would fill the outside with 0, making the region's genuine zeros
+    indistinguishable from discarded background, so a count of value 0 would be
+    wrong. Marking the wanted voxels as 1 first means the fill value cannot
+    collide with them.
+
+    The comparison is exact equality, so this is reliable for integer-valued
+    data but not for arbitrary float intensities.
+    """
+    hits = _label().extract_single_label(im, value, binarise=True)
+    if mask is not None:
+        hits = simple_mask_inverse(hits, mask)
+    return get_num_nonzero_voxels(hits)
+
+
 def morph_operations(image, operation: str, radius=3, kernel_type="ball"):
     """
     Performs a morphological operation on a binary image with a binary ball of a given radius.

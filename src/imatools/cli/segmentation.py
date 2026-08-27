@@ -64,14 +64,40 @@ def _build_parser() -> argparse.ArgumentParser:
 
     pe = sub.add_parser(
         "extract-label",
-        help="Extract one label, binarise, save as new image",
+        help="Extract one or more labels, binarise (or keep values), save as new image",
         parents=[parent_parser],
     )
-    _add_label(pe)
+    _add_label(pe, multiple=True)
+    pe.add_argument(
+        "--keep-values",
+        action="store_true",
+        help="Keep each label's original value instead of binarising to 1",
+    )
     pe.set_defaults(func=handle_extract_label)
 
     ps = sub.add_parser("show", help="Show labels present in the image", parents=[parent_parser])
     ps.set_defaults(func=handle_show_labels)  # no _add_label: 'show' takes no label
+
+    pcnt = sub.add_parser(
+        "count",
+        help="Count voxels of a value, optionally only inside a mask",
+        parents=[parent_parser],
+    )
+    _add_label(pcnt, help_str="Voxel value to count (exact match; not for float intensities)")
+    pcnt.add_argument(
+        "-mask",
+        "--mask-image",
+        type=Path,
+        default=None,
+        help="Restrict the count to voxels inside this mask (optional)",
+    )
+    pcnt.add_argument(
+        "--units",
+        choices=["mm3", "mL"],
+        default="mm3",
+        help="Units for the reported volume (default mm3)",
+    )
+    pcnt.set_defaults(func=handle_count)
 
     pmsk = sub.add_parser(
         "mask",
@@ -378,13 +404,42 @@ def handle_morph_label(args):  # WORKFLOW: delegates to core/segmentation
 
 
 def handle_extract_label(args):  # WORKFLOW: delegates to core/label
-    out = core_label.extract_single_label(_load(args.input), args.label, binarise=True)
-    return _write_output(out, args, "extracted", args.label)
+    im = _load(args.input)
+    binarise = not args.keep_values
+    label_images = [
+        core_label.extract_single_label(im, label, binarise=binarise) for label in args.label
+    ]
+    # single label: same image, same output name (int token -> zero-padded) as before
+    if len(label_images) == 1:
+        return _write_output(label_images[0], args, "extracted", args.label[0])
+
+    out = core_label.merge_label_images(label_images)
+    return _write_output(out, args, "extracted", "_".join(map(str, args.label)))
 
 
 def handle_show_labels(args):  # INSPECT: report labels present, no output file
     labels = core_label.get_labels(_load(args.input))
     logger.info("Labels present in %s: %s", args.input, labels)
+    return 0
+
+
+def handle_count(args):  # INSPECT: report a voxel count, no output file
+    im = _load(args.input)
+    mask = _load(args.mask_image) if args.mask_image else None
+    count = core_image.count_voxels_with_value(im, args.label, mask=mask)
+
+    # voxel volume from spacing; kept inline (see plan: only the 2nd occurrence
+    # in the tree, so the rule of three does not yet call for a helper)
+    spacing = im.GetSpacing()
+    volume = count * spacing[0] * spacing[1] * spacing[2]
+    if args.units == "mL":
+        volume *= 1e-3
+    unit_str = "mL" if args.units == "mL" else "mm³"
+
+    where = " (inside mask)" if mask is not None else ""
+    logger.info(
+        "Value %d%s: %d voxels (%.3f %s)", args.label, where, count, round(volume, 3), unit_str
+    )
     return 0
 
 

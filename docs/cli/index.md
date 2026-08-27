@@ -22,14 +22,16 @@ authoritative flags.
 Operations on segmentation label maps.
 
 `add` · `cc-extract` · `cc-identify` · `cc-regionprops` · `chain` · `combine` ·
-`compare` · `extract-label` · `fill` · `gaps` · `inr` · `largest` · `mask` ·
-`mask-inverse` · `merge-labels` · `morph-label` · `op` · `resample` ·
+`compare` · `count` · `extract-label` · `fill` · `gaps` · `inr` · `largest` ·
+`mask` · `mask-inverse` · `merge-labels` · `morph-label` · `op` · `resample` ·
 `sharp-regions` · `show` · `show-voxels` · `split-label` · `swap`
 
 ```bash
 imatools-segmentation extract-label -in image.nii -l 1 -out label1.nii
+imatools-segmentation extract-label -in image.nii -l 1 3 --keep-values
 imatools-segmentation mask -in image.nii -mask mask.nii
 imatools-segmentation mask-inverse -in image.nii -mask mask.nii
+imatools-segmentation count -in greyscale.nii -l 0 -mask roi.nii
 ```
 
 ---

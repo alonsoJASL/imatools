@@ -92,6 +92,38 @@ def test_extract_single_label_binarise(golden):
     np.testing.assert_array_equal(result, expected)
 
 
+def _uint16_label_image():
+    """Label map wider than uint8: labels 300 and 4000 on a uint16 grid."""
+    arr = np.zeros((4, 4, 4), dtype=np.uint16)
+    arr[0] = 300
+    arr[1] = 4000
+    im = sitk.GetImageFromArray(arr)
+    return im
+
+
+def test_extract_single_label_keeps_wide_dtype():
+    """The output used to be cast to uint8 unconditionally, wrapping 300 -> 44.
+    A label can only be extracted if the input already holds it, so preserving
+    the input dtype is always enough (unlike binarise, which must widen)."""
+    from imatools.core.label import extract_single_label
+
+    result = _to_arr(extract_single_label(_uint16_label_image(), 300, False))
+
+    assert result.dtype == np.uint16
+    assert set(np.unique(result).tolist()) == {0, 300}
+
+
+def test_extract_single_label_uint8_input_stays_uint8():
+    """The uint8 path is untouched by the dtype fix (this is what keeps the
+    golden-backed cases above green)."""
+    from imatools.core.label import extract_single_label
+
+    result = _to_arr(extract_single_label(fx.label_image(), 2, False))
+
+    assert result.dtype == np.uint8
+    assert set(np.unique(result).tolist()) == {0, 2}
+
+
 # ---------------------------------------------------------------------------
 # merge_label_images
 # ---------------------------------------------------------------------------
@@ -104,6 +136,19 @@ def test_merge_label_images(golden):
     result = _to_arr(merge_label_images([im0, im1]))
     expected = golden("label/merge_label_images")
     np.testing.assert_array_equal(result, expected)
+
+
+def test_merge_label_images_keeps_wide_dtype():
+    """The accumulator used to be a hardcoded uint8 image, so merging wider
+    inputs threw 'sitk::ERROR ... AddImageFilter' on a pixel-type mismatch."""
+    from imatools.core.label import extract_single_label, merge_label_images
+
+    im = _uint16_label_image()
+    parts = [extract_single_label(im, label, False) for label in (300, 4000)]
+    result = _to_arr(merge_label_images(parts))
+
+    assert result.dtype == np.uint16
+    assert set(np.unique(result).tolist()) == {0, 300, 4000}
 
 
 # ---------------------------------------------------------------------------

@@ -57,8 +57,13 @@ def binarise(image, background=0, foreground=1):
 
 
 def extract_single_label(image, label, binarise=False) -> sitk.Image:
-    """
-    Extracts a single label from a label map image.
+    """Extract a single label from a label map image.
+
+    The output keeps the input's dtype. Unlike :func:`binarise`, no widening is
+    needed: the label must already be present in the image to be extracted, so
+    the input dtype always holds it. The output used to be cast to uint8
+    unconditionally, which silently truncated a kept value on wider label maps
+    (label 300 on a uint16 input came back as 44).
     """
     itk = _image()
     image_array = itk.imview(image)
@@ -68,15 +73,17 @@ def extract_single_label(image, label, binarise=False) -> sitk.Image:
     label_array[np.equal(image_array, label)] = 1 if binarise else label
     label_image = sitk.GetImageFromArray(label_array)
     label_image.CopyInformation(image)
-    label_image = sitk.Cast(label_image, sitk.sitkUInt8)
     return label_image
 
 
 def merge_label_images(images):
+    """Merge a list of label images into a single label image.
+
+    The accumulator takes its pixel type from the first input, so a merge of
+    non-uint8 images works; a hardcoded uint8 accumulator made ``Add`` throw on
+    a pixel-type mismatch.
     """
-    Merges a list of label images into a single label image.
-    """
-    merged_image = sitk.Image(images[0].GetSize(), sitk.sitkUInt8)
+    merged_image = sitk.Image(images[0].GetSize(), images[0].GetPixelID())
     merged_image.CopyInformation(images[0])
     for image in images:
         merged_image = merged_image + image
